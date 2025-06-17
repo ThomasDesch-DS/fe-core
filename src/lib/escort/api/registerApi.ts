@@ -1,4 +1,3 @@
-import { goto } from '$app/navigation';
 import type { FormData } from '../types';
 import { stepStore } from '../store/formStore';
 
@@ -77,7 +76,7 @@ export async function submitRegistration(formData: FormData) {
         },
         appearance: {
             heightInCm: parseInt(formData.heightInCm),
-            weightInCm: parseInt(formData.weightInCm),
+            weightInKg: parseInt(formData.weightInKg),
             breastSize: formData.breastSize,
             buttSize: formData.buttSize,
             eyeColor: formData.eyeColor,
@@ -155,7 +154,7 @@ export async function submitRegistration(formData: FormData) {
         const data = await res.json();
         
         if (res.ok) {
-            goto('/dashboard');
+            // Don't redirect - let the component handle the success state
             return true;
         } else {
             // Handle specific error codes

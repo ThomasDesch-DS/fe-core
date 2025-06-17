@@ -46,7 +46,7 @@ export interface FormData {
     
     // Physical attributes
     heightInCm: string;
-    weightInCm: string;
+    weightInKg: string;
     nationality: string;
     hairColor: string;
     eyeColor: string;

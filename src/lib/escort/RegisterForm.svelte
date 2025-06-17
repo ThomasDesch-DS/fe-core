@@ -1,6 +1,5 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { writable } from 'svelte/store';
     import { stepStore } from './store/formStore';
     import type { DaySlots, FormData } from './types';
     
@@ -36,7 +35,7 @@
         
         // Physical attributes
         heightInCm: '',
-        weightInCm: '',
+        weightInKg: '',
         nationality: '',
         hairColor: '',
         eyeColor: '',

@@ -25,8 +25,8 @@
     }
     
     function handleWeight() { 
-        const w = parseInt(formData.weightInCm); 
-        if(!w || w < 30) return; 
+        const w = parseInt(formData.weightInKg);
+        if(!w || w < 30 || w > 150) return;
         stepStore.set(14); 
     }
     
@@ -113,12 +113,12 @@
     <h2 class="text-3xl font-bold text-white mb-6">Ahora tu peso en kg</h2>
     <TextInput 
         type="number" 
-        bind:value={formData.weightInCm} 
+        bind:value={formData.weightInKg}
         min="30" 
         placeholder="Ej: 65" 
     />
     <Button onClick={handleWeight}>
-        { formData.weightInCm.trim() ? `¡Peso: ${formData.weightInCm}kg!` : 'Siguiente' }
+        { formData.weightInKg.trim() ? `¡Peso: ${formData.weightInKg}kg!` : 'Siguiente' }
     </Button>
 {/if}
 
