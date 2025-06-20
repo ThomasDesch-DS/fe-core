@@ -12,7 +12,7 @@
     <!-- Botón de “publicá tu aviso acá” al costado derecho -->
     <div class="flex-1 text-right">
         <a
-                href="/publicar-anuncio"
+                href="/dashboard/register"
                 class="inline-block px-4 py-2 border border-white rounded hover:bg-white hover:text-black transition"
         >
             Publicá tu aviso acá
