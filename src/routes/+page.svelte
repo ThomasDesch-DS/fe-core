@@ -84,8 +84,11 @@
         <img
                 src={getMediaUrl(escort.id, escort.media, 'profile')}
                 alt={`Foto de ${escort.displayName}`}
-                class="w-full h-[28rem] object-cover"
+                class="w-full h-[28rem] object-cover
+         transition-transform duration-300 ease-in-out
+         hover:scale-105 active:scale-105"
         />
+
 
         <div class="p-6 text-white text-center">
           <h2 class="text-xl font-semibold">
