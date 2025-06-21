@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
     import { fade, scale } from 'svelte/transition';
     import { authStore } from '$lib/escort/store/authStore';
     import { logout } from '$lib/escort/api/authApi';
@@ -14,7 +14,6 @@
     });
     onDestroy(unsubscribe);
 
-    // Guardar perfil de escort desde authStore.user.profile
     $: escort = authState.user?.profile || null;
 
     let isLoggingOut = false;
@@ -30,6 +29,10 @@
             isLoggingOut = false;
         }
     };
+
+    function getMediaUrl(escortId: string, fileName: string, type: 'profile' | 'pics'): string {
+        return `https://nexus.daisyssecrets.com/escorts/${escortId}/${type}/${fileName}`;
+    }
 </script>
 
 <style>
@@ -49,6 +52,9 @@
     .badge {
         @apply text-xs font-semibold px-2 py-1 rounded bg-neutral-800 text-white;
     }
+    .avatar {
+        @apply w-16 h-16 rounded-full object-cover;
+    }
 </style>
 
 {#if authState.isLoading}
@@ -56,20 +62,29 @@
         <p>Cargando perfil...</p>
     </div>
 {:else if !authState.isAuthenticated}
-    <script> goto('/dashboard/login'); </script>
+    <script>goto('/dashboard/login');</script>
 {:else}
     <div class="min-h-screen bg-black text-white p-6 font-sans">
         <header class="flex justify-between items-center mb-8">
-            <div>
-                <h1 class="text-3xl font-bold">Dashboard: {escort.displayName}</h1>
-                <p class="text-gray-500 mt-1">Administra tu publicación fácilmente.</p>
+            <div class="flex items-center">
+                <img
+                        src={getMediaUrl(escort.id, escort.media.profilePicture, 'profile')}
+                        alt="Avatar"
+                        class="w-24 h-24 rounded-full mr-4"
+                />
+
+
+                <div>
+                    <h1 class="text-3xl font-bold">¡Bienvenida, {escort.displayName}!</h1>
+                    <p class="text-gray-500 mt-1">Gestiona tu perfil y servicios con facilidad.</p>
+                </div>
             </div>
             <button
                     on:click={handleLogout}
                     class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
-                    disabled={isLoggingOut}>
-                {#if isLoggingOut} Salir...
-                {:else} Salir {/if}
+                    disabled={isLoggingOut}
+            >
+                {#if isLoggingOut}Salir...{:else}Cerrar Sesión{/if}
             </button>
         </header>
 
@@ -80,7 +95,8 @@
                         class="tab-btn"
                         class:tab-active={activeTab === tab}
                         class:tab-inactive={activeTab !== tab}
-                        transition:scale={{ duration: 100 }}>
+                        transition:scale={{ duration: 100 }}
+                >
                     {tab}
                 </button>
             {/each}
@@ -97,7 +113,7 @@
                     <ul class="space-y-1 text-gray-400">
                         <li><strong class="text-white">Nombre:</strong> {escort.basicInfo.name} {escort.basicInfo.surname}</li>
                         <li><strong class="text-white">Edad:</strong> {escort.basicInfo.age} años</li>
-                        <li><strong class="text-white">Doc:</strong> {escort.basicInfo.documentation}</li>
+                        <li><strong class="text-white">Documento:</strong> {escort.basicInfo.documentation}</li>
                     </ul>
                 </div>
                 <div class="card">
@@ -123,11 +139,19 @@
             <section class="space-y-6" transition:fade>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {#each escort.media.pics as pic}
-                        <img src={`/media/${pic.media}`} alt="Foto {pic.order}" class="rounded-lg hover:opacity-90 transition-opacity" />
+                        <img
+                                src={getMediaUrl(escort.id, pic.media, 'pics')}
+                                alt="Foto {pic.order}"
+                                class="rounded-lg hover:opacity-90 transition-opacity"
+                        />
                     {/each}
                 </div>
                 {#if escort.media.videos.length}
-                    <video src={`/media/${escort.media.videos[0].media}`} controls class="w-full rounded-lg hover:opacity-90 transition-opacity"></video>
+                    <video
+                            src={getMediaUrl(escort.id, escort.media.videos[0].media, 'pics')}
+                            controls
+                            class="w-full rounded-lg hover:opacity-90 transition-opacity"
+                    ></video>
                 {/if}
             </section>
         {/if}
@@ -140,7 +164,7 @@
                         <span class="badge">{service.replace(/_/g, ' ')}</span>
                     {/each}
                 </div>
-                <p class="mt-4 text-gray-400"><strong class="text-white">Precio x hora:</strong> {escort.servicesInfo.hourPrice.amount} {escort.servicesInfo.hourPrice.currency}</p>
+                <p class="mt-4 text-gray-400"><strong class="text-white">Precio por hora:</strong> {escort.servicesInfo.hourPrice.amount} {escort.servicesInfo.hourPrice.currency}</p>
             </section>
         {/if}
 

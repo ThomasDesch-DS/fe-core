@@ -19,7 +19,7 @@ export async function login(email: string, password: string): Promise<boolean> {
             authStore.login({
                 id: response.id,
                 email: response.email,
-                displayName: response.basicInfo?.displayName || email,
+                displayName: response.basicInfo?.displayName || "Escort",
                 profile: response // Store the full profile for later use
             });
             
