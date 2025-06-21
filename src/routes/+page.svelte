@@ -9,6 +9,7 @@
     age: number;
     location: string;
     onlyVirtual: boolean;
+    slug: string
   }
   interface ApiResponse {
     content: Escort[];
@@ -69,7 +70,7 @@
   <div class="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-8 place-items-center">
   {#each escorts as escort (escort.id)}
       <a
-              href={`/escort/${encodeURIComponent(escort.displayName)}`}
+              href={`/escort/${encodeURIComponent(escort.slug)}`}
               class="relative bg-black rounded-lg overflow-hidden shadow-lg flex flex-col items-center hover:opacity-90 transition-opacity max-w-md"
       >
       <div class="relative bg-black rounded-lg overflow-hidden shadow-lg flex flex-col items-center">
