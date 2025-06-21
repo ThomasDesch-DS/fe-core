@@ -1,14 +1,28 @@
 <script>
+    import { fade, scale } from 'svelte/transition';
     import { authStore } from '$lib/escort/store/authStore';
     import { logout } from '$lib/escort/api/authApi';
     import { goto } from '$app/navigation';
-    
+    import { onDestroy } from 'svelte';
+
+    let activeTab = 'Perfil';
+    const tabs = ['Perfil', 'Media', 'Servicios', 'Disponibilidad', 'Contacto'];
+
+    let authState;
+    const unsubscribe = authStore.subscribe(state => {
+        authState = state;
+    });
+    onDestroy(unsubscribe);
+
+    // Guardar perfil de escort desde authStore.user.profile
+    $: escort = authState.user?.profile || null;
+
     let isLoggingOut = false;
-    
     const handleLogout = async () => {
         isLoggingOut = true;
         try {
             await logout();
+            authStore.logout();
             goto('/dashboard/login');
         } catch (error) {
             console.error('Logout failed:', error);
@@ -18,54 +32,136 @@
     };
 </script>
 
-<div class="min-h-screen bg-black text-white p-8">
-    <div class="max-w-4xl mx-auto">
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-3xl font-bold">Dashboard</h1>
-            <button 
-                on:click={handleLogout}
-                class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
-                disabled={isLoggingOut}
-            >
-                {isLoggingOut ? 'Cerrando sesión...' : 'Cerrar sesión'}
-            </button>
-        </div>
-        
-        {#if $authStore.user}
-            <div class="bg-gray-900 p-6 rounded-lg mb-6">
-                <h2 class="text-xl font-semibold mb-4">Bienvenido, {$authStore.user.displayName || $authStore.user.email}</h2>
-                <p class="text-gray-400">Esta es tu área personal de gestión.</p>
-            </div>
-        {:else}
-            <div class="bg-gray-900 p-6 rounded-lg mb-6">
-                <p class="text-gray-400">Cargando información de usuario...</p>
-            </div>
-        {/if}
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-gray-900 p-6 rounded-lg">
-                <h3 class="text-lg font-semibold mb-3">Perfil</h3>
-                <p class="text-gray-400 mb-4">Administra tu información personal y de perfil.</p>
-                <button class="text-blue-400 hover:text-blue-300 transition">Editar perfil</button>
-            </div>
-            
-            <div class="bg-gray-900 p-6 rounded-lg">
-                <h3 class="text-lg font-semibold mb-3">Servicios</h3>
-                <p class="text-gray-400 mb-4">Gestiona tus servicios y disponibilidad.</p>
-                <button class="text-blue-400 hover:text-blue-300 transition">Administrar servicios</button>
-            </div>
-            
-            <div class="bg-gray-900 p-6 rounded-lg">
-                <h3 class="text-lg font-semibold mb-3">Mensajes</h3>
-                <p class="text-gray-400 mb-4">Revisa tus mensajes y contactos.</p>
-                <button class="text-blue-400 hover:text-blue-300 transition">Ver mensajes</button>
-            </div>
-            
-            <div class="bg-gray-900 p-6 rounded-lg">
-                <h3 class="text-lg font-semibold mb-3">Estadísticas</h3>
-                <p class="text-gray-400 mb-4">Analiza las visitas y el rendimiento de tu perfil.</p>
-                <button class="text-blue-400 hover:text-blue-300 transition">Ver estadísticas</button>
-            </div>
-        </div>
+<style>
+    /* Vercel-like theme */
+    .tab-btn {
+        @apply py-2 px-4 font-medium transition;
+    }
+    .tab-active {
+        @apply text-white border-b-2 border-white;
+    }
+    .tab-inactive {
+        @apply text-gray-500 hover:text-white;
+    }
+    .card {
+        @apply bg-neutral-900 p-4 rounded-lg;
+    }
+    .badge {
+        @apply text-xs font-semibold px-2 py-1 rounded bg-neutral-800 text-white;
+    }
+</style>
+
+{#if authState.isLoading}
+    <div class="min-h-screen flex items-center justify-center bg-black text-white">
+        <p>Cargando perfil...</p>
     </div>
-</div>
+{:else if !authState.isAuthenticated}
+    <script> goto('/dashboard/login'); </script>
+{:else}
+    <div class="min-h-screen bg-black text-white p-6 font-sans">
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold">Dashboard: {escort.displayName}</h1>
+                <p class="text-gray-500 mt-1">Administra tu publicación fácilmente.</p>
+            </div>
+            <button
+                    on:click={handleLogout}
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+                    disabled={isLoggingOut}>
+                {#if isLoggingOut} Salir...
+                {:else} Salir {/if}
+            </button>
+        </header>
+
+        <nav class="flex space-x-6 border-b border-gray-700 mb-8">
+            {#each tabs as tab}
+                <button
+                        on:click={() => (activeTab = tab)}
+                        class="tab-btn"
+                        class:tab-active={activeTab === tab}
+                        class:tab-inactive={activeTab !== tab}
+                        transition:scale={{ duration: 100 }}>
+                    {tab}
+                </button>
+            {/each}
+        </nav>
+
+        {#if activeTab === 'Perfil'}
+            <section class="grid md:grid-cols-2 gap-6" transition:fade>
+                <div class="card">
+                    <h2 class="text-xl font-semibold mb-2">Descripción</h2>
+                    <p class="text-gray-400 leading-relaxed">{escort.description}</p>
+                </div>
+                <div class="card">
+                    <h2 class="text-xl font-semibold mb-2">Info Básica</h2>
+                    <ul class="space-y-1 text-gray-400">
+                        <li><strong class="text-white">Nombre:</strong> {escort.basicInfo.name} {escort.basicInfo.surname}</li>
+                        <li><strong class="text-white">Edad:</strong> {escort.basicInfo.age} años</li>
+                        <li><strong class="text-white">Doc:</strong> {escort.basicInfo.documentation}</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h2 class="text-xl font-semibold mb-2">Apariencia</h2>
+                    <ul class="space-y-1 text-gray-400">
+                        <li><strong class="text-white">Altura:</strong> {escort.appearance.heightInCm} cm</li>
+                        <li><strong class="text-white">Peso:</strong> {escort.appearance.weightInKg} kg</li>
+                        <li><strong class="text-white">Cabello:</strong> {escort.appearance.hairColor}</li>
+                        <li><strong class="text-white">Ojos:</strong> {escort.appearance.eyeColor}</li>
+                        <li><strong class="text-white">Métricas:</strong> {escort.appearance.bust}/{escort.appearance.waist}/{escort.appearance.hips} cm</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h2 class="text-xl font-semibold mb-2">Contacto</h2>
+                    {#each escort.contactMethod as c}
+                        <p class="text-gray-400"><strong class="text-white">{c.type}:</strong> {c.value}</p>
+                    {/each}
+                </div>
+            </section>
+        {/if}
+
+        {#if activeTab === 'Media'}
+            <section class="space-y-6" transition:fade>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {#each escort.media.pics as pic}
+                        <img src={`/media/${pic.media}`} alt="Foto {pic.order}" class="rounded-lg hover:opacity-90 transition-opacity" />
+                    {/each}
+                </div>
+                {#if escort.media.videos.length}
+                    <video src={`/media/${escort.media.videos[0].media}`} controls class="w-full rounded-lg hover:opacity-90 transition-opacity"></video>
+                {/if}
+            </section>
+        {/if}
+
+        {#if activeTab === 'Servicios'}
+            <section transition:fade>
+                <h2 class="text-xl font-semibold mb-4">Servicios & Fantasías</h2>
+                <div class="flex flex-wrap gap-2">
+                    {#each [...escort.servicesInfo.escortServices, ...escort.servicesInfo.escortFantasies, ...escort.servicesInfo.massageType, ...escort.servicesInfo.virtualServices] as service}
+                        <span class="badge">{service.replace(/_/g, ' ')}</span>
+                    {/each}
+                </div>
+                <p class="mt-4 text-gray-400"><strong class="text-white">Precio x hora:</strong> {escort.servicesInfo.hourPrice.amount} {escort.servicesInfo.hourPrice.currency}</p>
+            </section>
+        {/if}
+
+        {#if activeTab === 'Disponibilidad'}
+            <section class="grid grid-cols-2 sm:grid-cols-4 gap-4" transition:fade>
+                {#each escort.availability.schedule as day}
+                    <div class="card text-center">
+                        <p class="font-semibold text-white">{day.day}</p>
+                        <p class="text-gray-400">{day.slots[0].startHourWithMinutes}</p>
+                    </div>
+                {/each}
+            </section>
+        {/if}
+
+        {#if activeTab === 'Contacto'}
+            <section class="card max-w-md mx-auto text-center" transition:scale={{ duration: 100 }}>
+                <h2 class="text-xl font-semibold mb-2">Contacto Directo</h2>
+                {#each escort.contactMethod as c}
+                    <p class="text-gray-400"><strong class="text-white">{c.type}:</strong> {c.value}</p>
+                {/each}
+            </section>
+        {/if}
+    </div>
+{/if}
