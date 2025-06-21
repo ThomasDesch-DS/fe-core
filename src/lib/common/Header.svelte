@@ -4,9 +4,12 @@
 
     <!-- Logo / título centrado -->
     <div class="flex-1 text-center">
-        <a href="/" class="text-xl font-semibold hover:opacity-80 transition">
+        <a href="/"
+           class="text-2xl sm:text-3xl md:text-4xl font-semibold hover:opacity-80 transition"
+        >
             Daisy's Secrets
         </a>
+
     </div>
 
     <!-- Botón de “publicá tu aviso acá” al costado derecho -->

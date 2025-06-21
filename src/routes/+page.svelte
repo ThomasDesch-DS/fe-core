@@ -66,11 +66,11 @@
 </script>
 
 <main class="bg-black min-h-screen py-8 px-4">
-  <div class="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8 place-items-center">
-    {#each escorts as escort (escort.id)}
+  <div class="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-8 place-items-center">
+  {#each escorts as escort (escort.id)}
       <a
               href={`/escort/${encodeURIComponent(escort.displayName)}`}
-              class="relative bg-black rounded-lg overflow-hidden shadow-lg flex flex-col items-center hover:opacity-90 transition-opacity"
+              class="relative bg-black rounded-lg overflow-hidden shadow-lg flex flex-col items-center hover:opacity-90 transition-opacity max-w-md"
       >
       <div class="relative bg-black rounded-lg overflow-hidden shadow-lg flex flex-col items-center">
         {#if escort.onlyVirtual}
@@ -84,7 +84,7 @@
         <img
                 src={getMediaUrl(escort.id, escort.media, 'profile')}
                 alt={`Foto de ${escort.displayName}`}
-                class="w-full h-64 object-cover"
+                class="w-full h-[28rem] object-cover"
         />
 
         <div class="p-6 text-white text-center">
@@ -96,7 +96,7 @@
           </p>
         </div>
       </div>
-      </a>>
+      </a>
     {/each}
   </div>
 
