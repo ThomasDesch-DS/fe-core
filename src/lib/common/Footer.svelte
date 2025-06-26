@@ -29,7 +29,7 @@
         <!-- Botón para publicar aviso -->
         <div class="text-center">
             <a
-                    href="/escorts/register"
+                    href="/dashboard/login"
                     class="inline-block px-4 py-2 border border-white rounded hover:bg-white hover:text-black transition"
             >
                 Publicá tu aviso

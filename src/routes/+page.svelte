@@ -23,7 +23,7 @@
   let totalPages = 1;        // will be overwritten by the real payload
   let loading = false;
   let sentinel: HTMLDivElement;
-  
+
   // Search functionality
   let searchQuery = '';
   let searchInputElement: HTMLInputElement;
@@ -83,11 +83,11 @@
   // Search functionality
   async function handleSearch() {
     if (!searchQuery.trim()) return;
-    
+
     searchLoading = true;
     isSearchMode = true;
     searchPage = 0;
-    
+
     try {
       const res = await fetch(`http://localhost:8080/escort/search/${encodeURIComponent(searchQuery.trim())}?page=0&size=20`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -106,7 +106,7 @@
   async function loadMoreSearchResults() {
     if (searchLoading || searchPage >= searchTotalPages || !isSearchMode) return;
     searchLoading = true;
-    
+
     try {
       const res = await fetch(`http://localhost:8080/escort/search/${encodeURIComponent(searchQuery.trim())}?page=${searchPage}&size=20`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -150,6 +150,21 @@
   }
 
 </script>
+
+<svelte:head>
+  <!-- Preconnect al host de imágenes (siempre sirve) -->
+  <link rel="preconnect" href="https://nexus.daisyssecrets.com" />
+
+  <!-- Preload de la primera imagen (opcional pero pro UX) -->
+  {#if escorts.length && escorts[0]?.media}
+    <link
+            rel="preload"
+            as="image"
+            href={`https://nexus.daisyssecrets.com/escorts/${escorts[0].id}/profile/${escorts[0].media}`}
+    />
+  {/if}
+</svelte:head>
+
 
 <main class="bg-black min-h-screen py-8 px-4">
   <!-- Search Bar -->

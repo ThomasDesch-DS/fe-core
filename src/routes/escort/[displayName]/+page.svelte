@@ -1,6 +1,6 @@
 <!-- src/routes/escort/[displayName]/+page.svelte -->
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import { api } from '$lib/escort/api/apiClient';
     import { page } from '$app/stores';
 
@@ -42,29 +42,84 @@
     let escort: Escort | null = null;
     let loading = true;
     let error = '';
-    let activeServiceTab: 'in_person'|'fantasies'|'virtual' = 'in_person';
+    let activeServiceTab: 'in_person' | 'fantasies' | 'virtual' = 'in_person';
 
-    // Lightbox
+    const tabs = [
+        { key: 'in_person', label: 'Presencial' },
+        { key: 'fantasies', label: 'Fantasías' },
+        { key: 'virtual', label: 'Virtual' },
+    ];
+
+    // Galería + swipe
     let modalOpen = false;
     let modalIndex = 0;
-    $: sortedPics = escort ? [...escort.media.pics].sort((a,b)=>a.order-b.order) : [];
+    let touchStartX = 0;
+    $: sortedPics = escort ? [...escort.media.pics].sort((a, b) => a.order - b.order) : [];
 
-    function getMediaUrl(id: string, file: string, type: 'profile'|'pics') {
+    function getMediaUrl(id: string, file: string, type: 'profile' | 'pics') {
         return `https://nexus.daisyssecrets.com/escorts/${id}/${type}/${file}`;
     }
-    function openModal(i: number) { modalIndex = i; modalOpen = true; }
-    function closeModal() { modalOpen = false; }
-    function prevImage() { modalIndex = (modalIndex - 1 + sortedPics.length) % sortedPics.length; }
-    function nextImage() { modalIndex = (modalIndex + 1) % sortedPics.length; }
+
+    function openModal(i: number) {
+        modalIndex = i;
+        modalOpen = true;
+        history.pushState({ lightbox: true }, '');
+    }
+
+    function closeModal() {
+        modalOpen = false;
+        if (history.state?.lightbox) {
+            history.back();
+        }
+    }
+
+    function prevImage() {
+        modalIndex = (modalIndex - 1 + sortedPics.length) % sortedPics.length;
+    }
+
+    function nextImage() {
+        modalIndex = (modalIndex + 1) % sortedPics.length;
+    }
+
+    function handleKeydown(e: KeyboardEvent) {
+        if (!modalOpen) return;
+        if (e.key === 'Escape') closeModal();
+        else if (e.key === 'ArrowLeft') prevImage();
+        else if (e.key === 'ArrowRight') nextImage();
+    }
+
+    function handlePopState() {
+        if (modalOpen && !history.state?.lightbox) {
+            modalOpen = false;
+        }
+    }
+
+    function handleTouchStart(e: TouchEvent) {
+        touchStartX = e.touches[0].clientX;
+    }
+
+    function handleTouchEnd(e: TouchEvent) {
+        const touchEndX = e.changedTouches[0].clientX;
+        const diff = touchEndX - touchStartX;
+        if (Math.abs(diff) > 50) {
+            diff > 0 ? prevImage() : nextImage();
+        }
+    }
 
     onMount(async () => {
+        window.addEventListener('keydown', handleKeydown);
+        window.addEventListener('popstate', handlePopState);
+
         try {
             const { displayName } = $page.params;
-            if (!displayName) throw new Error('Display name not found');
+            if (!displayName) throw new Error('Nombre para mostrar no encontrado');
+
             const data = await api.get<Escort>(`/${displayName}`);
             escort = data;
+
             if (escort.media.profilePicture)
                 escort.media.profilePicture = getMediaUrl(escort.id, escort.media.profilePicture, 'profile');
+
             if (escort.media.pics)
                 escort.media.pics = escort.media.pics.map(pic => ({
                     ...pic,
@@ -72,28 +127,33 @@
                 }));
         } catch (err) {
             console.error(err);
-            error = err instanceof Error ? err.message : 'Unknown error';
+            error = err instanceof Error ? err.message : 'Error desconocido';
         } finally {
             loading = false;
         }
     });
 
+    onDestroy(() => {
+        window.removeEventListener('keydown', handleKeydown);
+        window.removeEventListener('popstate', handlePopState);
+    });
+
     $: primaryTags = escort ? [
-        'Available',
-        escort.appearance.gender==='FEMALE' ? 'Female':'Male',
-        escort.availability.onlyVirtual?'Only Virtual':'In Person'
+        'Disponible',
+        escort.appearance.gender === 'FEMALE' ? 'Mujer' : 'Hombre',
+        escort.availability.onlyVirtual ? 'Solo virtual' : 'Presencial'
     ] : [];
 
     $: secondaryTags = escort ? [
-        ...(escort.publicPhoneNumber?[`☎️ ${escort.publicPhoneNumber}`]:[]),
-        `NAT ${escort.appearance.nationality}`,
-        `HAIR ${escort.appearance.hairColor}`,
-        `EYES ${escort.appearance.eyeColor}`,
-        `WAX ${escort.appearance.waxingLevel}`,
-        `BREAST ${escort.appearance.breastSize}`,
-        `BUTT ${escort.appearance.buttSize}`,
-        `HT ${escort.appearance.heightInCm}cm`,
-        `WT ${escort.appearance.weightInKg}kg`
+        ...(escort.publicPhoneNumber ? [`☎️ ${escort.publicPhoneNumber}`] : []),
+        `NAC ${escort.appearance.nationality}`,
+        `CABELLO ${escort.appearance.hairColor}`,
+        `OJOS ${escort.appearance.eyeColor}`,
+        `DEPILACIÓN ${escort.appearance.waxingLevel}`,
+        `PECHO ${escort.appearance.breastSize}`,
+        `GLÚTEOS ${escort.appearance.buttSize}`,
+        `ALT ${escort.appearance.heightInCm}cm`,
+        `PESO ${escort.appearance.weightInKg}kg`
     ] : [];
 </script>
 
@@ -105,12 +165,21 @@
 </svelte:head>
 
 <style>
-    :root { --accent:#00ACEE; --black:#000; --white:#fff; }
+    :root { --black:#000; --white:#fff; }
     :global(html){scroll-behavior:smooth;}
     :global(body){margin:0;padding:0;background:var(--black);color:var(--white);}
     table{width:100%;border-collapse:collapse;margin-top:.5rem;}
     th,td{border:1px solid #333;padding:.5rem;text-align:left;}
     th{background:#111;}
+
+    .btn-vercel {
+        @apply inline-block px-8 py-3 font-semibold uppercase rounded-full
+        border border-white bg-transparent text-white
+        transition-colors duration-200;
+    }
+    .btn-vercel:hover {
+        @apply bg-white text-black;
+    }
 </style>
 
 <main class="font-sans">
@@ -129,14 +198,14 @@
                 <p class="text-gray-300">{error}</p>
                 <button on:click={()=>location.reload()}
                         class="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
-                    Try Again
+                    Reintentar
                 </button>
             </div>
         </div>
     {:else if escort}
         <!-- HERO -->
         <section class="relative h-screen flex items-center justify-center text-center">
-            <img src={escort.media.profilePicture} alt="Hero"
+            <img src={escort.media.profilePicture} alt="Imagen destacada"
                  class="absolute inset-0 object-cover w-full h-full filter brightness-50"/>
             <div class="relative z-10 space-y-4">
                 <h1 class="text-6xl font-extrabold">{escort.displayName}</h1>
@@ -145,9 +214,8 @@
                         <span class="px-4 py-1 rounded-full bg-white/20 backdrop-blur text-white">{t}</span>
                     {/each}
                 </div>
-                <a href={`https://wa.me/${escort.publicPhoneNumber}`}
-                   class="mt-6 inline-block px-8 py-3 font-semibold uppercase rounded-full border-2 border-[var(--accent)] hover:bg-[var(--accent)] transition">
-                    Book Now
+                <a href={`https://wa.me/${escort.publicPhoneNumber}`} target="_blank" class="btn-vercel">
+                    Reservá ahora
                 </a>
             </div>
         </section>
@@ -155,19 +223,19 @@
         <!-- Sticky CTA -->
         <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md p-4 flex justify-between items-center md:hidden">
             <p class="text-sm text-gray-300">
-                Hourly: {escort.servicesInfo.hourPrice.currency} {escort.servicesInfo.hourPrice.amount.toLocaleString('es-AR')}
+                Precio por hora: {escort.servicesInfo.hourPrice.currency} {escort.servicesInfo.hourPrice.amount.toLocaleString('es-AR')}
             </p>
             <a href={`https://wa.me/${escort.publicPhoneNumber}`}
-               class="p-3 rounded-full border border-[var(--accent)] hover:bg-[var(--accent)]/20">💬</a>
+               class="p-3 rounded-full border border-white hover:bg-white/10 transition">💬</a>
         </div>
 
         <!-- GALLERY -->
         <section class="bg-black py-16 px-8 md:px-16">
-            <h2 class="text-4xl font-semibold mb-8">Gallery</h2>
+            <h2 class="text-4xl font-semibold mb-8">Galería</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {#each sortedPics as pic,i}
                     <div class="relative group">
-                        <img src={pic.media} alt="pic" loading="lazy"
+                        <img src={pic.media} alt="imagen" loading="lazy"
                              class="w-full h-64 object-cover rounded-md transform transition duration-200 group-hover:scale-105 cursor-pointer"
                              on:click={()=>openModal(i)}/>
                         <span class="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded">#{i+1}</span>
@@ -178,22 +246,41 @@
 
         <!-- Lightbox -->
         {#if modalOpen}
-            <div class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center">
+            <div class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center"
+                 on:touchstart={handleTouchStart}
+                 on:touchend={handleTouchEnd}>
                 <button on:click={closeModal} class="absolute top-4 right-4 text-white text-3xl">&times;</button>
                 <button on:click={prevImage} class="absolute left-4 text-white text-3xl">&lt;</button>
-                <img src={sortedPics[modalIndex].media} alt="Full" class="max-h-full max-w-full object-contain"/>
+                <img src={sortedPics[modalIndex].media}
+                     alt="Imagen completa"
+                     class="max-h-full max-w-full object-contain"/>
                 <button on:click={nextImage} class="absolute right-4 text-white text-3xl">&gt;</button>
             </div>
         {/if}
 
         <!-- SERVICES & PRICING -->
         <section class="bg-black py-16 px-8 md:px-16">
-            <h2 class="text-4xl font-semibold mb-8">Services & Pricing</h2>
-            <div class="tabs flex gap-6 mb-8">
-                <button on:click={()=>activeServiceTab='in_person'} class:font-bold={activeServiceTab==='in_person'}>In-Person</button>
-                <button on:click={()=>activeServiceTab='fantasies'} class:font-bold={activeServiceTab==='fantasies'}>Fantasies</button>
-                <button on:click={()=>activeServiceTab='virtual'} class:font-bold={activeServiceTab==='virtual'}>Virtual</button>
-            </div>
+            <h2 class="text-4xl font-semibold mb-8">Servicios y Tarifas</h2>
+            <nav class="border-b border-gray-700 mb-8">
+                <ul class="flex gap-6">
+                    {#each tabs as { key, label }}
+                        <li>
+                            <button
+                                    role="tab"
+                                    aria-selected={activeServiceTab === key}
+                                    class="pb-2 px-4 -mb-px border-b-2 transition-all duration-200
+                                    {activeServiceTab === key
+                                        ? 'border-white text-white font-semibold'
+                                        : 'border-transparent text-gray-500 hover:text-white hover:border-gray-500'}"
+                                    on:click={() => activeServiceTab = key}
+                            >
+                                {label}
+                            </button>
+                        </li>
+                    {/each}
+                </ul>
+            </nav>
+
             {#if activeServiceTab==='in_person'}
                 <div class="flex flex-wrap gap-3">
                     {#each escort.servicesInfo.escortServices as s}
@@ -216,18 +303,17 @@
 
             <div class="border-t border-gray-700 pt-6 mt-6">
                 <p class="text-xl font-semibold">
-                    Hourly Rate: {escort.servicesInfo.hourPrice.currency} {escort.servicesInfo.hourPrice.amount.toLocaleString('es-AR')}
+                    Precio por hora: {escort.servicesInfo.hourPrice.currency} {escort.servicesInfo.hourPrice.amount.toLocaleString('es-AR')}
                 </p>
 
-                <!-- Custom Rates Table -->
                 {#if escort.servicesInfo.customRate.length}
                     <table>
                         <thead>
                         <tr>
                             <th>Servicio</th>
                             <th>Duración</th>
-                            <th>Incall</th>
-                            <th>Outcall</th>
+                            <th>En mi lugar</th>
+                            <th>A domicilio</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -247,39 +333,39 @@
 
         <!-- ABOUT ME -->
         <section class="bg-black py-16 px-8 md:px-16">
-            <h2 class="text-3xl font-semibold mb-4">About Me 🌹</h2>
+            <h2 class="text-3xl font-semibold mb-4">Sobre mí 🌹</h2>
             <p class="leading-relaxed">{escort.description}</p>
         </section>
 
         <!-- BASIC INFO & APPEARANCE -->
         <section class="bg-black py-16 px-8 md:px-16 grid md:grid-cols-2 gap-16">
             <div>
-                <h2 class="text-3xl font-semibold mb-4">Basic Info</h2>
+                <h2 class="text-3xl font-semibold mb-4">Información Básica</h2>
                 <ul class="space-y-3 text-lg">
-                    <li><strong>Name:</strong> {escort.displayName}</li>
-                    <li><strong>Age:</strong> {escort.age}</li>
-                    <li><strong>Nationality:</strong> {escort.appearance.nationality}</li>
-                    <li><strong>Gender:</strong> {escort.appearance.gender}</li>
-                    <li><strong>Location:</strong> {escort.location.city}, {escort.location.state}, {escort.location.country}</li>
+                    <li><strong>Nombre:</strong> {escort.displayName}</li>
+                    <li><strong>Edad:</strong> {escort.age}</li>
+                    <li><strong>Nacionalidad:</strong> {escort.appearance.nationality}</li>
+                    <li><strong>Género:</strong> {escort.appearance.gender}</li>
+                    <li><strong>Ubicación:</strong> {escort.location.city}, {escort.location.state}, {escort.location.country}</li>
                 </ul>
             </div>
             <div>
-                <h2 class="text-3xl font-semibold mb-4">Appearance</h2>
+                <h2 class="text-3xl font-semibold mb-4">Apariencia</h2>
                 <ul class="space-y-3 text-lg">
-                    <li><strong>Hair:</strong> {escort.appearance.hairColor}</li>
-                    <li><strong>Eyes:</strong> {escort.appearance.eyeColor}</li>
-                    <li><strong>Height:</strong> {escort.appearance.heightInCm} cm</li>
-                    <li><strong>Weight:</strong> {escort.appearance.weightInKg} kg</li>
-                    <li><strong>Butt:</strong> {escort.appearance.buttSize}</li>
-                    <li><strong>Measurements:</strong> {escort.appearance.bust}-{escort.appearance.waist}-{escort.appearance.hips}</li>
+                    <li><strong>Pelo:</strong> {escort.appearance.hairColor}</li>
+                    <li><strong>Ojos:</strong> {escort.appearance.eyeColor}</li>
+                    <li><strong>Altura:</strong> {escort.appearance.heightInCm} cm</li>
+                    <li><strong>Peso:</strong> {escort.appearance.weightInKg} kg</li>
+                    <li><strong>Glúteos:</strong> {escort.appearance.buttSize}</li>
+                    <li><strong>Medidas:</strong> {escort.appearance.bust}-{escort.appearance.waist}-{escort.appearance.hips}</li>
                 </ul>
-                <p class="mt-6"><strong>Waxing:</strong> {escort.appearance.waxingLevel}</p>
+                <p class="mt-6"><strong>Depilación:</strong> {escort.appearance.waxingLevel}</p>
             </div>
         </section>
 
         <!-- WORKING HOURS -->
         <section class="bg-black py-16 px-8 md:px-16">
-            <h2 class="text-3xl font-semibold mb-4">Working Hours</h2>
+            <h2 class="text-3xl font-semibold mb-4">Horario de Atención</h2>
             {#if escort.availability.schedule.length}
                 <div class="space-y-3">
                     {#each escort.availability.schedule as day}
@@ -294,17 +380,17 @@
                     {/each}
                 </div>
             {:else}
-                <p class="uppercase font-medium">FULL TIME</p>
+                <p class="uppercase font-medium">TIEMPO COMPLETO</p>
             {/if}
         </section>
 
         <!-- CONTACT -->
         <section class="bg-black py-16 px-8 md:px-16">
-            <h2 class="text-4xl font-semibold mb-6">Contact</h2>
+            <h2 class="text-4xl font-semibold mb-6">Contacto</h2>
             <div class="flex flex-wrap gap-8">
                 {#if escort.publicPhoneNumber}
                     <a href={`https://wa.me/${escort.publicPhoneNumber}`}
-                       class="flex items-center gap-2 border border-gray-700 px-3 py-1 rounded text-lg hover:text-[var(--accent)] transition">
+                       class="flex items-center gap-2 border border-gray-700 px-3 py-1 rounded text-lg hover:text-white hover:border-white transition">
                         📞 {escort.publicPhoneNumber}
                     </a>
                 {/if}
