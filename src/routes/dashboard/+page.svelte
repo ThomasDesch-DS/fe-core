@@ -356,13 +356,13 @@
         motels: false,
         clientPlace: true,
         schedule: [
-            { dayOfWeek: 'MONDAY', startTime: '09:00', endTime: '18:00', isAvailable: true },
-            { dayOfWeek: 'TUESDAY', startTime: '09:00', endTime: '18:00', isAvailable: true },
-            { dayOfWeek: 'WEDNESDAY', startTime: '09:00', endTime: '18:00', isAvailable: true },
-            { dayOfWeek: 'THURSDAY', startTime: '09:00', endTime: '18:00', isAvailable: true },
-            { dayOfWeek: 'FRIDAY', startTime: '09:00', endTime: '18:00', isAvailable: true },
-            { dayOfWeek: 'SATURDAY', startTime: '10:00', endTime: '16:00', isAvailable: false },
-            { dayOfWeek: 'SUNDAY', startTime: '10:00', endTime: '16:00', isAvailable: false }
+            { day: 'MONDAY', startTime: '09:00', endTime: '18:00', isAvailable: true },
+            { day: 'TUESDAY', startTime: '09:00', endTime: '18:00', isAvailable: true },
+            { day: 'WEDNESDAY', startTime: '09:00', endTime: '18:00', isAvailable: true },
+            { day: 'THURSDAY', startTime: '09:00', endTime: '18:00', isAvailable: true },
+            { day: 'FRIDAY', startTime: '09:00', endTime: '18:00', isAvailable: true },
+            { day: 'SATURDAY', startTime: '10:00', endTime: '16:00', isAvailable: false },
+            { day: 'SUNDAY', startTime: '10:00', endTime: '16:00', isAvailable: false }
         ]
     };
 
@@ -373,7 +373,29 @@
         saveMessage = '';
         
         try {
-            await updateAvailability(availabilityData);
+            const transformedData = {
+                onlyVirtual: availabilityData.onlyVirtual,
+                onlyInPerson: availabilityData.onlyInPerson,
+                ownApartment: availabilityData.ownApartment,
+                motels: availabilityData.motels,
+                clientPlace: availabilityData.clientPlace,
+                schedule: availabilityData.schedule
+                    .filter(day => day.isAvailable)
+                    .map(day => ({
+                        day: day.day,
+                        slots: [{
+                            startHourWithMinutes: day.startTime,
+                            endHourWithMinutes: day.endTime
+                        }]
+                    }))
+            };
+            
+            const updatedEscort = await updateAvailability(transformedData);
+            
+            if (updatedEscort) {
+                authStore.updateProfile(updatedEscort);
+            }
+            
             editingAvailability = false;
             saveMessage = 'Availability updated successfully';
             setTimeout(() => saveMessage = '', 3000);
@@ -1306,7 +1328,7 @@
                             {#each availabilityData.schedule as day, i}
                                 <div class="flex items-center gap-4 p-3 bg-neutral-800 rounded">
                                     <div class="w-24">
-                                        <span class="text-white font-medium">{day.dayOfWeek}</span>
+                                        <span class="text-white font-medium">{day.day}</span>
                                     </div>
                                     <label class="flex items-center gap-2">
                                         <input type="checkbox" bind:checked={day.isAvailable} class="service-checkbox" />
