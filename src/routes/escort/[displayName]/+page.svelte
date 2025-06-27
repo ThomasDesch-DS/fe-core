@@ -3,6 +3,7 @@
     import { onMount, onDestroy } from 'svelte';
     import { api } from '$lib/escort/api/apiClient';
     import { page } from '$app/stores';
+    import toast from 'svelte-french-toast';
 
     interface Escort {
         id: string;
@@ -50,7 +51,7 @@
         { key: 'virtual', label: 'Virtual' },
     ];
 
-    // Galería + swipe
+    // Galería + swipe + share
     let modalOpen = false;
     let modalIndex = 0;
     let touchStartX = 0;
@@ -103,6 +104,20 @@
         const diff = touchEndX - touchStartX;
         if (Math.abs(diff) > 50) {
             diff > 0 ? prevImage() : nextImage();
+        }
+    }
+
+    async function shareEscort() {
+        const url = window.location.href;
+        try {
+            if (navigator.share) {
+                await navigator.share({ title: escort?.displayName, url });
+            } else {
+                await navigator.clipboard.writeText(url);
+                toast.success('¡Link copiado!');
+            }
+        } catch (err) {
+            console.error('Error compartiendo:', err);
         }
     }
 
@@ -180,6 +195,13 @@
     .btn-vercel:hover {
         @apply bg-white text-black;
     }
+
+    .share-btn {
+        @apply p-2 rounded-full bg-white/10 text-white transition-colors duration-200;
+    }
+    .share-btn:hover {
+        @apply bg-white text-black;
+    }
 </style>
 
 <main class="font-sans">
@@ -207,6 +229,19 @@
         <section class="relative h-screen flex items-center justify-center text-center">
             <img src={escort.media.profilePicture} alt="Imagen destacada"
                  class="absolute inset-0 object-cover w-full h-full filter brightness-50"/>
+
+            <!-- Botón compartir (top-right) -->
+            <div class="absolute top-4 right-4 z-20">
+                <button on:click={shareEscort} class="share-btn" aria-label="Compartir">
+                    <!-- ícono share -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+                         stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M4 12v1a2 2 0 002 2h4m4 0h4a2 2 0 002-2v-1m-5 1V8m0 0l-4 4m4-4l-4-4" />
+                    </svg>
+                </button>
+            </div>
+
             <div class="relative z-10 space-y-4">
                 <h1 class="text-6xl font-extrabold">{escort.displayName}</h1>
                 <div class="flex justify-center gap-2 flex-wrap">

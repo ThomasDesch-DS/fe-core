@@ -5,10 +5,10 @@
   import AgeGate from "$lib/components/AgeGate.svelte";
   import IntroAnimation from "$lib/components/IntroAnimation.svelte";
   import { ageStore } from "$lib/store/ageStore";
-  
+  import toast, { Toaster } from 'svelte-french-toast';
+
   let ageStatus: string;
   let animationComplete: boolean;
-  
   // Subscribe to the ageStore
   ageStore.subscribe(state => {
     ageStatus = state.status;
@@ -26,6 +26,36 @@
     
     <main class="flex-grow container mx-auto px-4 py-8">
       <slot />
+      <Toaster
+              position="top-right"
+              toastOptions={{
+    // duración y estilo base
+    duration: 4000,
+    style: {
+      background: '#000',             // negro total
+      color: '#fff',                  // texto blanco
+      padding: '16px 24px',
+      borderRadius: '8px',
+      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)',
+      fontFamily: `'Inter', sans-serif`,
+      fontSize: '14px',
+    },
+    // ícono de éxito: blanco sobre negro
+    success: {
+      iconTheme: {
+        primary: '#fff',
+        secondary: '#000',
+      },
+    },
+    // ícono de error: blanco sobre rojo oscuro
+    error: {
+      iconTheme: {
+        primary: '#fff',
+        secondary: '#b00020',
+      },
+    },
+  }}
+      />
     </main>
     
     <Footer/>
