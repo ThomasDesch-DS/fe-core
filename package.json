@@ -10,7 +10,6 @@
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json"
   },
   "devDependencies": {
-    "@rgossiaux/svelte-heroicons": "^0.1.2",
     "@sveltejs/adapter-auto": "^6.0.1",
     "@sveltejs/vite-plugin-svelte": "^5.1.0",
     "@tsconfig/svelte": "^5.0.4",
@@ -28,5 +27,9 @@
     "sortablejs": "^1.15.6",
     "svelte-french-toast": "^1.2.0",
     "svelte-sonner": "^1.0.5"
+  },
+  "overrides": {
+    "cookie": "1.0.2"
   }
+
 }
