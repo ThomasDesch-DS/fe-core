@@ -25,7 +25,6 @@
     "@sveltejs/kit": "^2.22.2",
     "heroicons-svelte": "^2.0.2",
     "sortablejs": "^1.15.6",
-    "svelte-french-toast": "^1.2.0",
     "svelte-sonner": "^1.0.5"
   },
   "overrides": {

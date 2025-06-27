@@ -3,7 +3,7 @@
     import { onMount, onDestroy } from 'svelte';
     import { api } from '$lib/escort/api/apiClient';
     import { page } from '$app/stores';
-    import toast from 'svelte-french-toast';
+    import { toast } from 'svelte-sonner'
 
     interface Escort {
         id: string;

@@ -6,6 +6,7 @@
     import { goto } from '$app/navigation';
     import { onDestroy } from 'svelte';
     import {formatPrice} from "../../util/PriceUtils";
+    import { toast } from 'svelte-sonner'
 
     let activeTab = 'Perfil';
     const tabs = ['Perfil', 'Media', 'Servicios', 'Disponibilidad', 'Ubicación'];

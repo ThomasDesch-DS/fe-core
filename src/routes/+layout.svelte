@@ -5,7 +5,7 @@
   import AgeGate from "$lib/components/AgeGate.svelte";
   import IntroAnimation from "$lib/components/IntroAnimation.svelte";
   import { ageStore } from "$lib/store/ageStore";
-  import toast, { Toaster } from 'svelte-french-toast';
+  import { Toaster } from 'svelte-sonner'
 
   let ageStatus: string;
   let animationComplete: boolean;
