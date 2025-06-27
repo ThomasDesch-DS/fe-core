@@ -48,9 +48,8 @@ export interface UpdateMediaRequest {
 }
 
 export interface HourPrice {
-    oneHour?: number;
-    twoHours?: number;
-    threeHours?: number;
+    amount?: number;
+    currency?: string;
 }
 
 export interface CustomRate {

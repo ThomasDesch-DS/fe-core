@@ -26,7 +26,7 @@ jobs:
         run: npm ci
 
       - name: 🔨 Build project
-        run: npm run build
+        run: npm install --legacy-peer-deps
 
       - name: 📤 Deploy to Vercel
         uses: amondnet/vercel-action@v20

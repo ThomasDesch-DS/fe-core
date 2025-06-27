@@ -5,6 +5,7 @@
     import { updateInfo, updateAppearance, updateAvailability, updateMedia, updateServicesInfo, updateContactMethod, deleteMediaFile, deleteContactMethod, type UpdateInfoRequest, type UpdateAppearanceRequest, type UpdateServicesInfoRequest, type ContactMethodRequest } from '$lib/escort/api/profileApi';
     import { goto } from '$app/navigation';
     import { onDestroy } from 'svelte';
+    import {formatPrice} from "../../util/PriceUtils";
 
     let activeTab = 'Perfil';
     const tabs = ['Perfil', 'Media', 'Servicios', 'Disponibilidad'];
@@ -181,6 +182,7 @@
             escortFantasies: [...(escort.servicesInfo.escortFantasies || [])],
             massageType: [...(escort.servicesInfo.massageType || [])],
             virtualServices: [...(escort.servicesInfo.virtualServices || [])],
+            customRate: [...(escort.servicesInfo.customRate || [])],
             contactMethod: escort.contactMethod.map(c => ({ ...c }))
         };
     }
@@ -403,6 +405,7 @@
                     escortFantasies: [...(escort.servicesInfo.escortFantasies || [])],
                     massageType: [...(escort.servicesInfo.massageType || [])],
                     virtualServices: [...(escort.servicesInfo.virtualServices || [])],
+                    customRate: [...(escort.servicesInfo.customRate || [])],
                     contactMethod: escort.contactMethod.map(c => ({ ...c }))
                 };
             }
@@ -493,8 +496,10 @@
                         massageType: editValues.massageType,
                         virtualServices: editValues.virtualServices,
                         hourPrice: {
-                            oneHour: editValues.hourPrice
-                        }
+                            amount: editValues.hourPrice,
+                            currency: editValues.currency
+                        },
+                        customRate: editValues.customRate.filter(rate => rate.serviceName && rate.duration)
                     });
                     break;
             }
@@ -991,7 +996,21 @@
                                 <span class="badge">{service.replace(/_/g, ' ')}</span>
                             {/each}
                         </div>
-                        <p class="text-gray-400"><strong class="text-white">Precio por hora:</strong> {escort.servicesInfo.hourPrice.amount} {escort.servicesInfo.hourPrice.currency}</p>
+                        <p class="text-gray-400">
+                            <strong class="text-white">Precio por hora:</strong>
+                            {formatPrice(escort.servicesInfo.hourPrice.amount, escort.servicesInfo.hourPrice.currency)}
+                        </p>
+                        {#if escort.servicesInfo.customRate && escort.servicesInfo.customRate.length > 0}
+                            <div class="mt-4">
+                                <h4 class="text-white font-semibold mb-2">Tarifas Personalizadas:</h4>
+                                {#each escort.servicesInfo.customRate as rate}
+                                    <p class="text-gray-400 text-sm">
+                                        <strong class="text-white">{rate.serviceName}:</strong> {rate.duration} - 
+                                        Incall: {formatPrice(rate.incallPrice)}, Outcall: {formatPrice(rate.incallPrice)}
+                                    </p>
+                                {/each}
+                            </div>
+                        {/if}
                     {:else}
                         <div class="space-y-6">
                             <!-- Pricing Section -->
@@ -1024,7 +1043,7 @@
                                 </div>
                                 <div class="mt-3 p-2 bg-green-900/20 border border-green-700/30 rounded">
                                     <p class="text-sm text-green-300">
-                                        Vista previa: <strong>{editValues.hourPrice || 0} {editValues.currency}/hora</strong>
+                                        Vista previa: <strong>{formatPrice(editValues.hourPrice) || 0} {editValues.currency}/hora</strong>
                                     </p>
                                 </div>
                             </div>
@@ -1098,6 +1117,69 @@
                                             {virtual.label}
                                         </label>
                                     {/each}
+                                </div>
+                            </div>
+
+                            <!-- Custom Rates -->
+                            <div class="service-category">
+                                <h3 class="text-lg font-semibold text-white mb-2">Tarifas Personalizadas</h3>
+                                <div class="space-y-3">
+                                    {#each editValues.customRate as rate, i}
+                                        <div class="bg-neutral-700 p-3 rounded border border-neutral-600">
+                                            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                                <div>
+                                                    <label class="block text-sm text-gray-300 mb-1">Servicio</label>
+                                                    <input
+                                                        bind:value={rate.serviceName}
+                                                        placeholder="e.g., date, overnight"
+                                                        class="input-field w-full"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label class="block text-sm text-gray-300 mb-1">Duración</label>
+                                                    <input
+                                                        bind:value={rate.duration}
+                                                        placeholder="e.g., 24h, 2h"
+                                                        class="input-field w-full"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label class="block text-sm text-gray-300 mb-1">Precio Incall</label>
+                                                    <input
+                                                        bind:value={rate.incallPrice}
+                                                        placeholder="50.0"
+                                                        class="input-field w-full"
+                                                        type="number"
+                                                        step="0.1"
+                                                        min="0"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label class="block text-sm text-gray-300 mb-1">Precio Outcall</label>
+                                                    <input
+                                                        bind:value={rate.outcallPrice}
+                                                        placeholder="60.0"
+                                                        class="input-field w-full"
+                                                        type="number"
+                                                        step="0.1"
+                                                        min="0"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <button
+                                                class="mt-2 text-red-400 hover:text-red-300 text-sm"
+                                                on:click={() => editValues.customRate = editValues.customRate.filter((_, idx) => idx !== i)}
+                                            >
+                                                Eliminar tarifa
+                                            </button>
+                                        </div>
+                                    {/each}
+                                    <button
+                                        class="text-white bg-neutral-700 hover:bg-neutral-600 px-3 py-2 rounded text-sm"
+                                        on:click={() => editValues.customRate = [...editValues.customRate, { serviceName: '', duration: '', incallPrice: 0, outcallPrice: 0 }]}
+                                    >
+                                        + Agregar Tarifa Personalizada
+                                    </button>
                                 </div>
                             </div>
 
