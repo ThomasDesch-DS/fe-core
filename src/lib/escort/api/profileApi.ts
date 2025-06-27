@@ -77,6 +77,13 @@ export interface UpdateInfoRequest {
     description?: string;
 }
 
+export interface UpdateLocationRequest {
+    country: string;
+    state: string;
+    city: string;
+    hood: string;
+}
+
 // API Functions
 export async function updateInfo(data: UpdateInfoRequest) {
     return api.patch('/info', data);
@@ -108,4 +115,8 @@ export async function deleteMediaFile(fileName: string) {
 
 export async function deleteContactMethod(contactMethodType: string) {
     return api.delete(`/contact-method/${contactMethodType}`);
+}
+
+export async function updateLocation(data: UpdateLocationRequest) {
+    return api.patch('/location', data);
 }

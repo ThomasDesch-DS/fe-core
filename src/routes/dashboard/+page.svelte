@@ -2,13 +2,13 @@
     import { fade, scale } from 'svelte/transition';
     import { authStore } from '$lib/escort/store/authStore';
     import { logout } from '$lib/escort/api/authApi';
-    import { updateInfo, updateAppearance, updateAvailability, updateMedia, updateServicesInfo, updateContactMethod, deleteMediaFile, deleteContactMethod, type UpdateInfoRequest, type UpdateAppearanceRequest, type UpdateServicesInfoRequest, type ContactMethodRequest } from '$lib/escort/api/profileApi';
+    import { updateInfo, updateAppearance, updateAvailability, updateMedia, updateServicesInfo, updateContactMethod, deleteMediaFile, deleteContactMethod, updateLocation, type UpdateInfoRequest, type UpdateAppearanceRequest, type UpdateServicesInfoRequest, type ContactMethodRequest, type UpdateLocationRequest } from '$lib/escort/api/profileApi';
     import { goto } from '$app/navigation';
     import { onDestroy } from 'svelte';
     import {formatPrice} from "../../util/PriceUtils";
 
     let activeTab = 'Perfil';
-    const tabs = ['Perfil', 'Media', 'Servicios', 'Disponibilidad'];
+    const tabs = ['Perfil', 'Media', 'Servicios', 'Disponibilidad', 'Ubicación'];
 
     let authState;
     const unsubscribe = authStore.subscribe(state => {
@@ -24,7 +24,8 @@
         appearance: false,
         contact: false,
         services: false,
-        availability: false
+        availability: false,
+        location: false
     };
 
     // Temporary edit values
@@ -183,7 +184,11 @@
             massageType: [...(escort.servicesInfo.massageType || [])],
             virtualServices: [...(escort.servicesInfo.virtualServices || [])],
             customRate: [...(escort.servicesInfo.customRate || [])],
-            contactMethod: escort.contactMethod.map(c => ({ ...c }))
+            contactMethod: escort.contactMethod.map(c => ({ ...c })),
+            country: escort.location.country,
+            state: escort.location.state,
+            city: escort.location.city,
+            hood: escort.location.hood
         };
     }
 
@@ -406,7 +411,11 @@
                     massageType: [...(escort.servicesInfo.massageType || [])],
                     virtualServices: [...(escort.servicesInfo.virtualServices || [])],
                     customRate: [...(escort.servicesInfo.customRate || [])],
-                    contactMethod: escort.contactMethod.map(c => ({ ...c }))
+                    contactMethod: escort.contactMethod.map(c => ({ ...c })),
+                    country: escort.location.country,
+                    state: escort.location.state,
+                    city: escort.location.city,
+                    hood: escort.location.hood
                 };
             }
         }
@@ -502,6 +511,18 @@
                         customRate: editValues.customRate.filter(rate => rate.serviceName && rate.duration)
                     });
                     break;
+                    
+                case 'location':
+                    if (!editValues.country.trim() || !editValues.state.trim() || !editValues.city.trim() || !editValues.hood.trim()) {
+                        throw new Error('All location fields are required');
+                    }
+                    updatedEscort = await updateLocation({
+                        country: editValues.country,
+                        state: editValues.state,
+                        city: editValues.city,
+                        hood: editValues.hood
+                    });
+                    break;
             }
 
             if (updatedEscort) {
@@ -509,7 +530,7 @@
             }
             
             editMode[section] = false;
-            saveMessage = 'Changes saved successfully';
+            saveMessage = 'Cambios guardados con éxito';
             setTimeout(() => saveMessage = '', 3000);
             
         } catch (error) {
@@ -1306,6 +1327,100 @@
                                     />
                                 </div>
                             {/each}
+                        </div>
+                    {/if}
+                </div>
+            </section>
+        {/if}
+
+        {#if activeTab === 'Ubicación'}
+            <section class="space-y-6" transition:fade>
+                <div class="card group relative">
+                    <button class="edit-btn" on:click={() => toggleEdit('location')}>
+                        {#if editMode.location}Cancel{:else}Edit{/if}
+                    </button>
+                    <h2 class="text-xl font-semibold mb-4">🔄 Actualizar Ubicación</h2>
+                    {#if editMode.location}
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm text-gray-300 mb-2">País</label>
+                                <input
+                                    bind:value={editValues.country}
+                                    placeholder="País"
+                                    class="input-field w-full opacity-50 cursor-not-allowed"
+                                    disabled
+                                />
+                                <p class="text-xs text-gray-500 mt-1">El país no se puede cambiar</p>
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-300 mb-2">Estado/Provincia</label>
+                                <input
+                                    bind:value={editValues.state}
+                                    placeholder="Estado/Provincia (ej: Buenos Aires)"
+                                    class="input-field w-full"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-300 mb-2">Ciudad</label>
+                                <input
+                                    bind:value={editValues.city}
+                                    placeholder="Ciudad (ej: CABA)"
+                                    class="input-field w-full"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label class="block text-sm text-gray-300 mb-2">Barrio</label>
+                                <input
+                                    bind:value={editValues.hood}
+                                    placeholder="Barrio (ej: Palermo)"
+                                    class="input-field w-full"
+                                    required
+                                />
+                            </div>
+                            <div class="flex">
+                                <button 
+                                    class="save-btn"
+                                    on:click={() => saveChanges('location')}
+                                    disabled={isSaving}
+                                >
+                                    {isSaving ? 'Guardando...' : 'Guardar Ubicación'}
+                                </button>
+                                <button 
+                                    class="cancel-btn"
+                                    on:click={() => toggleEdit('location')}
+                                    disabled={isSaving}
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    {:else}
+                        <div class="space-y-4">
+                            <div class="grid md:grid-cols-2 gap-4 text-gray-400">
+                                <div>
+                                    <strong class="text-white block mb-1">País:</strong>
+                                    <span class="text-lg">{escort.location.country}</span>
+                                </div>
+                                <div>
+                                    <strong class="text-white block mb-1">Estado:</strong>
+                                    <span class="text-lg">{escort.location.state}</span>
+                                </div>
+                                <div>
+                                    <strong class="text-white block mb-1">Ciudad:</strong>
+                                    <span class="text-lg">{escort.location.city}</span>
+                                </div>
+                                <div>
+                                    <strong class="text-white block mb-1">Barrio:</strong>
+                                    <span class="text-lg">{escort.location.hood}</span>
+                                </div>
+                            </div>
+                            <div class="mt-4 p-3 bg-blue-900/20 border border-blue-700/30 rounded">
+                                <p class="text-sm text-blue-300">
+                                    💡 <strong>Nota:</strong> Mantén tu ubicación actualizada para que los clientes puedan encontrarte más fácilmente. El país no se puede modificar.
+                                </p>
+                            </div>
                         </div>
                     {/if}
                 </div>
