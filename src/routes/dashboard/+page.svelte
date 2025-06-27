@@ -317,6 +317,18 @@
         isSaving = true;
         try {
             await deleteContactMethod(contactType);
+            
+            // Update local state by removing the deleted contact method
+            const updatedContactMethods = escort.contactMethod.filter(c => c.type !== contactType);
+            const updatedEscort = {
+                ...escort,
+                contactMethod: updatedContactMethods
+            };
+            authStore.updateProfile(updatedEscort);
+            
+            // Also update editValues to reflect the change
+            editValues.contactMethod = updatedContactMethods.map(c => ({ ...c }));
+            
             saveMessage = 'Método de contacto eliminado exitosamente';
             setTimeout(() => saveMessage = '', 3000);
         } catch (error) {
@@ -455,9 +467,11 @@
                             value: contact.value
                         });
                     }
-                    // For multiple contacts, we'll need to handle this differently
-                    // This is a simplified version
-                    updatedEscort = escort; // Will be updated by store
+                    // Create updated escort with new contact methods
+                    updatedEscort = {
+                        ...escort,
+                        contactMethod: validContacts
+                    };
                     break;
                     
                 case 'services':
@@ -758,8 +772,7 @@
                                     <select bind:value={contact.type} class="input-field">
                                         <option value="WHATSAPP">WhatsApp</option>
                                         <option value="TELEGRAM">Telegram</option>
-                                        <option value="PHONE">Phone</option>
-                                        <option value="EMAIL">Email</option>
+                                        <option value="SMS">Mensaje de Texto</option>
                                     </select>
                                     <input
                                         bind:value={contact.value}
