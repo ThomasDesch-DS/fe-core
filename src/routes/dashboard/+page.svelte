@@ -635,29 +635,38 @@
     <script>goto('/dashboard/login');</script>
 {:else}
     <div class="min-h-screen bg-black text-white p-6 font-sans">
-        <header class="flex justify-between items-center mb-8">
-            <div class="flex items-center">
+        <header class="flex justify-between items-center bg-black text-white p-6 rounded-2xl shadow-lg mb-8">
+            <div class="flex items-center space-x-6">
                 <img
                         src={getMediaUrl(escort.id, escort.media.profilePicture, 'profile')}
                         alt="Avatar"
-                        class="w-24 h-24 rounded-full mr-4"
+                        class="w-24 h-24 rounded-full border-2 border-gray-700 object-cover"
                 />
 
-
                 <div>
-                    <h1 class="text-3xl font-bold">¡Hola, {escort.displayName}!</h1>
-                    <p class="text-gray-500 mt-1">Gestiona tu perfil y servicios con facilidad.</p>
+                    <h1 class="text-3xl font-semibold">¡Hola, {escort.displayName}!</h1>
+                    <p class="text-gray-400 mt-1">Gestiona tu perfil y servicios con facilidad.</p>
                 </div>
             </div>
-            <button
-                    on:click={handleLogout}
-                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
-                    disabled={isLoggingOut}
-            >
-                {#if isLoggingOut}Salir...{:else}Cerrar Sesión{/if}
-            </button>
-        </header>
 
+            <div class="flex gap-4">
+                <a
+                        href="/escort/{escort.slug}"
+                        target="_blank"
+                        class="px-5 py-2 border border-gray-600 rounded-md uppercase text-sm tracking-wide transition-all hover:bg-white hover:text-black"
+                >
+                    Ver mi página
+                </a>
+
+                <button
+                        on:click={handleLogout}
+                        class="px-5 py-2 bg-red-600 hover:bg-red-700 rounded-md uppercase text-sm tracking-wide transition-all disabled:opacity-50"
+                        disabled={isLoggingOut}
+                >
+                    {#if isLoggingOut}Saliendo…{:else}Cerrar sesión{/if}
+                </button>
+            </div>
+        </header>
         <nav class="flex space-x-6 border-b border-gray-700 mb-8">
             {#each tabs as tab}
                 <button
