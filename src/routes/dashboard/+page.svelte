@@ -2,23 +2,21 @@
     import { fade, scale } from 'svelte/transition';
     import { authStore } from '$lib/escort/store/authStore';
     import { logout } from '$lib/escort/api/authApi';
-    import { updateInfo, updateAppearance, updateAvailability, updateMedia, updateServicesInfo, updateContactMethod, deleteMediaFile, deleteContactMethod, updateLocation, type UpdateInfoRequest, type UpdateAppearanceRequest, type UpdateServicesInfoRequest, type ContactMethodRequest, type UpdateLocationRequest } from '$lib/escort/api/profileApi';
+    import { updateInfo, updateAppearance, updateAvailability, updateMedia, updateServicesInfo, updateContactMethod, deleteMediaFile, deleteContactMethod, updateLocation, uploadMedia, type UpdateInfoRequest, type UpdateAppearanceRequest, type UpdateServicesInfoRequest, type ContactMethodRequest, type UpdateLocationRequest, type UploadMediaDTO, type MediaWithOrder, type EscortMedia } from '$lib/escort/api/profileApi';
     import { goto } from '$app/navigation';
     import { onDestroy } from 'svelte';
     import {formatPrice} from "../../util/PriceUtils";
     import { toast } from 'svelte-sonner'
+    import {getMediaUrl} from "../../util/MediaUtils";
 
     let activeTab = 'Perfil';
     const tabs = ['Perfil', 'Media', 'Servicios', 'Disponibilidad', 'Ubicación'];
 
-    let authState;
-    const unsubscribe = authStore.subscribe(state => {
-        authState = state;
-    });
-    onDestroy(unsubscribe);
-
+    $: authState = $authStore;
     $: escort = authState.user?.profile || null;
-
+    $: if (escort?.media) {
+        console.log('Escort media updated:', escort.media.pics?.length || 0, 'pics');
+    }
     // Edit mode state
     let editMode = {
         description: false,
@@ -209,72 +207,279 @@
 
     // Media handling functions
     let newProfilePic = '';
-    let photosToAdd: { url: string, order: number }[] = [];
-    let photosToRemove: { url: string, order: number }[] = [];
+    let newProfilePicPreview = '';
+    let photosToAdd: MediaWithOrder[] = [];
+    let photoPreviews: { file: File, preview: string, order: number }[] = [];
+    let videosToAdd: MediaWithOrder[] = [];
+    let videoPreviews: { file: File, preview: string, order: number }[] = [];
+    let audioToAdd = '';
+    let audioPreview: { file: File, name: string } | null = null;
+    let fileInput: HTMLInputElement;
+    let videoFileInput: HTMLInputElement;
+    let audioFileInput: HTMLInputElement;
+    let profileFileInput: HTMLInputElement;
+    let isUploading = false;
 
-    async function updateMediaFiles() {
+    async function uploadMediaFiles() {
         if (!escort) return;
-        
-        isSaving = true;
-        saveMessage = '';
-        
-        try {
-            const mediaData = {
-                profilePic: newProfilePic || undefined,
-                photosToAdd: photosToAdd.length > 0 ? photosToAdd : undefined,
-                photosToRemove: photosToRemove.length > 0 ? photosToRemove : undefined,
-                videosToAdd: undefined,
-                videosToRemove: undefined,
-                audioToAdd: undefined,
-                audioToRemove: undefined
-            };
 
-            const result = await updateMedia(mediaData);
-            
-            // The API returns the new file names, update the store accordingly
-            if (result.files) {
-                saveMessage = `Media updated successfully. New files: ${result.files.join(', ')}`;
-                // Reset the temporary arrays
-                newProfilePic = '';
-                photosToAdd = [];
-                photosToRemove = [];
-                
-                // Refresh the profile data
-                // You might want to fetch updated profile here or handle the response properly
-            } else {
-                saveMessage = 'Media updated successfully';
+        isUploading = true;
+        saveMessage = '';
+
+        try {
+            const uploadData: UploadMediaDTO = {};
+
+            // Handle profile picture upload
+            if (newProfilePic) {
+                uploadData.profilePicture = newProfilePic;
             }
-            
+
+            // Handle photos to add
+            if (photosToAdd.length > 0) {
+                uploadData.pics = photosToAdd;
+            }
+
+            // Handle videos to add
+            if (videosToAdd.length > 0) {
+                uploadData.videos = videosToAdd;
+            }
+
+            // Handle audio to add (only one audio clip allowed)
+            if (audioToAdd) {
+                uploadData.audioCLip = audioToAdd;
+            }
+
+            const result = await uploadMedia(uploadData);
+
+            // Update local state with the new media data from the response
+            if (result) {
+                console.log('Upload result:', result);
+                console.log('Current escort media:', escort.media);
+
+                const updatedMedia = {
+                    ...escort.media,
+                    profilePicture: result.profilePicture || escort.media.profilePicture,
+                    pics: result.pics || escort.media.pics,
+                    videos: result.videos || escort.media.videos,
+                    audioClip: result.audioClip || escort.media.audioClip
+                };
+
+                console.log('Updated media:', updatedMedia);
+
+                // Update just the media property, not the entire escort object
+                authStore.updateProfile({
+                    ...escort,
+                    media: updatedMedia
+                });
+                console.log('Auth store updated');
+            }
+
+            // Reset the temporary data
+            newProfilePic = '';
+            newProfilePicPreview = '';
+            photosToAdd = [];
+            photoPreviews = [];
+            videosToAdd = [];
+            videoPreviews = [];
+            audioToAdd = '';
+            audioPreview = null;
+
+            // Clean up object URLs to prevent memory leaks
+            photoPreviews.forEach(preview => {
+                URL.revokeObjectURL(preview.preview);
+            });
+            videoPreviews.forEach(preview => {
+                URL.revokeObjectURL(preview.preview);
+            });
+
+            saveMessage = 'Media uploaded successfully!';
             setTimeout(() => saveMessage = '', 3000);
-            
+
         } catch (error) {
-            console.error('Media update failed:', error);
-            saveMessage = error.message || 'Failed to update media';
+            console.error('Media upload failed:', error);
+            saveMessage = error.message || 'Failed to upload media';
             setTimeout(() => saveMessage = '', 5000);
         } finally {
-            isSaving = false;
+            isUploading = false;
         }
     }
 
-    function addPhotoToUpload() {
-        const url = prompt('Enter photo URL:');
-        if (url) {
-            photosToAdd = [...photosToAdd, { url, order: photosToAdd.length + 1 }];
+    function triggerFileUpload() {
+        fileInput?.click();
+    }
+
+    function triggerVideoUpload() {
+        videoFileInput?.click();
+    }
+
+    function triggerAudioUpload() {
+        audioFileInput?.click();
+    }
+
+    function triggerProfilePicUpload() {
+        profileFileInput?.click();
+    }
+
+    async function handleProfilePicSelection(event: Event) {
+        const target = event.target as HTMLInputElement;
+        const file = target.files?.[0];
+        if (!file || !file.type.startsWith('image/')) return;
+
+        try {
+            newProfilePic = await fileToBase64(file);
+            newProfilePicPreview = URL.createObjectURL(file);
+
+            // Auto-upload profile picture
+            await uploadMediaFiles();
+        } catch (error) {
+            console.error('Profile picture upload failed:', error);
+            saveMessage = 'Failed to upload profile picture';
+            setTimeout(() => saveMessage = '', 5000);
+        }
+
+        target.value = '';
+    }
+
+    async function handleFileSelection(event: Event) {
+        const target = event.target as HTMLInputElement;
+        const files = target.files;
+        if (!files || files.length === 0) return;
+
+        const newPreviews = [];
+        const newPhotos = [];
+
+        for (const file of files) {
+            if (file.type.startsWith('image/')) {
+                const base64 = await fileToBase64(file);
+                const preview = URL.createObjectURL(file);
+                const order = photosToAdd.length + newPhotos.length + 1;
+
+                newPhotos.push({ media: base64, order });
+                newPreviews.push({ file, preview, order });
+            }
+        }
+
+        photosToAdd = [...photosToAdd, ...newPhotos];
+        photoPreviews = [...photoPreviews, ...newPreviews];
+
+        // Auto-upload photos
+        if (newPhotos.length > 0) {
+            await uploadMediaFiles();
+        }
+
+        target.value = '';
+    }
+
+    async function handleVideoSelection(event: Event) {
+        const target = event.target as HTMLInputElement;
+        const files = target.files;
+        if (!files || files.length === 0) return;
+
+        const newPreviews = [];
+        const newVideos = [];
+
+        for (const file of files) {
+            if (file.type.startsWith('video/')) {
+                const base64 = await fileToBase64(file);
+                const preview = URL.createObjectURL(file);
+                const order = videosToAdd.length + newVideos.length + 1;
+
+                newVideos.push({ media: base64, order });
+                newPreviews.push({ file, preview, order });
+            }
+        }
+
+        videosToAdd = [...videosToAdd, ...newVideos];
+        videoPreviews = [...videoPreviews, ...newPreviews];
+
+        // Auto-upload videos
+        if (newVideos.length > 0) {
+            await uploadMediaFiles();
+        }
+
+        target.value = '';
+    }
+
+    async function handleAudioSelection(event: Event) {
+        const target = event.target as HTMLInputElement;
+        const file = target.files?.[0];
+        if (!file || !file.type.startsWith('audio/')) return;
+
+        try {
+            audioToAdd = await fileToBase64(file);
+            audioPreview = { file, name: file.name };
+
+            // Auto-upload audio
+            await uploadMediaFiles();
+        } catch (error) {
+            console.error('Audio upload failed:', error);
+            saveMessage = 'Failed to upload audio';
+            setTimeout(() => saveMessage = '', 5000);
+        }
+
+        target.value = '';
+    }
+
+    function removePhotoPreview(order: number) {
+        photoPreviews = photoPreviews.filter(p => p.order !== order);
+        photosToAdd = photosToAdd.filter(p => p.order !== order);
+
+        // Clean up object URLs to prevent memory leaks
+        const preview = photoPreviews.find(p => p.order === order);
+        if (preview) {
+            URL.revokeObjectURL(preview.preview);
         }
     }
 
-    function removePhoto(photoUrl: string, order: number) {
-        photosToRemove = [...photosToRemove, { url: photoUrl, order }];
+    function removeVideoPreview(order: number) {
+        videoPreviews = videoPreviews.filter(p => p.order !== order);
+        videosToAdd = videosToAdd.filter(p => p.order !== order);
+
+        // Clean up object URLs to prevent memory leaks
+        const preview = videoPreviews.find(p => p.order === order);
+        if (preview) {
+            URL.revokeObjectURL(preview.preview);
+        }
     }
+
+    function removeAudioPreview() {
+        audioToAdd = '';
+        audioPreview = null;
+    }
+
+    function fileToBase64(file: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const result = reader.result as string;
+                // Return the complete data URL including MIME type (e.g., data:image/jpeg;base64,...)
+                resolve(result);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
 
     async function deletePhoto(fileName: string) {
         if (!confirm('¿Estás seguro de que quieres eliminar esta foto?')) return;
-        
+
         isSaving = true;
         try {
             await deleteMediaFile(fileName);
+
+            // Remove photo from local state
+            const updatedPics = escort.media.pics.filter(pic => pic.media !== fileName);
+            const updatedEscort = {
+                ...escort,
+                media: {
+                    ...escort.media,
+                    pics: updatedPics
+                }
+            };
+            authStore.updateProfile(updatedEscort);
+
             saveMessage = 'Foto eliminada exitosamente';
-            // Refresh profile data or remove from local state
             setTimeout(() => saveMessage = '', 3000);
         } catch (error) {
             console.error('Delete photo failed:', error);
@@ -287,10 +492,22 @@
 
     async function deleteVideo(fileName: string) {
         if (!confirm('¿Estás seguro de que quieres eliminar este video?')) return;
-        
+
         isSaving = true;
         try {
             await deleteMediaFile(fileName);
+
+            // Remove video from local state
+            const updatedVideos = escort.media.videos?.filter(video => video.media !== fileName) || [];
+            const updatedEscort = {
+                ...escort,
+                media: {
+                    ...escort.media,
+                    videos: updatedVideos
+                }
+            };
+            authStore.updateProfile(updatedEscort);
+
             saveMessage = 'Video eliminado exitosamente';
             setTimeout(() => saveMessage = '', 3000);
         } catch (error) {
@@ -304,10 +521,21 @@
 
     async function deleteAudio(fileName: string) {
         if (!confirm('¿Estás seguro de que quieres eliminar este audio?')) return;
-        
+
         isSaving = true;
         try {
             await deleteMediaFile(fileName);
+
+            // Remove audio from local state
+            const updatedEscort = {
+                ...escort,
+                media: {
+                    ...escort.media,
+                    audioClip: null
+                }
+            };
+            authStore.updateProfile(updatedEscort);
+
             saveMessage = 'Audio eliminado exitosamente';
             setTimeout(() => saveMessage = '', 3000);
         } catch (error) {
@@ -321,11 +549,11 @@
 
     async function removeContactMethod(contactType: string) {
         if (!confirm('¿Estás seguro de que quieres eliminar este método de contacto?')) return;
-        
+
         isSaving = true;
         try {
             await deleteContactMethod(contactType);
-            
+
             // Update local state by removing the deleted contact method
             const updatedContactMethods = escort.contactMethod.filter(c => c.type !== contactType);
             const updatedEscort = {
@@ -333,10 +561,10 @@
                 contactMethod: updatedContactMethods
             };
             authStore.updateProfile(updatedEscort);
-            
+
             // Also update editValues to reflect the change
             editValues.contactMethod = updatedContactMethods.map(c => ({ ...c }));
-            
+
             saveMessage = 'Método de contacto eliminado exitosamente';
             setTimeout(() => saveMessage = '', 3000);
         } catch (error) {
@@ -369,10 +597,10 @@
 
     async function saveAvailability() {
         if (!escort) return;
-        
+
         isSaving = true;
         saveMessage = '';
-        
+
         try {
             const transformedData = {
                 onlyVirtual: availabilityData.onlyVirtual,
@@ -390,13 +618,13 @@
                         }]
                     }))
             };
-            
+
             const updatedEscort = await updateAvailability(transformedData);
-            
+
             if (updatedEscort) {
                 authStore.updateProfile(updatedEscort);
             }
-            
+
             editingAvailability = false;
             saveMessage = 'Availability updated successfully';
             setTimeout(() => saveMessage = '', 3000);
@@ -409,9 +637,6 @@
         }
     }
 
-    function getMediaUrl(escortId: string, fileName: string, type: 'profile' | 'pics'): string {
-        return `https://nexus.daisyssecrets.com/escorts/${escortId}/${type}/${fileName}`;
-    }
 
     function toggleEdit(section: string) {
         editMode[section] = !editMode[section];
@@ -455,13 +680,13 @@
 
     async function saveChanges(section: string) {
         if (!escort) return;
-        
+
         isSaving = true;
         saveMessage = '';
-        
+
         try {
             let updatedEscort;
-            
+
             switch (section) {
                 case 'description':
                     if (editValues.description.length < 20) {
@@ -473,7 +698,7 @@
                         publicPhoneNumber: editValues.publicPhoneNumber
                     });
                     break;
-                    
+
                 case 'appearance':
                     if (editValues.heightInCm < 140 || editValues.heightInCm > 220) {
                         throw new Error('Height must be between 140-220 cm');
@@ -489,7 +714,7 @@
                         hips: editValues.hips
                     });
                     break;
-                    
+
                 case 'contact':
                     const validContacts = editValues.contactMethod.filter(c => c.value.trim() !== '');
                     if (validContacts.length === 0) {
@@ -508,7 +733,7 @@
                         contactMethod: validContacts
                     };
                     break;
-                    
+
                 case 'services':
                     if (editValues.hourPrice < 10) {
                         throw new Error('Minimum rate is 10');
@@ -534,7 +759,7 @@
                         customRate: editValues.customRate.filter(rate => rate.serviceName && rate.duration)
                     });
                     break;
-                    
+
                 case 'location':
                     if (!editValues.country.trim() || !editValues.state.trim() || !editValues.city.trim() || !editValues.hood.trim()) {
                         throw new Error('All location fields are required');
@@ -551,11 +776,11 @@
             if (updatedEscort) {
                 authStore.updateProfile(updatedEscort);
             }
-            
+
             editMode[section] = false;
             saveMessage = 'Cambios guardados con éxito';
             setTimeout(() => saveMessage = '', 3000);
-            
+
         } catch (error) {
             console.error('Save failed:', error);
             saveMessage = error.message || 'Failed to save changes';
@@ -710,14 +935,14 @@
                                 type="tel"
                             />
                             <div class="flex">
-                                <button 
+                                <button
                                     class="save-btn"
                                     on:click={() => saveChanges('description')}
                                     disabled={isSaving}
                                 >
                                     {isSaving ? 'Saving...' : 'Save'}
                                 </button>
-                                <button 
+                                <button
                                     class="cancel-btn"
                                     on:click={() => toggleEdit('description')}
                                     disabled={isSaving}
@@ -792,14 +1017,14 @@
                                 />
                             </div>
                             <div class="flex">
-                                <button 
+                                <button
                                     class="save-btn"
                                     on:click={() => saveChanges('appearance')}
                                     disabled={isSaving}
                                 >
                                     {isSaving ? 'Saving...' : 'Save'}
                                 </button>
-                                <button 
+                                <button
                                     class="cancel-btn"
                                     on:click={() => toggleEdit('appearance')}
                                     disabled={isSaving}
@@ -852,14 +1077,14 @@
                                 + Add Contact
                             </button>
                             <div class="flex">
-                                <button 
+                                <button
                                     class="save-btn"
                                     on:click={() => saveChanges('contact')}
                                     disabled={isSaving}
                                 >
                                     {isSaving ? 'Saving...' : 'Save'}
                                 </button>
-                                <button 
+                                <button
                                     class="cancel-btn"
                                     on:click={() => toggleEdit('contact')}
                                     disabled={isSaving}
@@ -891,40 +1116,52 @@
                 <div class="card">
                     <h2 class="text-xl font-semibold mb-4">Profile Picture</h2>
                     <div class="flex gap-4 items-center">
-                        <img
-                            src={getMediaUrl(escort.id, escort.media.profilePicture, 'profile')}
-                            alt="Current profile"
-                            class="w-24 h-24 rounded-full object-cover"
-                        />
+                        <div class="relative">
+                            <img
+                                src={newProfilePicPreview || getMediaUrl(escort.id, escort.media.profilePicture, 'profile')}
+                                alt="Profile"
+                                class="w-24 h-24 rounded-full object-cover border-2 border-gray-600"
+                            />
+                            {#if isUploading}
+                                <div class="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
+                                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                                </div>
+                            {/if}
+                        </div>
                         <div class="space-y-2">
                             <input
-                                bind:value={newProfilePic}
-                                placeholder="Enter new profile picture URL"
-                                class="input-field w-64"
+                                type="file"
+                                accept="image/*"
+                                bind:this={profileFileInput}
+                                on:change={handleProfilePicSelection}
+                                class="hidden"
                             />
                             <button
-                                class="save-btn"
-                                on:click={updateMediaFiles}
-                                disabled={isSaving || !newProfilePic}
+                                class="bg-neutral-700 hover:bg-neutral-600 text-white px-3 py-2 rounded disabled:opacity-50"
+                                on:click={triggerProfilePicUpload}
+                                disabled={isUploading}
                             >
-                                {isSaving ? 'Updating...' : 'Update Profile Picture'}
+                                {isUploading ? 'Uploading...' : 'Choose Profile Picture'}
                             </button>
+                            <p class="text-gray-400 text-sm">Click to select and auto-upload a new profile picture</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="card">
                     <h2 class="text-xl font-semibold mb-4">Photos</h2>
+
+                    <!-- Existing uploaded photos -->
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                         {#each escort.media.pics as pic}
-                            <div class="relative">
+                            <div class="relative group">
                                 <img
                                     src={getMediaUrl(escort.id, pic.media, 'pics')}
                                     alt="Foto {pic.order}"
-                                    class="rounded-lg hover:opacity-90 transition-opacity"
+                                    class="w-full h-32 object-cover rounded-lg hover:opacity-90 transition-opacity"
                                 />
                                 <button
-                                    class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-1 rounded text-xs"
+                                    class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                                     on:click={() => deletePhoto(pic.media)}
                                     disabled={isSaving}
                                 >
@@ -933,19 +1170,34 @@
                             </div>
                         {/each}
                     </div>
-                    
-                    {#if photosToAdd.length > 0}
+
+                    <!-- Photo previews before upload -->
+                    {#if photoPreviews.length > 0}
                         <div class="mb-4">
-                            <h3 class="text-white mb-2">Photos to Add:</h3>
-                            <div class="space-y-2">
-                                {#each photosToAdd as photo}
-                                    <div class="flex items-center gap-2 text-gray-300">
-                                        <span class="text-sm">{photo.url}</span>
+                            <h3 class="text-white mb-2 flex items-center gap-2">
+                                <span>New Photos</span>
+                                {#if isUploading}
+                                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                    <span class="text-sm text-gray-400">Uploading...</span>
+                                {/if}
+                            </h3>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {#each photoPreviews as preview}
+                                    <div class="relative group">
+                                        <img
+                                            src={preview.preview}
+                                            alt="Preview {preview.order}"
+                                            class="w-full h-32 object-cover rounded-lg"
+                                        />
+                                        <div class="absolute inset-0 bg-blue-600 bg-opacity-20 rounded-lg flex items-center justify-center">
+                                            <span class="text-white text-xs font-medium">Uploading...</span>
+                                        </div>
                                         <button
-                                            class="text-red-400 hover:text-red-300"
-                                            on:click={() => photosToAdd = photosToAdd.filter(p => p !== photo)}
+                                            class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                            on:click={() => removePhotoPreview(preview.order)}
+                                            disabled={isUploading}
                                         >
-                                            Remove
+                                            ×
                                         </button>
                                     </div>
                                 {/each}
@@ -953,85 +1205,198 @@
                         </div>
                     {/if}
 
-                    {#if photosToRemove.length > 0}
-                        <div class="mb-4">
-                            <h3 class="text-white mb-2">Photos to Remove:</h3>
-                            <div class="space-y-2">
-                                {#each photosToRemove as photo}
-                                    <div class="flex items-center gap-2 text-gray-300">
-                                        <span class="text-sm">{photo.url}</span>
-                                        <button
-                                            class="text-green-400 hover:text-green-300"
-                                            on:click={() => photosToRemove = photosToRemove.filter(p => p !== photo)}
-                                        >
-                                            Keep
-                                        </button>
-                                    </div>
-                                {/each}
-                            </div>
-                        </div>
-                    {/if}
-
-                    <div class="flex gap-2">
+                    <!-- Upload button -->
+                    <div class="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
+                        <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            on:change={handleFileSelection}
+                            class="hidden"
+                            bind:this={fileInput}
+                        />
                         <button
-                            class="bg-neutral-700 hover:bg-neutral-600 text-white px-3 py-2 rounded"
-                            on:click={addPhotoToUpload}
+                            class="bg-neutral-700 hover:bg-neutral-600 text-white px-4 py-2 rounded disabled:opacity-50"
+                            on:click={triggerFileUpload}
+                            disabled={isUploading}
                         >
-                            + Add Photo
+                            {isUploading ? 'Uploading...' : '+ Add Photos'}
                         </button>
-                        <button
-                            class="save-btn"
-                            on:click={updateMediaFiles}
-                            disabled={isSaving || (photosToAdd.length === 0 && photosToRemove.length === 0 && !newProfilePic)}
-                        >
-                            {isSaving ? 'Updating...' : 'Update Media'}
-                        </button>
+                        <p class="text-gray-400 text-sm mt-2">Select multiple images to auto-upload</p>
                     </div>
                 </div>
 
-                {#if escort.media.videos && escort.media.videos.length > 0}
-                    <div class="card">
-                        <h2 class="text-xl font-semibold mb-4">Videos</h2>
-                        {#each escort.media.videos as video}
-                            <div class="relative mb-4">
-                                <video
-                                    src={getMediaUrl(escort.id, video.media, 'pics')}
-                                    controls
-                                    class="w-full rounded-lg hover:opacity-90 transition-opacity"
-                                ></video>
-                                <button
-                                    class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-sm"
-                                    on:click={() => deleteVideo(video.media)}
-                                    disabled={isSaving}
-                                >
-                                    Eliminar Video
-                                </button>
-                            </div>
-                        {/each}
-                    </div>
-                {/if}
+                <div class="card">
+                    <h2 class="text-xl font-semibold mb-4">Videos</h2>
 
-                {#if escort.media.audios && escort.media.audios.length > 0}
-                    <div class="card">
-                        <h2 class="text-xl font-semibold mb-4">Audio Clips</h2>
-                        {#each escort.media.audios as audio}
-                            <div class="flex items-center justify-between mb-2 p-2 bg-neutral-800 rounded">
+                    <!-- Existing uploaded videos -->
+                    {#if escort.media.videos && escort.media.videos.length > 0}
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            {#each escort.media.videos as video}
+                                <div class="relative group">
+                                    <video
+                                        src={getMediaUrl(escort.id, video.media, 'videos')}
+                                        controls
+                                        class="w-full h-48 rounded-lg hover:opacity-90 transition-opacity"
+                                        preload="metadata"
+                                    ></video>
+                                    <button
+                                        class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                        on:click={() => deleteVideo(video.media)}
+                                        disabled={isSaving}
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            {/each}
+                        </div>
+                    {/if}
+
+                    <!-- Video previews before upload -->
+                    {#if videoPreviews.length > 0}
+                        <div class="mb-4">
+                            <h3 class="text-white mb-2 flex items-center gap-2">
+                                <span>New Videos</span>
+                                {#if isUploading}
+                                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                    <span class="text-sm text-gray-400">Uploading...</span>
+                                {/if}
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {#each videoPreviews as preview}
+                                    <div class="relative group">
+                                        <video
+                                            src={preview.preview}
+                                            controls
+                                            class="w-full h-48 rounded-lg"
+                                            preload="metadata"
+                                        ></video>
+                                        <div class="absolute inset-0 bg-blue-600 bg-opacity-20 rounded-lg flex items-center justify-center">
+                                            <span class="text-white text-xs font-medium">Uploading...</span>
+                                        </div>
+                                        <button
+                                            class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                            on:click={() => removeVideoPreview(preview.order)}
+                                            disabled={isUploading}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                {/each}
+                            </div>
+                        </div>
+                    {/if}
+
+                    <!-- Video upload button -->
+                    <div class="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
+                        <input
+                            type="file"
+                            accept="video/*"
+                            multiple
+                            on:change={handleVideoSelection}
+                            class="hidden"
+                            bind:this={videoFileInput}
+                        />
+                        <button
+                            class="bg-neutral-700 hover:bg-neutral-600 text-white px-4 py-2 rounded disabled:opacity-50"
+                            on:click={triggerVideoUpload}
+                            disabled={isUploading}
+                        >
+                            {isUploading ? 'Uploading...' : '+ Add Videos'}
+                        </button>
+                        <p class="text-gray-400 text-sm mt-2">Select multiple videos to auto-upload</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2 class="text-xl font-semibold mb-4">Audio Clip</h2>
+
+                    <!-- Current audio -->
+                    {#if escort.media.audioClip}
+                        <div class="mb-4">
+                            <div class="flex items-center justify-between p-3 bg-neutral-800 rounded-lg">
                                 <audio
-                                    src={getMediaUrl(escort.id, audio.media, 'pics')}
+                                    src={getMediaUrl(escort.id, escort.media.audioClip, 'audio')}
                                     controls
                                     class="flex-1"
                                 ></audio>
                                 <button
                                     class="ml-2 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-sm"
-                                    on:click={() => deleteAudio(audio.media)}
+                                    on:click={() => deleteAudio(escort.media.audioClip)}
                                     disabled={isSaving}
                                 >
-                                    Eliminar
+                                    Delete
                                 </button>
                             </div>
-                        {/each}
-                    </div>
-                {/if}
+                        </div>
+                    {/if}
+
+                    <!-- Audio preview before upload -->
+                    {#if audioPreview}
+                        <div class="mb-4">
+                            <h3 class="text-white mb-2 flex items-center gap-2">
+                                <span>New Audio</span>
+                                {#if isUploading}
+                                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                    <span class="text-sm text-gray-400">Uploading...</span>
+                                {/if}
+                            </h3>
+                            <div class="flex items-center justify-between p-3 bg-neutral-800 rounded-lg">
+                                <span class="text-white text-sm">{audioPreview.name}</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-blue-400 text-xs">Uploading...</span>
+                                    <button
+                                        class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-sm"
+                                        on:click={removeAudioPreview}
+                                        disabled={isUploading}
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {/if}
+
+                    <!-- Audio upload button (only show if no current audio) -->
+                    {#if !escort.media.audioClip && !audioPreview}
+                        <div class="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
+                            <input
+                                type="file"
+                                accept="audio/*"
+                                on:change={handleAudioSelection}
+                                class="hidden"
+                                bind:this={audioFileInput}
+                            />
+                            <button
+                                class="bg-neutral-700 hover:bg-neutral-600 text-white px-4 py-2 rounded disabled:opacity-50"
+                                on:click={triggerAudioUpload}
+                                disabled={isUploading}
+                            >
+                                {isUploading ? 'Uploading...' : '+ Add Audio Clip'}
+                            </button>
+                            <p class="text-gray-400 text-sm mt-2">Select one audio file to upload (replaces existing)</p>
+                        </div>
+                    {:else if escort.media.audioClip}
+                        <div class="border-2 border-dashed border-gray-600 rounded-lg p-6 text-center">
+                            <input
+                                type="file"
+                                accept="audio/*"
+                                on:change={handleAudioSelection}
+                                class="hidden"
+                                bind:this={audioFileInput}
+                            />
+                            <button
+                                class="bg-neutral-700 hover:bg-neutral-600 text-white px-4 py-2 rounded disabled:opacity-50"
+                                on:click={triggerAudioUpload}
+                                disabled={isUploading}
+                            >
+                                {isUploading ? 'Uploading...' : 'Replace Audio Clip'}
+                            </button>
+                            <p class="text-gray-400 text-sm mt-2">Select a new audio file to replace the current one</p>
+                        </div>
+                    {/if}
+                </div>
+
             </section>
         {/if}
 
@@ -1042,7 +1407,7 @@
                         {#if editMode.services}Cancel{:else}Edit{/if}
                     </button>
                     <h2 class="text-xl font-semibold mb-4">Servicios & Fantasías</h2>
-                    
+
                     {#if !editMode.services}
                         <div class="flex flex-wrap gap-2 mb-4">
                             {#each [...escort.servicesInfo.escortServices, ...escort.servicesInfo.escortFantasies, ...escort.servicesInfo.massageType, ...escort.servicesInfo.virtualServices] as service}
@@ -1058,7 +1423,7 @@
                                 <h4 class="text-white font-semibold mb-2">Tarifas Personalizadas:</h4>
                                 {#each escort.servicesInfo.customRate as rate}
                                     <p class="text-gray-400 text-sm">
-                                        <strong class="text-white">{rate.serviceName}:</strong> {rate.duration} - 
+                                        <strong class="text-white">{rate.serviceName}:</strong> {rate.duration} -
                                         Incall: {formatPrice(rate.incallPrice)}, Outcall: {formatPrice(rate.incallPrice)}
                                     </p>
                                 {/each}
@@ -1238,14 +1603,14 @@
 
                             <!-- Save/Cancel -->
                             <div class="flex">
-                                <button 
+                                <button
                                     class="save-btn"
                                     on:click={() => saveChanges('services')}
                                     disabled={isSaving}
                                 >
                                     {isSaving ? 'Saving...' : 'Save'}
                                 </button>
-                                <button 
+                                <button
                                     class="cancel-btn"
                                     on:click={() => toggleEdit('services')}
                                     disabled={isSaving}
@@ -1265,9 +1630,9 @@
                     <button class="edit-btn" on:click={() => editingAvailability = !editingAvailability}>
                         {#if editingAvailability}Cancel{:else}Edit{/if}
                     </button>
-                    
+
                     <h2 class="text-xl font-semibold mb-4">Service Preferences</h2>
-                    
+
                     {#if !editingAvailability}
                         <div class="space-y-2 text-gray-400">
                             <p><strong class="text-white">Only Virtual:</strong> {escort.availability.onlyVirtual ? 'Yes' : 'No'}</p>
@@ -1298,16 +1663,16 @@
                                 <input type="checkbox" bind:checked={availabilityData.clientPlace} class="service-checkbox" />
                                 Available at Client's Place
                             </label>
-                            
+
                             <div class="flex">
-                                <button 
+                                <button
                                     class="save-btn"
                                     on:click={saveAvailability}
                                     disabled={isSaving}
                                 >
                                     {isSaving ? 'Saving...' : 'Save'}
                                 </button>
-                                <button 
+                                <button
                                     class="cancel-btn"
                                     on:click={() => editingAvailability = false}
                                     disabled={isSaving}
@@ -1412,14 +1777,14 @@
                                 />
                             </div>
                             <div class="flex">
-                                <button 
+                                <button
                                     class="save-btn"
                                     on:click={() => saveChanges('location')}
                                     disabled={isSaving}
                                 >
                                     {isSaving ? 'Guardando...' : 'Guardar Ubicación'}
                                 </button>
-                                <button 
+                                <button
                                     class="cancel-btn"
                                     on:click={() => toggleEdit('location')}
                                     disabled={isSaving}

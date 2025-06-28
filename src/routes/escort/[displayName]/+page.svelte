@@ -4,6 +4,7 @@
     import { api } from '$lib/escort/api/apiClient';
     import { page } from '$app/stores';
     import { toast } from 'svelte-sonner';
+    import { getMediaUrl } from "../../../util/MediaUtils";
 
     // ---- CONFIGURACIÓN ----
     const ESCORT_CACHE_KEY = 'escortDetailCache';
@@ -40,7 +41,9 @@
         media: {
             profilePicture: string;
             pics: { media: string; order: number; }[];
-            videos: any[]; audioClip: null | string; kyc: string[];
+            videos: { media: string; order: number; }[];
+            audioClip: null | string;
+            kyc: string[];
         };
         age: number; ageType: string;
     }
@@ -60,11 +63,32 @@
         { key: 'virtual', label: 'Virtual' },
     ];
 
-    // Galería + swipe + share
+    // ---- MEDIA TABS ----
+    let activeMediaTab: 'all' | 'fotos' | 'videos' = 'all';
+    const mediaTabs = [
+        { key: 'all', label: 'Todo' },
+        { key: 'fotos', label: 'Fotos' },
+        { key: 'videos', label: 'Videos' },
+    ];
+
+    // ---- GALERÍA + SWIPE + SHARE ----
     let modalOpen = false;
     let modalIndex = 0;
     let touchStartX = 0;
-    $: sortedPics = escort ? [...escort.media.pics].sort((a, b) => a.order - b.order) : [];
+
+    $: sortedPics = escort
+        ? [...escort.media.pics]
+            .sort((a, b) => a.order - b.order)
+            .map(pic => ({ ...pic, media: getMediaUrl(escort.id, pic.media, 'pics') }))
+        : [];
+    $: sortedVideos = escort
+        ? [...escort.media.videos]
+            .sort((a, b) => a.order - b.order)
+            .map(vid => ({ ...vid, media: getMediaUrl(escort.id, vid.media, 'videos') }))
+        : [];
+    $: audioClipURL = escort?.media.audioClip
+        ? getMediaUrl(escort.id, escort.media.audioClip, 'audio')
+        : null;
 
     // ---- CACHE LOGIC ----
     function getCache(): Record<string, EscortCacheEntry> {
@@ -83,7 +107,6 @@
         if (!entry) return null;
         const isExpired = Date.now() - entry.timestamp > CACHE_TTL_MS;
         if (isExpired) {
-            // Borra si está expirado
             delete cache[displayName];
             saveCache(cache);
             return null;
@@ -96,20 +119,26 @@
         saveCache(cache);
     }
 
-    // ---- FUNCIONES DE GALERÍA/UX ----
-    function getMediaUrl(id: string, file: string, type: 'profile' | 'pics') {
-        if (file?.startsWith('http')) return file;
-        return `https://nexus.daisyssecrets.com/escorts/${id}/${type}/${file}`;
-    }
-
+    // ---- UX HANDLERS ----
     function openModal(i: number) { modalIndex = i; modalOpen = true; history.pushState({ lightbox: true }, ''); }
     function closeModal() { modalOpen = false; if (history.state?.lightbox) history.back(); }
     function prevImage() { modalIndex = (modalIndex - 1 + sortedPics.length) % sortedPics.length; }
     function nextImage() { modalIndex = (modalIndex + 1) % sortedPics.length; }
-    function handleKeydown(e: KeyboardEvent) { if (!modalOpen) return; if (e.key === 'Escape') closeModal(); else if (e.key === 'ArrowLeft') prevImage(); else if (e.key === 'ArrowRight') nextImage(); }
-    function handlePopState() { if (modalOpen && !history.state?.lightbox) { modalOpen = false; } }
+    function handleKeydown(e: KeyboardEvent) {
+        if (!modalOpen) return;
+        if (e.key === 'Escape') closeModal();
+        else if (e.key === 'ArrowLeft') prevImage();
+        else if (e.key === 'ArrowRight') nextImage();
+    }
+    function handlePopState() {
+        if (modalOpen && !history.state?.lightbox) { modalOpen = false; }
+    }
     function handleTouchStart(e: TouchEvent) { touchStartX = e.touches[0].clientX; }
-    function handleTouchEnd(e: TouchEvent) { const touchEndX = e.changedTouches[0].clientX; const diff = touchEndX - touchStartX; if (Math.abs(diff) > 50) { diff > 0 ? prevImage() : nextImage(); } }
+    function handleTouchEnd(e: TouchEvent) {
+        const touchEndX = e.changedTouches[0].clientX;
+        const diff = touchEndX - touchStartX;
+        if (Math.abs(diff) > 50) { diff > 0 ? prevImage() : nextImage(); }
+    }
     async function shareEscort() {
         const url = window.location.href;
         try {
@@ -130,31 +159,18 @@
             const { displayName } = $page.params;
             if (!displayName) throw new Error('Nombre para mostrar no encontrado');
 
-            // -- Primero intenta cache local --
             let cachedEscort = getFromCache(displayName);
             if (cachedEscort) {
-                // Hacés lo mismo que harías después del fetch (ajustar URLs)
                 if (cachedEscort.media.profilePicture)
                     cachedEscort.media.profilePicture = getMediaUrl(cachedEscort.id, cachedEscort.media.profilePicture, 'profile');
-                if (cachedEscort.media.pics)
-                    cachedEscort.media.pics = cachedEscort.media.pics.map(pic => ({
-                        ...pic,
-                        media: getMediaUrl(cachedEscort.id, pic.media, 'pics')
-                    }));
                 escort = cachedEscort;
                 loading = false;
                 return;
             }
 
-            // -- Si no está en cache o expiró, fetch --
             const data = await api.get<Escort>(`/${displayName}`);
             if (data.media.profilePicture)
                 data.media.profilePicture = getMediaUrl(data.id, data.media.profilePicture, 'profile');
-            if (data.media.pics)
-                data.media.pics = data.media.pics.map(pic => ({
-                    ...pic,
-                    media: getMediaUrl(data.id, pic.media, 'pics')
-                }));
             escort = data;
             setToCache(displayName, data);
         } catch (err) {
@@ -172,7 +188,7 @@
 
     $: primaryTags = escort ? [
         'Disponible',
-        escort.appearance.gender === 'FEMALE' ? 'Mujer' : 'Hombre',
+        escort.appearance.gender === 'Mujer' ? 'Mujer' : 'Hombre',
         escort.availability.onlyVirtual ? 'Solo virtual' : 'Presencial'
     ] : [];
 
@@ -212,12 +228,23 @@
     .btn-vercel:hover {
         @apply bg-white text-black;
     }
-
     .share-btn {
         @apply p-2 rounded-full bg-white/10 text-white transition-colors duration-200;
     }
     .share-btn:hover {
         @apply bg-white text-black;
+    }
+    /* NUEVO ESTILO AUDIO */
+    .audio-card {
+        @apply max-w-xl mx-auto bg-white/10 rounded-lg p-6 flex items-center gap-4;
+    }
+    .audio-icon {
+        width: 2rem;
+        height: 2rem;
+        flex-shrink: 0;
+    }
+    .audio-player {
+        @apply w-full;
     }
 </style>
 
@@ -246,11 +273,8 @@
         <section class="relative h-screen flex items-center justify-center text-center">
             <img src={escort.media.profilePicture} alt="Imagen destacada"
                  class="absolute inset-0 object-cover w-full h-full filter brightness-50"/>
-
-            <!-- Botón compartir (top-right) -->
             <div class="absolute top-4 right-4 z-20">
                 <button on:click={shareEscort} class="share-btn" aria-label="Compartir">
-                    <!-- ícono share -->
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
                          stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -258,7 +282,6 @@
                     </svg>
                 </button>
             </div>
-
             <div class="relative z-10 space-y-4">
                 <h1 class="text-6xl font-extrabold">{escort.displayName}</h1>
                 <div class="flex justify-center gap-2 flex-wrap">
@@ -272,6 +295,20 @@
             </div>
         </section>
 
+        <!-- AUDIO SECTION -->
+        {#if audioClipURL}
+            <section class="bg-black py-12 px-8 md:px-16">
+                <div class="audio-card">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor"
+                         class="audio-icon text-white" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 19V6l12-2v15M9 19l-5-5H5a2 2 0 01-2-2V8a2 2 0 012-2h1l5-5v18z"/>
+                    </svg>
+                    <audio controls src={audioClipURL} class="audio-player"></audio>
+                </div>
+            </section>
+        {/if}
+
         <!-- Sticky CTA -->
         <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md p-4 flex justify-between items-center md:hidden">
             <p class="text-sm text-gray-300">
@@ -281,23 +318,67 @@
                class="p-3 rounded-full border border-white hover:bg-white/10 transition">💬</a>
         </div>
 
-        <!-- GALLERY -->
+        <!-- GALLERY con tabs -->
         <section class="bg-black py-16 px-8 md:px-16">
             <h2 class="text-4xl font-semibold mb-8">Galería</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {#each sortedPics as pic,i}
-                    <div class="relative group">
-                        <img src={pic.media} alt="imagen" loading="lazy"
-                             class="w-full h-64 object-cover rounded-md transform transition duration-200 group-hover:scale-105 cursor-pointer"
-                             on:click={()=>openModal(i)}/>
-                        <span class="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded">#{i+1}</span>
-                    </div>
-                {/each}
-            </div>
+            <nav class="border-b border-gray-700 mb-8">
+                <ul class="flex gap-6">
+                    {#each mediaTabs as { key, label }}
+                        <li>
+                            <button
+                                    role="tab"
+                                    aria-selected={activeMediaTab === key}
+                                    class="pb-2 px-4 -mb-px border-b-2 transition-all duration-200
+                                {activeMediaTab === key
+                                    ? 'border-white text-white font-semibold'
+                                    : 'border-transparent text-gray-500 hover:text-white hover:border-gray-500'}"
+                                    on:click={() => activeMediaTab = key}
+                            >
+                                {label}
+                            </button>
+                        </li>
+                    {/each}
+                </ul>
+            </nav>
+
+            {#if activeMediaTab==='all'}
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {#each sortedPics as pic,i}
+                        <div class="relative group">
+                            <img src={pic.media} alt="imagen" loading="lazy"
+                                 class="w-full h-64 object-cover rounded-md transform transition duration-200 group-hover:scale-105 cursor-pointer"
+                                 on:click={() => openModal(i)} />
+                            <span class="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded">#{i+1}</span>
+                        </div>
+                    {/each}
+                    {#each sortedVideos as vid}
+                        <video controls src={vid.media} class="w-full h-64 object-cover rounded-md"></video>
+                    {/each}
+                </div>
+
+            {:else if activeMediaTab==='fotos'}
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {#each sortedPics as pic,i}
+                        <div class="relative group">
+                            <img src={pic.media} alt="imagen" loading="lazy"
+                                 class="w-full h-64 object-cover rounded-md transform transition duration-200 group-hover:scale-105 cursor-pointer"
+                                 on:click={() => openModal(i)} />
+                            <span class="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded">#{i+1}</span>
+                        </div>
+                    {/each}
+                </div>
+
+            {:else}
+                <div class="space-y-8">
+                    {#each sortedVideos as vid}
+                        <video controls src={vid.media} class="w-full h-auto rounded-md"></video>
+                    {/each}
+                </div>
+            {/if}
         </section>
 
-        <!-- Lightbox -->
         {#if modalOpen}
+            <!-- Lightbox -->
             <div class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center"
                  on:touchstart={handleTouchStart}
                  on:touchend={handleTouchEnd}>
@@ -321,9 +402,9 @@
                                     role="tab"
                                     aria-selected={activeServiceTab === key}
                                     class="pb-2 px-4 -mb-px border-b-2 transition-all duration-200
-                                    {activeServiceTab === key
-                                        ? 'border-white text-white font-semibold'
-                                        : 'border-transparent text-gray-500 hover:text-white hover:border-gray-500'}"
+                                {activeServiceTab === key
+                                    ? 'border-white text-white font-semibold'
+                                    : 'border-transparent text-gray-500 hover:text-white hover:border-gray-500'}"
                                     on:click={() => activeServiceTab = key}
                             >
                                 {label}
@@ -383,13 +464,13 @@
             </div>
         </section>
 
-        <!-- ABOUT ME -->
+        <!-- SOBRE MÍ -->
         <section class="bg-black py-16 px-8 md:px-16">
             <h2 class="text-3xl font-semibold mb-4">Sobre mí 🌹</h2>
             <p class="leading-relaxed">{escort.description}</p>
         </section>
 
-        <!-- BASIC INFO & APPEARANCE -->
+        <!-- INFORMACIÓN BÁSICA & APARIENCIA -->
         <section class="bg-black py-16 px-8 md:px-16 grid md:grid-cols-2 gap-16">
             <div>
                 <h2 class="text-3xl font-semibold mb-4">Información Básica</h2>
@@ -415,7 +496,7 @@
             </div>
         </section>
 
-        <!-- WORKING HOURS -->
+        <!-- HORARIO DE ATENCIÓN -->
         <section class="bg-black py-16 px-8 md:px-16">
             <h2 class="text-3xl font-semibold mb-4">Horario de Atención</h2>
             {#if escort.availability.schedule.length}
@@ -436,7 +517,7 @@
             {/if}
         </section>
 
-        <!-- CONTACT -->
+        <!-- CONTACTO -->
         <section class="bg-black py-16 px-8 md:px-16">
             <h2 class="text-4xl font-semibold mb-6">Contacto</h2>
             <div class="flex flex-wrap gap-8">

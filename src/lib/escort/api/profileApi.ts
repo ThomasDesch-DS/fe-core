@@ -84,6 +84,25 @@ export interface UpdateLocationRequest {
     hood: string;
 }
 
+export interface MediaWithOrder {
+    media: string;
+    order: number;
+}
+
+export interface UploadMediaDTO {
+    profilePicture?: string;
+    pics?: MediaWithOrder[];
+    videos?: MediaWithOrder[];
+    audioCLip?: string;
+}
+
+export interface EscortMedia {
+    profilePicture: string;
+    pics: MediaWithOrder[];
+    videos: MediaWithOrder[];
+    audioClip?: string;
+}
+
 // API Functions
 export async function updateInfo(data: UpdateInfoRequest) {
     return api.patch('/info', data);
@@ -119,4 +138,8 @@ export async function deleteContactMethod(contactMethodType: string) {
 
 export async function updateLocation(data: UpdateLocationRequest) {
     return api.patch('/location', data);
+}
+
+export async function uploadMedia(data: UploadMediaDTO): Promise<EscortMedia> {
+    return api.post<EscortMedia>('/upload-media', data);
 }

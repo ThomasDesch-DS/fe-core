@@ -15,7 +15,7 @@
     import Location from './components/steps/Location.svelte';
     import MediaUpload from './components/steps/MediaUpload.svelte';
     import SubmitStep from './components/steps/SubmitStep.svelte';
-    
+
     // Initialize form data
     const formData: FormData = {
         // Personal info
