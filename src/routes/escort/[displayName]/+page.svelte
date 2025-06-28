@@ -3,8 +3,13 @@
     import { onMount, onDestroy } from 'svelte';
     import { api } from '$lib/escort/api/apiClient';
     import { page } from '$app/stores';
-    import { toast } from 'svelte-sonner'
+    import { toast } from 'svelte-sonner';
 
+    // ---- CONFIGURACIÓN ----
+    const ESCORT_CACHE_KEY = 'escortDetailCache';
+    const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos
+
+    // ---- INTERFACES ----
     interface Escort {
         id: string;
         displayName: string;
@@ -39,12 +44,16 @@
         };
         age: number; ageType: string;
     }
+    interface EscortCacheEntry {
+        escort: Escort;
+        timestamp: number;
+    }
 
+    // ---- ESTADO ----
     let escort: Escort | null = null;
     let loading = true;
     let error = '';
     let activeServiceTab: 'in_person' | 'fantasies' | 'virtual' = 'in_person';
-
     const tabs = [
         { key: 'in_person', label: 'Presencial' },
         { key: 'fantasies', label: 'Fantasías' },
@@ -57,56 +66,50 @@
     let touchStartX = 0;
     $: sortedPics = escort ? [...escort.media.pics].sort((a, b) => a.order - b.order) : [];
 
+    // ---- CACHE LOGIC ----
+    function getCache(): Record<string, EscortCacheEntry> {
+        try {
+            return JSON.parse(localStorage.getItem(ESCORT_CACHE_KEY) || '{}');
+        } catch {
+            return {};
+        }
+    }
+    function saveCache(cache: Record<string, EscortCacheEntry>) {
+        localStorage.setItem(ESCORT_CACHE_KEY, JSON.stringify(cache));
+    }
+    function getFromCache(displayName: string): Escort | null {
+        const cache = getCache();
+        const entry = cache[displayName];
+        if (!entry) return null;
+        const isExpired = Date.now() - entry.timestamp > CACHE_TTL_MS;
+        if (isExpired) {
+            // Borra si está expirado
+            delete cache[displayName];
+            saveCache(cache);
+            return null;
+        }
+        return entry.escort;
+    }
+    function setToCache(displayName: string, escort: Escort) {
+        const cache = getCache();
+        cache[displayName] = { escort, timestamp: Date.now() };
+        saveCache(cache);
+    }
+
+    // ---- FUNCIONES DE GALERÍA/UX ----
     function getMediaUrl(id: string, file: string, type: 'profile' | 'pics') {
+        if (file?.startsWith('http')) return file;
         return `https://nexus.daisyssecrets.com/escorts/${id}/${type}/${file}`;
     }
 
-    function openModal(i: number) {
-        modalIndex = i;
-        modalOpen = true;
-        history.pushState({ lightbox: true }, '');
-    }
-
-    function closeModal() {
-        modalOpen = false;
-        if (history.state?.lightbox) {
-            history.back();
-        }
-    }
-
-    function prevImage() {
-        modalIndex = (modalIndex - 1 + sortedPics.length) % sortedPics.length;
-    }
-
-    function nextImage() {
-        modalIndex = (modalIndex + 1) % sortedPics.length;
-    }
-
-    function handleKeydown(e: KeyboardEvent) {
-        if (!modalOpen) return;
-        if (e.key === 'Escape') closeModal();
-        else if (e.key === 'ArrowLeft') prevImage();
-        else if (e.key === 'ArrowRight') nextImage();
-    }
-
-    function handlePopState() {
-        if (modalOpen && !history.state?.lightbox) {
-            modalOpen = false;
-        }
-    }
-
-    function handleTouchStart(e: TouchEvent) {
-        touchStartX = e.touches[0].clientX;
-    }
-
-    function handleTouchEnd(e: TouchEvent) {
-        const touchEndX = e.changedTouches[0].clientX;
-        const diff = touchEndX - touchStartX;
-        if (Math.abs(diff) > 50) {
-            diff > 0 ? prevImage() : nextImage();
-        }
-    }
-
+    function openModal(i: number) { modalIndex = i; modalOpen = true; history.pushState({ lightbox: true }, ''); }
+    function closeModal() { modalOpen = false; if (history.state?.lightbox) history.back(); }
+    function prevImage() { modalIndex = (modalIndex - 1 + sortedPics.length) % sortedPics.length; }
+    function nextImage() { modalIndex = (modalIndex + 1) % sortedPics.length; }
+    function handleKeydown(e: KeyboardEvent) { if (!modalOpen) return; if (e.key === 'Escape') closeModal(); else if (e.key === 'ArrowLeft') prevImage(); else if (e.key === 'ArrowRight') nextImage(); }
+    function handlePopState() { if (modalOpen && !history.state?.lightbox) { modalOpen = false; } }
+    function handleTouchStart(e: TouchEvent) { touchStartX = e.touches[0].clientX; }
+    function handleTouchEnd(e: TouchEvent) { const touchEndX = e.changedTouches[0].clientX; const diff = touchEndX - touchStartX; if (Math.abs(diff) > 50) { diff > 0 ? prevImage() : nextImage(); } }
     async function shareEscort() {
         const url = window.location.href;
         try {
@@ -116,30 +119,44 @@
                 await navigator.clipboard.writeText(url);
                 toast.success('¡Link copiado!');
             }
-        } catch (err) {
-            console.error('Error compartiendo:', err);
-        }
+        } catch (err) { console.error('Error compartiendo:', err); }
     }
 
+    // ---- FETCH Y MOUNT ----
     onMount(async () => {
         window.addEventListener('keydown', handleKeydown);
         window.addEventListener('popstate', handlePopState);
-
         try {
             const { displayName } = $page.params;
             if (!displayName) throw new Error('Nombre para mostrar no encontrado');
 
+            // -- Primero intenta cache local --
+            let cachedEscort = getFromCache(displayName);
+            if (cachedEscort) {
+                // Hacés lo mismo que harías después del fetch (ajustar URLs)
+                if (cachedEscort.media.profilePicture)
+                    cachedEscort.media.profilePicture = getMediaUrl(cachedEscort.id, cachedEscort.media.profilePicture, 'profile');
+                if (cachedEscort.media.pics)
+                    cachedEscort.media.pics = cachedEscort.media.pics.map(pic => ({
+                        ...pic,
+                        media: getMediaUrl(cachedEscort.id, pic.media, 'pics')
+                    }));
+                escort = cachedEscort;
+                loading = false;
+                return;
+            }
+
+            // -- Si no está en cache o expiró, fetch --
             const data = await api.get<Escort>(`/${displayName}`);
-            escort = data;
-
-            if (escort.media.profilePicture)
-                escort.media.profilePicture = getMediaUrl(escort.id, escort.media.profilePicture, 'profile');
-
-            if (escort.media.pics)
-                escort.media.pics = escort.media.pics.map(pic => ({
+            if (data.media.profilePicture)
+                data.media.profilePicture = getMediaUrl(data.id, data.media.profilePicture, 'profile');
+            if (data.media.pics)
+                data.media.pics = data.media.pics.map(pic => ({
                     ...pic,
-                    media: getMediaUrl(escort.id, pic.media, 'pics')
+                    media: getMediaUrl(data.id, pic.media, 'pics')
                 }));
+            escort = data;
+            setToCache(displayName, data);
         } catch (err) {
             console.error(err);
             error = err instanceof Error ? err.message : 'Error desconocido';
