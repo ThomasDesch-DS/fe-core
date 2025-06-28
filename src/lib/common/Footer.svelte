@@ -1,6 +1,7 @@
-<!-- Footer.svelte -->
 <script>
-    // Año dinámico para no estar actualizando
+    import IgIcon from '~icons/fa6-brands/instagram';
+    import RedditIcon from '~icons/fa6-brands/reddit-alien';
+    import XIcon from '~icons/fa6-brands/x-twitter'; // Formerly Twitter
     export let year = new Date().getFullYear();
 </script>
 
@@ -26,13 +27,16 @@
             </a>
         </nav>
 
-        <!-- Botón para publicar aviso -->
-        <div class="text-center">
-            <a
-                    href="/dashboard/login"
-                    class="inline-block px-4 py-2 border border-white rounded hover:bg-white hover:text-black transition"
-            >
-                Publicá tu aviso
+        <!-- Redes sociales -->
+        <div class="flex space-x-4 text-white text-2xl">
+            <a href="https://instagram.com/daisys__secrets" target="_blank" rel="noopener noreferrer" class="hover:opacity-80 transition">
+                <IgIcon />
+            </a>
+            <a href="https://reddit.com/r/DaisysSecrets/" target="_blank" rel="noopener noreferrer" class="hover:opacity-80 transition">
+                <RedditIcon />
+            </a>
+            <a href="https://x.com" target="_blank" rel="noopener noreferrer" class="hover:opacity-80 transition">
+                <XIcon />
             </a>
         </div>
 
@@ -42,3 +46,13 @@
         </div>
     </div>
 </footer>
+
+<style>
+    a > :global(svg) {
+        transition: transform 0.2s ease;
+    }
+    a:hover > :global(svg) {
+        transform: scale(1.1);
+    }
+
+</style>

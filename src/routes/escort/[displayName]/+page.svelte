@@ -5,6 +5,8 @@
     import { page } from '$app/stores';
     import { toast } from 'svelte-sonner';
     import { getMediaUrl } from "../../../util/MediaUtils";
+    import IconWhatsapp from "~icons/fa6-brands/whatsapp";
+    import SocialIcon from "$lib/common/SocialIcon.svelte";
 
     // ---- CONFIGURACIÓN ----
     const ESCORT_CACHE_KEY = 'escortDetailCache';
@@ -518,20 +520,21 @@
         </section>
 
         <!-- CONTACTO -->
-        <section class="bg-black py-16 px-8 md:px-16">
+        <section class="bg-black py-16 px-8 md:px-16 text-white">
             <h2 class="text-4xl font-semibold mb-6">Contacto</h2>
             <div class="flex flex-wrap gap-8">
                 {#if escort.publicPhoneNumber}
-                    <a href={`https://wa.me/${escort.publicPhoneNumber}`}
-                       class="flex items-center gap-2 border border-gray-700 px-3 py-1 rounded text-lg hover:text-white hover:border-white transition">
-                        📞 {escort.publicPhoneNumber}
+                    <a
+                            href={`https://wa.me/${escort.publicPhoneNumber}`}
+                            class="flex items-center gap-2 border border-gray-700 px-3 py-1 rounded text-lg hover:text-white hover:border-white transition"
+                    >
+                        <IconWhatsapp class="text-green-500 w-5 h-5" />
+                        {escort.publicPhoneNumber}
                     </a>
                 {/if}
+
                 {#each escort.contactMethod as cm}
-                    <div class="flex items-center gap-2">
-                        <span class="uppercase text-sm border border-gray-700 px-3 py-1 rounded">{cm.type}</span>
-                        <span class="text-lg">{cm.value}</span>
-                    </div>
+                    <SocialIcon type={cm.type} value={cm.value} />
                 {/each}
             </div>
         </section>
