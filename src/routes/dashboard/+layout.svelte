@@ -8,7 +8,8 @@
     // Login and register don't require authentication
     $: isAuthRoute = $page.url.pathname === '/dashboard/login' || 
                      $page.url.pathname === '/dashboard/register' ||
-                     $page.url.pathname === '/dashboard/forgot';
+                     $page.url.pathname === '/dashboard/forgot' ||
+                     $page.url.pathname.startsWith('/dashboard/reset/');
     
     let initialized = false;
     
