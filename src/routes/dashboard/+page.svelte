@@ -850,6 +850,42 @@
     .service-grid {
         @apply grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mt-2;
     }
+
+    nav {
+        overflow-x: auto;
+        position: relative;
+        padding: 0 1rem; /* deja espacio pa’ los gradientes */
+        scroll-snap-type: x mandatory; /* opcional: que “encaje” cada tab */
+    }
+    nav::-webkit-scrollbar {
+        height: 4px;
+    }
+    nav::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.3);
+        border-radius: 2px;
+    }
+    nav::before,
+    nav::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2rem;
+        pointer-events: none;
+    }
+    nav::before {
+        left: 0;
+        background: linear-gradient(to right, #000, transparent);
+    }
+    nav::after {
+        right: 0;
+        background: linear-gradient(to left, #000, transparent);
+    }
+    /* Opcional: que cada botón “encaje” al hacer scroll */
+    nav button {
+        scroll-snap-align: start;
+    }
+
 </style>
 
 {#if authState.isLoading}
@@ -867,18 +903,13 @@
                         alt="Avatar"
                         class="w-24 h-24 rounded-full border-2 border-gray-700 object-cover"
                 />
-
-                <div>
-                    <h1 class="text-3xl font-semibold">¡Hola, {escort.displayName}!</h1>
-                    <p class="text-gray-400 mt-1">Gestiona tu perfil y servicios con facilidad.</p>
-                </div>
             </div>
 
-            <div class="flex gap-4">
+            <div class="flex gap-4 items-center">
                 <a
                         href="/escort/{escort.slug}"
                         target="_blank"
-                        class="px-5 py-2 border border-gray-600 rounded-md uppercase text-sm tracking-wide transition-all hover:bg-white hover:text-black"
+                        class="px-5 py-3 border border-gray-600 rounded-md uppercase text-sm tracking-wide transition-all hover:bg-white hover:text-black"
                 >
                     Ver mi página
                 </a>
@@ -892,18 +923,20 @@
                 </button>
             </div>
         </header>
-        <nav class="flex space-x-6 border-b border-gray-700 mb-8">
-            {#each tabs as tab}
-                <button
-                        on:click={() => (activeTab = tab)}
-                        class="tab-btn"
-                        class:tab-active={activeTab === tab}
-                        class:tab-inactive={activeTab !== tab}
-                        transition:scale={{ duration: 100 }}
-                >
-                    {tab}
-                </button>
-            {/each}
+        <nav class="overflow-x-auto scrolling-touch whitespace-nowrap -mx-6 px-6 border-b border-gray-700 mb-8">
+            <div class="inline-flex space-x-6">
+                {#each tabs as tab}
+                    <button
+                            on:click={() => (activeTab = tab)}
+                            class="tab-btn flex-shrink-0 whitespace-nowrap"
+                            class:tab-active={activeTab === tab}
+                            class:tab-inactive={activeTab !== tab}
+                            transition:scale={{ duration: 100 }}
+                    >
+                        {tab}
+                    </button>
+                {/each}
+            </div>
         </nav>
 
         {#if activeTab === 'Perfil'}
