@@ -205,6 +205,12 @@
         `ALT ${escort.appearance.heightInCm}cm`,
         `PESO ${escort.appearance.weightInKg}kg`
     ] : [];
+
+
+    $: if (escort?.displayName) {
+        document.title = escort.displayName;
+    }
+
 </script>
 
 <svelte:head>
