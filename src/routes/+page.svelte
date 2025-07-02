@@ -111,7 +111,7 @@
   async function prefetchDetail(slug: string) {
     if (getDetail(slug)) return;
     try {
-      const res = await fetch(`http://localhost:8080/escort/${encodeURIComponent(slug)}`);
+      const res = await fetch(import.meta.env.BASE_URL+encodeURIComponent(slug));
       if (!res.ok) throw new Error();
       const data = await res.json();
       setDetail(slug, data);
@@ -135,7 +135,7 @@
     }
 
     try {
-      const res = await fetch(`http://localhost:8080/escort?page=${page}&size=${size}`);
+      const res = await fetch(import.meta.env.BASE_URL+`/escort?page=${page}&size=${size}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: ApiResponse = await res.json();
 

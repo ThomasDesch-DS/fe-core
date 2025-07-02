@@ -31,3 +31,5 @@ jobs:
           vercel-project-id: ${{ secrets.PROD_VERCEL_PROJECT_ID }}
           working-directory: .
           vercel-args: '--prod'
+        env:
+          BASE_URL: https://prod-be-core.fly.dev
