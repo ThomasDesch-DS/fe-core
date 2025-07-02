@@ -1,6 +1,7 @@
 <!-- src/routes/escort/+page.svelte -->
 <script lang="ts">
   import { onMount } from 'svelte';
+  import {getMediaUrl} from "../util/MediaUtils";
 
   // ---------- CONFIG ----------
   const CACHE_KEY = 'escortsListCache';
@@ -260,13 +261,6 @@
     if (sentinel) io.observe(sentinel);
     return () => io.disconnect();
   });
-
-  // ---------- IMAGE HELPER ----------
-  function getMediaUrl(escortId: string, fileName: string, type: 'profile' | 'pics'): string {
-    if (!fileName) return '';
-    if (fileName.startsWith('http')) return fileName;
-    return `https://nexus.daisyssecrets.com/escorts/${escortId}/${type}/${fileName}`;
-  }
 </script>
 
 <svelte:head>
