@@ -111,7 +111,7 @@
   async function prefetchDetail(slug: string) {
     if (getDetail(slug)) return;
     try {
-      const res = await fetch(`http://localhost:8080/escort/${encodeURIComponent(slug)}`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/escort/${encodeURIComponent(slug)}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
       setDetail(slug, data);
@@ -135,7 +135,7 @@
     }
 
     try {
-      const res = await fetch(`http://localhost:8080/escort?page=${page}&size=${size}`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/escort?page=${page}&size=${size}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: ApiResponse = await res.json();
 
@@ -172,7 +172,7 @@
     }
 
     try {
-      const res = await fetch(`http://localhost:8080/escort/search/${encodeURIComponent(searchQuery.trim())}?page=0&size=20`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/escort/search/${encodeURIComponent(searchQuery.trim())}?page=0&size=20`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: ApiResponse = await res.json();
 
@@ -206,7 +206,7 @@
     }
 
     try {
-      const res = await fetch(`http://localhost:8080/escort/search/${encodeURIComponent(searchQuery.trim())}?page=${searchPage}&size=20`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/escort/search/${encodeURIComponent(searchQuery.trim())}?page=${searchPage}&size=20`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: ApiResponse = await res.json();
 

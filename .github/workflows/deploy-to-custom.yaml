@@ -16,6 +16,9 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref_name }}
 
+      - name: 🔧 Load development env file
+        run: cp .env.development .env.production
+
       - name: 🍞 Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
