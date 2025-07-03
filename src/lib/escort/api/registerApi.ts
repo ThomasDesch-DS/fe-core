@@ -1,7 +1,7 @@
 import type { FormData } from '../types';
 import { stepStore } from '../store/formStore';
 
-const BASE_URL = 'http://localhost:8080/escort';
+const BASE_URL = import.meta.env.VITE_API_URL + '/escort';
 
 /**
  * Validate email and send verification code
