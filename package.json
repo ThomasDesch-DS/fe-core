@@ -27,6 +27,8 @@
     "@types/bun": "latest"
   },
   "dependencies": {
+    "@fingerprintjs/fingerprintjs": "^4.6.2",
+    "@humanspeak/svelte-markdown": "^0.8.7",
     "@sveltejs/kit": "^2.22.2",
     "@tanstack/svelte-query": "^5.81.5",
     "heroicons-svelte": "^2.0.2",

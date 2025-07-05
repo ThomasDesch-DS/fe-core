@@ -8,5 +8,10 @@ export default defineConfig({
     Icons({ compiler: 'svelte', autoInstall: true }),],
   optimizeDeps: {
     exclude: ['sortablejs']
+  },
+  server: {
+    fs: {
+      allow: ['./static']
+    }
   }
 })
