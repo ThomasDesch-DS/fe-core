@@ -19,10 +19,10 @@
             <a href="/contacto" class="hover:underline transition">
                 Contacto
             </a>
-            <a href="/terminos-y-condiciones" class="hover:underline transition">
+            <a href="/terms" class="hover:underline transition">
                 Términos y condiciones
             </a>
-            <a href="/politica-privacidad" class="hover:underline transition">
+            <a href="/privacy" class="hover:underline transition">
                 Política de privacidad
             </a>
         </nav>
