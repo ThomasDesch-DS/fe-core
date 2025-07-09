@@ -1,4 +1,4 @@
-import { authStore } from '../store/authStore';
+import { escortAuthStore } from '../store/escortAuthStore';
 import { refreshToken } from './authApi';
 
 const BASE_URL = import.meta.env.VITE_API_URL + '/escort';
@@ -58,7 +58,7 @@ export async function apiRequest<T = any>(
                 return apiRequest(endpoint, options);
             } else {
                 // If refresh failed, logout and throw error
-                authStore.logout();
+                escortAuthStore.logout();
                 throw new Error('Session expired. Please log in again.');
             }
         }

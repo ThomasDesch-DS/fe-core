@@ -1,4 +1,4 @@
-import { authStore } from '../store/authStore';
+import { escortAuthStore } from '../store/escortAuthStore';
 import { api } from './apiClient';
 
 /**
@@ -16,7 +16,7 @@ export async function login(email: string, password: string): Promise<boolean> {
         // Update auth store with escort data
         if (response && response.id) {
             // Store the entire escort data in the auth store
-            authStore.login({
+            escortAuthStore.login({
                 id: response.id,
                 email: response.email,
                 displayName: response.basicInfo?.displayName || "Escort",
@@ -43,14 +43,14 @@ export async function logout(): Promise<void> {
         await api.post('/logout');
         
         // Clear local state regardless of server response
-        authStore.logout();
+        escortAuthStore.logout();
         
         // Clear refresh timer
         clearTokenRefresh();
     } catch (error) {
         console.error('Logout error:', error);
         // Still clear local state even if API call fails
-        authStore.logout();
+        escortAuthStore.logout();
         clearTokenRefresh();
     }
 }
@@ -84,7 +84,7 @@ export async function refreshToken(): Promise<boolean> {
         if (error.message.includes('401') || error.message.includes('Session expired')) {
             // Token is invalid or expired, log out the user
             isLoggedIn = false;
-            authStore.logout();
+            escortAuthStore.logout();
             clearTokenRefresh(); // Clear the refresh timer
         }
         

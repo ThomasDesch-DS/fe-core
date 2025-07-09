@@ -1,7 +1,7 @@
 <script>
     import { goto } from '$app/navigation';
     import { login } from '$lib/escort/api/authApi';
-    import { authStore } from '$lib/escort/store/authStore';
+    import { escortAuthStore } from '$lib/escort/store/escortAuthStore.js';
     
     let email = '';
     let password = '';

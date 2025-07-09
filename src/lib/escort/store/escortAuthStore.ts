@@ -2,21 +2,21 @@ import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
 // Extended user interface with profile data
-interface User {
+interface Escort {
     id: string;
     email: string;
     displayName?: string;
     profile?: any; // Full escort profile data
 }
 
-interface AuthState {
+interface EscortAuthState {
     isAuthenticated: boolean;
-    user: User | null;
+    user: Escort | null;
     isLoading: boolean;
 }
 
 // Check for stored auth data in localStorage
-const getStoredAuth = (): AuthState => {
+const getEscortStoredAuth = (): EscortAuthState => {
     if (browser) {
         const storedAuth = localStorage.getItem('escort_auth');
         if (storedAuth) {
@@ -37,14 +37,14 @@ const getStoredAuth = (): AuthState => {
 };
 
 // Initial state (try to load from localStorage if in browser)
-const initialState: AuthState = getStoredAuth();
+const escortInitialState: EscortAuthState = getEscortStoredAuth();
 
 // Create the store
-function createAuthStore() {
-    const { subscribe, set, update } = writable<AuthState>(initialState);
+function createEscortAuthStore() {
+    const { subscribe, set, update } = writable<EscortAuthState>(escortInitialState);
 
     // Helper to persist state to localStorage
-    const persistState = (state: AuthState) => {
+    const persistState = (state: EscortAuthState) => {
         if (browser) {
             localStorage.setItem('escort_auth', JSON.stringify(state));
         }
@@ -55,7 +55,7 @@ function createAuthStore() {
         subscribe,
         
         // Login: Set user data and authentication state
-        login: (user: User) => {
+        login: (user: Escort) => {
             update(state => persistState({
                 ...state,
                 isAuthenticated: true,
@@ -85,7 +85,7 @@ function createAuthStore() {
         },
         
         // Update user data
-        updateUser: (user: Partial<User>) => {
+        updateUser: (user: Partial<Escort>) => {
             update(state => persistState({
                 ...state,
                 user: state.user ? { ...state.user, ...user } : null
@@ -114,4 +114,4 @@ function createAuthStore() {
     };
 }
 
-export const authStore = createAuthStore();
+export const escortAuthStore = createEscortAuthStore();

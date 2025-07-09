@@ -33,6 +33,8 @@
     "@tanstack/svelte-query": "^5.81.5",
     "heroicons-svelte": "^2.0.2",
     "sortablejs": "^1.15.6",
+    "svelte-qr": "^1.0.0",
+    "svelte-qrcode": "^1.0.1",
     "svelte-sonner": "^1.0.5"
   },
   "overrides": {

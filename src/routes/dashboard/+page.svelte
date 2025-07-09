@@ -1,6 +1,6 @@
 <script lang="ts">
     import { fade, scale } from 'svelte/transition';
-    import { authStore } from '$lib/escort/store/authStore';
+    import { escortAuthStore } from '$lib/escort/store/escortAuthStore';
     import { logout } from '$lib/escort/api/authApi';
     import { updateInfo, updateAppearance, updateAvailability, updateMedia, updateServicesInfo, updateContactMethod, deleteMediaFile, deleteContactMethod, updateLocation, uploadMedia, type UpdateInfoRequest, type UpdateAppearanceRequest, type UpdateServicesInfoRequest, type ContactMethodRequest, type UpdateLocationRequest, type UploadMediaDTO, type MediaWithOrder, type EscortMedia } from '$lib/escort/api/profileApi';
     import { goto } from '$app/navigation';
@@ -12,7 +12,7 @@
     let activeTab = 'Perfil';
     const tabs = ['Perfil', 'Media', 'Servicios', 'Disponibilidad', 'Ubicación'];
 
-    $: authState = $authStore;
+    $: authState = $escortAuthStore;
     $: escort = authState.user?.profile || null;
     $: if (escort?.media) {
         console.log('Escort media updated:', escort.media.pics?.length || 0, 'pics');
@@ -196,7 +196,7 @@
         isLoggingOut = true;
         try {
             await logout();
-            authStore.logout();
+            escortAuthStore.logout();
             goto('/dashboard/login');
         } catch (error) {
             console.error('Logout failed:', error);
@@ -267,7 +267,7 @@
                 console.log('Updated media:', updatedMedia);
 
                 // Update just the media property, not the entire escort object
-                authStore.updateProfile({
+                escortAuthStore.updateProfile({
                     ...escort,
                     media: updatedMedia
                 });
@@ -477,7 +477,7 @@
                     pics: updatedPics
                 }
             };
-            authStore.updateProfile(updatedEscort);
+            escortAuthStore.updateProfile(updatedEscort);
 
             saveMessage = 'Foto eliminada exitosamente';
             setTimeout(() => saveMessage = '', 3000);
@@ -506,7 +506,7 @@
                     videos: updatedVideos
                 }
             };
-            authStore.updateProfile(updatedEscort);
+            escortAuthStore.updateProfile(updatedEscort);
 
             saveMessage = 'Video eliminado exitosamente';
             setTimeout(() => saveMessage = '', 3000);
@@ -534,7 +534,7 @@
                     audioClip: null
                 }
             };
-            authStore.updateProfile(updatedEscort);
+            escortAuthStore.updateProfile(updatedEscort);
 
             saveMessage = 'Audio eliminado exitosamente';
             setTimeout(() => saveMessage = '', 3000);
@@ -560,7 +560,7 @@
                 ...escort,
                 contactMethod: updatedContactMethods
             };
-            authStore.updateProfile(updatedEscort);
+            escortAuthStore.updateProfile(updatedEscort);
 
             // Also update editValues to reflect the change
             editValues.contactMethod = updatedContactMethods.map(c => ({ ...c }));
@@ -622,7 +622,7 @@
             const updatedEscort = await updateAvailability(transformedData);
 
             if (updatedEscort) {
-                authStore.updateProfile(updatedEscort);
+                escortAuthStore.updateProfile(updatedEscort);
             }
 
             editingAvailability = false;
@@ -774,7 +774,7 @@
             }
 
             if (updatedEscort) {
-                authStore.updateProfile(updatedEscort);
+                escortAuthStore.updateProfile(updatedEscort);
             }
 
             editMode[section] = false;
