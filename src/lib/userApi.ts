@@ -42,3 +42,29 @@ export const verifyOtp = async (otp) => {
 
     return response.status === 200;
 };
+
+export const addToCatlist = async (displayName: string) => {
+    const response = await fetch(`${API_URL}/users/catlist`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ displayName, visited: false }),
+    });
+    if (!response.ok) throw new Error('Failed to add to catlist');
+    return await response.json();
+};
+
+export const updateCatlistVisited = async (displayName: string, visited: boolean) => {
+    const response = await fetch(`${API_URL}/users/catlist/${displayName}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ visited }),
+    });
+    if (!response.ok) throw new Error('Failed to update catlist');
+    return await response.json();
+};

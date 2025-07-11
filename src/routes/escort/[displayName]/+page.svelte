@@ -7,6 +7,9 @@
     import { getMediaUrl } from "../../../util/MediaUtils";
     import IconWhatsapp from "~icons/fa6-brands/whatsapp";
     import SocialIcon from "$lib/common/SocialIcon.svelte";
+    import { catlist } from "$lib/escort/store/catlistStore";
+    import { dSuserAuthStore } from "$lib/escort/store/dsUserAuthStore";
+    import { goto } from "$app/navigation";
 
     // ---- CONFIGURACIÓN ----
     const ESCORT_CACHE_KEY = 'escortDetailCache';
@@ -65,6 +68,45 @@
         { key: 'virtual', label: 'Virtual' },
     ];
 
+    // ---- AUTENTICACIÓN ----
+    let isLoggedIn: boolean;
+    $: isLoggedIn = $dSuserAuthStore.isAuthenticated;
+
+    // ---- CATLIST ----
+    let isInCatlist = false;
+    $: if (escort) {
+        isInCatlist = isLoggedIn && $catlist.some(item => item.escortId === escort.id);
+    }
+
+    async function handleCatlistToggle() {
+        if (!escort) return;
+        if (!isLoggedIn) {
+            toast.error(`Tenés que loguearte para guardar a ${escort.displayName} en tu Catlist!`);
+            goto("/users/login");
+            return;
+        }
+        const existing = $catlist.find(i => i.escortId === escort.id);
+        if (existing) {
+            const promise = catlist.remove(existing.id);
+            toast.promise(promise, {
+                loading: 'Quitando de tu Catlist…',
+                success: '💔 Quitada de tu Catlist',
+                error: 'No se pudo quitar 😕'
+            });
+        } else {
+            const promise = catlist.add(escort.id, {
+                slug: $page.params.displayName,
+                displayName: escort.displayName,
+                profilePic: escort.media.profilePicture
+            });
+            toast.promise(promise, {
+                loading: `Añadiendo a ${escort.displayName}…`,
+                success: '💖 Añadida a tu Catlist!',
+                error: 'No se pudo añadir 😢'
+            });
+        }
+    }
+
     // ---- MEDIA TABS ----
     let activeMediaTab: 'all' | 'fotos' | 'videos' = 'all';
     const mediaTabs = [
@@ -107,8 +149,7 @@
         const cache = getCache();
         const entry = cache[displayName];
         if (!entry) return null;
-        const isExpired = Date.now() - entry.timestamp > CACHE_TTL_MS;
-        if (isExpired) {
+        if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
             delete cache[displayName];
             saveCache(cache);
             return null;
@@ -122,10 +163,21 @@
     }
 
     // ---- UX HANDLERS ----
-    function openModal(i: number) { modalIndex = i; modalOpen = true; history.pushState({ lightbox: true }, ''); }
-    function closeModal() { modalOpen = false; if (history.state?.lightbox) history.back(); }
-    function prevImage() { modalIndex = (modalIndex - 1 + sortedPics.length) % sortedPics.length; }
-    function nextImage() { modalIndex = (modalIndex + 1) % sortedPics.length; }
+    function openModal(i: number) {
+        modalIndex = i;
+        modalOpen = true;
+        history.pushState({ lightbox: true }, '');
+    }
+    function closeModal() {
+        modalOpen = false;
+        if (history.state?.lightbox) history.back();
+    }
+    function prevImage() {
+        modalIndex = (modalIndex - 1 + sortedPics.length) % sortedPics.length;
+    }
+    function nextImage() {
+        modalIndex = (modalIndex + 1) % sortedPics.length;
+    }
     function handleKeydown(e: KeyboardEvent) {
         if (!modalOpen) return;
         if (e.key === 'Escape') closeModal();
@@ -133,13 +185,18 @@
         else if (e.key === 'ArrowRight') nextImage();
     }
     function handlePopState() {
-        if (modalOpen && !history.state?.lightbox) { modalOpen = false; }
+        if (modalOpen && !history.state?.lightbox) {
+            modalOpen = false;
+        }
     }
-    function handleTouchStart(e: TouchEvent) { touchStartX = e.touches[0].clientX; }
+    function handleTouchStart(e: TouchEvent) {
+        touchStartX = e.touches[0].clientX;
+    }
     function handleTouchEnd(e: TouchEvent) {
-        const touchEndX = e.changedTouches[0].clientX;
-        const diff = touchEndX - touchStartX;
-        if (Math.abs(diff) > 50) { diff > 0 ? prevImage() : nextImage(); }
+        const diff = e.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(diff) > 50) {
+            diff > 0 ? prevImage() : nextImage();
+        }
     }
     async function shareEscort() {
         const url = window.location.href;
@@ -150,7 +207,9 @@
                 await navigator.clipboard.writeText(url);
                 toast.success('¡Link copiado!');
             }
-        } catch (err) { console.error('Error compartiendo:', err); }
+        } catch (err) {
+            console.error('Error compartiendo:', err);
+        }
     }
 
     // ---- FETCH Y MOUNT ----
@@ -159,22 +218,30 @@
         window.addEventListener('popstate', handlePopState);
         try {
             const { displayName } = $page.params;
-            if (!displayName) throw new Error('Nombre para mostrar no encontrado');
+            if (!displayName) throw new Error('Nombre de escort no encontrado');
 
-            let cachedEscort = getFromCache(displayName);
+            const cachedEscort = getFromCache(displayName);
             if (cachedEscort) {
-                if (cachedEscort.media.profilePicture)
-                    cachedEscort.media.profilePicture = getMediaUrl(cachedEscort.id, cachedEscort.media.profilePicture, 'profile');
+                if (cachedEscort.media.profilePicture) {
+                    cachedEscort.media.profilePicture = getMediaUrl(
+                        cachedEscort.id,
+                        cachedEscort.media.profilePicture,
+                        'profile'
+                    );
+                }
                 escort = cachedEscort;
-                loading = false;
-                return;
+            } else {
+                const data = await api.get<Escort>(`/${displayName}`);
+                if (data.media.profilePicture) {
+                    data.media.profilePicture = getMediaUrl(
+                        data.id,
+                        data.media.profilePicture,
+                        'profile'
+                    );
+                }
+                escort = data;
+                setToCache(displayName, data);
             }
-
-            const data = await api.get<Escort>(`/${displayName}`);
-            if (data.media.profilePicture)
-                data.media.profilePicture = getMediaUrl(data.id, data.media.profilePicture, 'profile');
-            escort = data;
-            setToCache(displayName, data);
         } catch (err) {
             console.error(err);
             error = err instanceof Error ? err.message : 'Error desconocido';
@@ -188,29 +255,31 @@
         window.removeEventListener('popstate', handlePopState);
     });
 
-    $: primaryTags = escort ? [
-        'Disponible',
-        escort.appearance.gender === 'Mujer' ? 'Mujer' : 'Hombre',
-        escort.availability.onlyVirtual ? 'Solo virtual' : 'Presencial'
-    ] : [];
-
-    $: secondaryTags = escort ? [
-        ...(escort.publicPhoneNumber ? [`☎️ ${escort.publicPhoneNumber}`] : []),
-        `NAC ${escort.appearance.nationality}`,
-        `CABELLO ${escort.appearance.hairColor}`,
-        `OJOS ${escort.appearance.eyeColor}`,
-        `DEPILACIÓN ${escort.appearance.waxingLevel}`,
-        `PECHO ${escort.appearance.breastSize}`,
-        `GLÚTEOS ${escort.appearance.buttSize}`,
-        `ALT ${escort.appearance.heightInCm}cm`,
-        `PESO ${escort.appearance.weightInKg}kg`
-    ] : [];
-
+    // ---- TAGS ----
+    $: primaryTags = escort
+        ? [
+            'Disponible',
+            escort.appearance.gender === 'Mujer' ? 'Mujer' : 'Hombre',
+            escort.availability.onlyVirtual ? 'Solo virtual' : 'Presencial'
+        ]
+        : [];
+    $: secondaryTags = escort
+        ? [
+            ...(escort.publicPhoneNumber ? [`☎️ ${escort.publicPhoneNumber}`] : []),
+            `NAC ${escort.appearance.nationality}`,
+            `CABELLO ${escort.appearance.hairColor}`,
+            `OJOS ${escort.appearance.eyeColor}`,
+            `DEPILACIÓN ${escort.appearance.waxingLevel}`,
+            `PECHO ${escort.appearance.breastSize}`,
+            `GLÚTEOS ${escort.appearance.buttSize}`,
+            `ALT ${escort.appearance.heightInCm}cm`,
+            `PESO ${escort.appearance.weightInKg}kg`
+        ]
+        : [];
 
     $: if (escort?.displayName) {
         document.title = escort.displayName;
     }
-
 </script>
 
 <svelte:head>
@@ -230,8 +299,7 @@
 
     .btn-vercel {
         @apply inline-block px-8 py-3 font-semibold uppercase rounded-full
-        border border-white bg-transparent text-white
-        transition-colors duration-200;
+        border border-white bg-transparent text-white transition-colors duration-200;
     }
     .btn-vercel:hover {
         @apply bg-white text-black;
@@ -242,18 +310,17 @@
     .share-btn:hover {
         @apply bg-white text-black;
     }
-    /* NUEVO ESTILO AUDIO */
     .audio-card {
         @apply max-w-xl mx-auto bg-white/10 rounded-lg p-6 flex items-center gap-4;
     }
     .audio-icon {
-        width: 2rem;
-        height: 2rem;
-        flex-shrink: 0;
+        width: 2rem; height: 2rem; flex-shrink: 0;
     }
-    .audio-player {
-        @apply w-full;
-    }
+    .audio-player { @apply w-full; }
+    .group:hover .group-hover\:opacity-100 { opacity:1; }
+    .transition-opacity { transition: opacity 0.2s ease-in-out; }
+    .pointer-events-none { pointer-events:none; }
+    .transform { transform: translateX(-50%); }
 </style>
 
 <main class="font-sans">
@@ -270,8 +337,10 @@
             <div class="bg-red-900/50 p-6 rounded-lg text-center max-w-sm">
                 <h2 class="text-xl font-bold mb-2">Error</h2>
                 <p class="text-gray-300">{error}</p>
-                <button on:click={()=>location.reload()}
-                        class="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
+                <button
+                        on:click={() => location.reload()}
+                        class="mt-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+                >
                     Reintentar
                 </button>
             </div>
@@ -279,27 +348,72 @@
     {:else if escort}
         <!-- HERO -->
         <section class="relative h-screen flex items-center justify-center text-center">
-            <img src={escort.media.profilePicture} alt="Imagen destacada"
-                 class="absolute inset-0 object-cover w-full h-full filter brightness-50"/>
+            <img
+                    src={escort.media.profilePicture}
+                    alt="Imagen destacada"
+                    class="absolute inset-0 object-cover w-full h-full filter brightness-50"
+            />
             <div class="absolute top-4 right-4 z-20">
-                <button on:click={shareEscort} class="share-btn" aria-label="Compartir">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
-                         stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                              d="M4 12v1a2 2 0 002 2h4m4 0h4a2 2 0 002-2v-1m-5 1V8m0 0l-4 4m4-4l-4-4" />
+                <button
+                        on:click={shareEscort}
+                        class="share-btn"
+                        aria-label="Compartir"
+                >
+                    <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-6 w-6"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            viewBox="0 0 24 24"
+                    >
+                        <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M4 12v1a2 2 0 002 2h4m4 0h4a2 2 0 002-2v-1m-5 1V8m0 0l-4 4m4-4l-4-4"
+                        />
                     </svg>
                 </button>
             </div>
             <div class="relative z-10 space-y-4">
-                <h1 class="text-6xl font-extrabold">{escort.displayName}</h1>
+                <h1 class="text-6xl font-extrabold">
+                    {escort.displayName}
+                </h1>
                 <div class="flex justify-center gap-2 flex-wrap">
                     {#each primaryTags as t}
-                        <span class="px-4 py-1 rounded-full bg-white/20 backdrop-blur text-white">{t}</span>
+                        <span class="px-4 py-1 rounded-full bg-white/20 backdrop-blur text-white">
+                            {t}
+                        </span>
                     {/each}
                 </div>
-                <a href={`https://wa.me/${escort.publicPhoneNumber}`} target="_blank" class="btn-vercel">
-                    Reservá ahora
-                </a>
+                <div class="flex justify-center gap-4">
+                    <a
+                            href={`https://wa.me/${escort.publicPhoneNumber}`}
+                            target="_blank"
+                            class="btn-vercel"
+                    >
+                        Reservá ahora
+                    </a>
+
+                    <!-- Botón con toggle Catlist -->
+                    <div class="relative group inline-block">
+                        <button
+                                on:click={handleCatlistToggle}
+                                class="btn-vercel"
+                        >
+                            {#if isInCatlist}
+                                Quitar de Catlist
+                            {:else}
+                                Añadir a Catlist
+                            {/if}
+                        </button>
+                        <div
+                                class="absolute bottom-full left-1/2 mb-2 w-48 p-2 text-sm text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none transform -translate-x-1/2"
+                        >
+                            Catlist es tu lista de “cats” que querés visitar. 🐱✨
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -307,10 +421,19 @@
         {#if audioClipURL}
             <section class="bg-black py-12 px-8 md:px-16">
                 <div class="audio-card">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor"
-                         class="audio-icon text-white" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                              d="M9 19V6l12-2v15M9 19l-5-5H5a2 2 0 01-2-2V8a2 2 0 012-2h1l5-5v18z"/>
+                    <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            stroke="currentColor"
+                            class="audio-icon text-white"
+                            viewBox="0 0 24 24"
+                    >
+                        <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M9 19V6l12-2v15M9 19l-5-5H5a2 2 0 01-2-2V8a2 2 0 012-2h1l5-5v18z"
+                        />
                     </svg>
                     <audio controls src={audioClipURL} class="audio-player"></audio>
                 </div>
@@ -320,10 +443,15 @@
         <!-- Sticky CTA -->
         <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md p-4 flex justify-between items-center md:hidden">
             <p class="text-sm text-gray-300">
-                Precio por hora: {escort.servicesInfo.hourPrice.currency} {escort.servicesInfo.hourPrice.amount.toLocaleString('es-AR')}
+                Precio por hora: {escort.servicesInfo.hourPrice.currency}
+                {escort.servicesInfo.hourPrice.amount.toLocaleString('es-AR')}
             </p>
-            <a href={`https://wa.me/${escort.publicPhoneNumber}`}
-               class="p-3 rounded-full border border-white hover:bg-white/10 transition">💬</a>
+            <a
+                    href={`https://wa.me/${escort.publicPhoneNumber}`}
+                    class="p-3 rounded-full border border-white hover:bg-white/10 transition"
+            >
+                💬
+            </a>
         </div>
 
         <!-- GALLERY con tabs -->
@@ -337,10 +465,10 @@
                                     role="tab"
                                     aria-selected={activeMediaTab === key}
                                     class="pb-2 px-4 -mb-px border-b-2 transition-all duration-200
-                                {activeMediaTab === key
-                                    ? 'border-white text-white font-semibold'
-                                    : 'border-transparent text-gray-500 hover:text-white hover:border-gray-500'}"
-                                    on:click={() => activeMediaTab = key}
+                                    {activeMediaTab === key
+                                        ? 'border-white text-white font-semibold'
+                                        : 'border-transparent text-gray-500 hover:text-white hover:border-gray-500'}"
+                                    on:click={() => (activeMediaTab = key)}
                             >
                                 {label}
                             </button>
@@ -349,37 +477,55 @@
                 </ul>
             </nav>
 
-            {#if activeMediaTab==='all'}
+            {#if activeMediaTab === 'all'}
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {#each sortedPics as pic,i}
+                    {#each sortedPics as pic, i}
                         <div class="relative group">
-                            <img src={pic.media} alt="imagen" loading="lazy"
-                                 class="w-full h-64 object-cover rounded-md transform transition duration-200 group-hover:scale-105 cursor-pointer"
-                                 on:click={() => openModal(i)} />
-                            <span class="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded">#{i+1}</span>
+                            <img
+                                    src={pic.media}
+                                    alt="imagen"
+                                    loading="lazy"
+                                    class="w-full h-64 object-cover rounded-md transform transition duration-200 group-hover:scale-105 cursor-pointer"
+                                    on:click={() => openModal(i)}
+                            />
+                            <span class="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded">
+                                #{i + 1}
+                            </span>
                         </div>
                     {/each}
                     {#each sortedVideos as vid}
-                        <video controls src={vid.media} class="w-full h-64 object-cover rounded-md"></video>
+                        <video
+                                controls
+                                src={vid.media}
+                                class="w-full h-64 object-cover rounded-md"
+                        ></video>
                     {/each}
                 </div>
-
-            {:else if activeMediaTab==='fotos'}
+            {:else if activeMediaTab === 'fotos'}
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {#each sortedPics as pic,i}
+                    {#each sortedPics as pic, i}
                         <div class="relative group">
-                            <img src={pic.media} alt="imagen" loading="lazy"
-                                 class="w-full h-64 object-cover rounded-md transform transition duration-200 group-hover:scale-105 cursor-pointer"
-                                 on:click={() => openModal(i)} />
-                            <span class="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded">#{i+1}</span>
+                            <img
+                                    src={pic.media}
+                                    alt="imagen"
+                                    loading="lazy"
+                                    class="w-full h-64 object-cover rounded-md transform transition duration-200 group-hover:scale-105 cursor-pointer"
+                                    on:click={() => openModal(i)}
+                            />
+                            <span class="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded">
+                                #{i + 1}
+                            </span>
                         </div>
                     {/each}
                 </div>
-
             {:else}
                 <div class="space-y-8">
                     {#each sortedVideos as vid}
-                        <video controls src={vid.media} class="w-full h-auto rounded-md"></video>
+                        <video
+                                controls
+                                src={vid.media}
+                                class="w-full h-auto rounded-md"
+                        ></video>
                     {/each}
                 </div>
             {/if}
@@ -387,15 +533,25 @@
 
         {#if modalOpen}
             <!-- Lightbox -->
-            <div class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center"
-                 on:touchstart={handleTouchStart}
-                 on:touchend={handleTouchEnd}>
-                <button on:click={closeModal} class="absolute top-4 right-4 text-white text-3xl">&times;</button>
-                <button on:click={prevImage} class="absolute left-4 text-white text-3xl">&lt;</button>
-                <img src={sortedPics[modalIndex].media}
-                     alt="Imagen completa"
-                     class="max-h-full max-w-full object-contain"/>
-                <button on:click={nextImage} class="absolute right-4 text-white text-3xl">&gt;</button>
+            <div
+                    class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center"
+                    on:touchstart={handleTouchStart}
+                    on:touchend={handleTouchEnd}
+            >
+                <button on:click={closeModal} class="absolute top-4 right-4 text-white text-3xl">
+                    &times;
+                </button>
+                <button on:click={prevImage} class="absolute left-4 text-white text-3xl">
+                    &lt;
+                </button>
+                <img
+                        src={sortedPics[modalIndex].media}
+                        alt="Imagen completa"
+                        class="max-h-full max-w-full object-contain"
+                />
+                <button on:click={nextImage} class="absolute right-4 text-white text-3xl">
+                    &gt;
+                </button>
             </div>
         {/if}
 
@@ -410,10 +566,10 @@
                                     role="tab"
                                     aria-selected={activeServiceTab === key}
                                     class="pb-2 px-4 -mb-px border-b-2 transition-all duration-200
-                                {activeServiceTab === key
-                                    ? 'border-white text-white font-semibold'
-                                    : 'border-transparent text-gray-500 hover:text-white hover:border-gray-500'}"
-                                    on:click={() => activeServiceTab = key}
+                                    {activeServiceTab === key
+                                        ? 'border-white text-white font-semibold'
+                                        : 'border-transparent text-gray-500 hover:text-white hover:border-gray-500'}"
+                                    on:click={() => (activeServiceTab = key)}
                             >
                                 {label}
                             </button>
@@ -422,29 +578,36 @@
                 </ul>
             </nav>
 
-            {#if activeServiceTab==='in_person'}
+            {#if activeServiceTab === 'in_person'}
                 <div class="flex flex-wrap gap-3">
                     {#each escort.servicesInfo.escortServices as s}
-                        <span class="px-4 py-2 bg-gray-800 text-gray-200 rounded-full">{s}</span>
+                        <span class="px-4 py-2 bg-gray-800 text-gray-200 rounded-full">
+                            {s}
+                        </span>
                     {/each}
                 </div>
-            {:else if activeServiceTab==='fantasies'}
+            {:else if activeServiceTab === 'fantasies'}
                 <div class="flex flex-wrap gap-3">
                     {#each escort.servicesInfo.escortFantasies as f}
-                        <span class="px-4 py-2 bg-gray-800 text-gray-200 rounded-full">{f}</span>
+                        <span class="px-4 py-2 bg-gray-800 text-gray-200 rounded-full">
+                            {f}
+                        </span>
                     {/each}
                 </div>
             {:else}
                 <div class="flex flex-wrap gap-3">
                     {#each escort.servicesInfo.virtualServices as v}
-                        <span class="px-4 py-2 bg-gray-800 text-gray-200 rounded-full">{v}</span>
+                        <span class="px-4 py-2 bg-gray-800 text-gray-200 rounded-full">
+                            {v}
+                        </span>
                     {/each}
                 </div>
             {/if}
 
             <div class="border-t border-gray-700 pt-6 mt-6">
                 <p class="text-xl font-semibold">
-                    Precio por hora: {escort.servicesInfo.hourPrice.currency} {escort.servicesInfo.hourPrice.amount.toLocaleString('es-AR')}
+                    Precio por hora: {escort.servicesInfo.hourPrice.currency}
+                    {escort.servicesInfo.hourPrice.amount.toLocaleString('es-AR')}
                 </p>
 
                 {#if escort.servicesInfo.customRate.length}

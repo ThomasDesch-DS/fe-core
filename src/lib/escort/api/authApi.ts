@@ -1,4 +1,5 @@
 import { escortAuthStore } from '../store/escortAuthStore';
+import { catlist } from '../store/catlistStore';
 import { api } from './apiClient';
 
 /**
@@ -22,6 +23,12 @@ export async function login(email: string, password: string): Promise<boolean> {
                 displayName: response.basicInfo?.displayName || "Escort",
                 profile: response // Store the full profile for later use
             });
+
+            // Save catList to catlistStore if present in the response
+            if (response.catList) {
+                console.log('Login response catList:', response.catList);
+                catlist.set(response.catList);
+            }
             
             // Set up auto refresh timer
             setupTokenRefresh();

@@ -5,6 +5,7 @@
     import { dSuserAuthStore } from '$lib/escort/store/dsUserAuthStore';
     import { toast } from "svelte-sonner";
     import { userApi } from '$lib/users/apiClient';
+    import { catlist } from '$lib/escort/store/catlistStore';
 
     let tab = 'login';
     let loginMethod = 'password';
@@ -38,6 +39,13 @@
         try {
             const userData = await userApi.post('/login', body);
             dSuserAuthStore.login({ username: userData.username });
+            
+            // Save catList to catlistStore if present in the response
+            if (userData.catList) {
+                console.log('User login response catList:', userData.catList);
+                catlist.set(userData.catList);
+            }
+            
             toast.success("¡Inicio de sesión correcto!");
             await goto('/');
         } catch (error) {
