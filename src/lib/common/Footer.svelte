@@ -2,6 +2,7 @@
     import IgIcon from '~icons/fa6-brands/instagram';
     import RedditIcon from '~icons/fa6-brands/reddit-alien';
     import XIcon from '~icons/fa6-brands/x-twitter'; // Formerly Twitter
+    import FlaskIcon from '~icons/fa6-solid/flask'; // Usa un ícono de "laboratorio" si lo tenés (puede cambiar por otro si preferís)
     export let year = new Date().getFullYear();
 </script>
 
@@ -15,7 +16,7 @@
         </div>
 
         <!-- Links útiles -->
-        <nav class="flex flex-col sm:flex-row gap-4 text-sm">
+        <nav class="flex flex-col sm:flex-row gap-4 text-sm items-center">
             <a href="/contacto" class="hover:underline transition">
                 Contacto
             </a>
@@ -24,6 +25,11 @@
             </a>
             <a href="/privacy" class="hover:underline transition">
                 Política de privacidad
+            </a>
+            <!-- Laboratorio de Fantasías -->
+            <a href="/faceswap" class="flex items-center gap-2 px-3 py-1 rounded-full bg-pink-600 hover:bg-pink-700 text-white font-semibold shadow transition duration-150">
+                <FlaskIcon class="text-lg" />
+                Laboratorio de Fantasías
             </a>
         </nav>
 
@@ -55,4 +61,11 @@
         transform: scale(1.1);
     }
 
+    /* Extra styling for the fantasy lab btn */
+    .bg-pink-600 {
+        background-color: #ec4899; /* Tailwind's pink-600 */
+    }
+    .hover\:bg-pink-700:hover {
+        background-color: #db2777; /* Tailwind's pink-700 */
+    }
 </style>
