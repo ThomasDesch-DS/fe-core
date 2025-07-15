@@ -6,6 +6,9 @@ export default {
   // for more information about preprocessors
   preprocess: vitePreprocess(),
   kit: {
-    adapter: adapter()
+    adapter: adapter(),
+    paths: {
+      relative: false // Required for PostHog session replay to work correctly
+    }
   }
 }
