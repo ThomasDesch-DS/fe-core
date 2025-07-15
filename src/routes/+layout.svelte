@@ -5,7 +5,15 @@
   import AgeGate from "$lib/components/AgeGate.svelte";
   import IntroAnimation from "$lib/components/IntroAnimation.svelte";
   import { ageStore } from "$lib/store/ageStore";
-  import { Toaster } from 'svelte-sonner'
+  import { Toaster } from 'svelte-sonner';
+  import { browser } from '$app/environment';
+  import { beforeNavigate, afterNavigate } from '$app/navigation';
+  import posthog from 'posthog-js';
+
+  if (browser) {
+    beforeNavigate(() => posthog.capture('$pageleave'));
+    afterNavigate(() => posthog.capture('$pageview'));
+  }
 
   let ageStatus: string;
   let animationComplete: boolean;
