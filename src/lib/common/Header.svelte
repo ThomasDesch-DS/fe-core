@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { dSuserAuthStore } from '$lib/escort/store/dsUserAuthStore';
 	import { escortAuthStore } from '$lib/escort/store/escortAuthStore';
+	import { tokenStore } from '$lib/store/tokenStore';
 
 	let mobileMenuOpen = false;
 
@@ -44,6 +45,9 @@
 	<div class="hidden md:flex items-center space-x-4">
 		{#if $dSuserAuthStore.isAuthenticated}
             {$dSuserAuthStore.user.username}
+			<div class="px-3 py-1 text-sm font-medium bg-gray-800 rounded-lg">
+				{$tokenStore.tokens} tokens
+			</div>
 			<a
 				href="/users/catlist"
 				class="px-4 py-2 text-sm font-medium hover:text-gray-300 transition"
@@ -54,6 +58,9 @@
 				Logout
 			</button>
 		{:else if $escortAuthStore.isAuthenticated}
+			<div class="px-3 py-1 text-sm font-medium bg-gray-800 rounded-lg">
+				{$tokenStore.tokens} tokens
+			</div>
 			<a
 				href="/dashboard"
 				class="px-4 py-2 text-sm font-medium hover:text-gray-300 transition"
@@ -114,6 +121,9 @@
 			class="mobile-menu absolute top-full right-0 mt-2 w-48 bg-white text-black rounded-md shadow-lg py-2 z-20"
 		>
 			{#if $dSuserAuthStore.isAuthenticated}
+				<div class="px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-md mx-2 mb-2">
+					{$tokenStore.tokens} tokens
+				</div>
 				<a
 					href="/users/catlist"
 					class="block w-full text-left px-4 py-2 text-sm font-medium hover:bg-gray-100 transition"
@@ -127,6 +137,9 @@
 					Logout
 				</button>
 			{:else if $escortAuthStore.isAuthenticated}
+				<div class="px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-md mx-2 mb-2">
+					{$tokenStore.tokens} tokens
+				</div>
 				<a
 					href="/dashboard"
 					class="block w-full text-left px-4 py-2 text-sm font-medium hover:bg-gray-100 transition"

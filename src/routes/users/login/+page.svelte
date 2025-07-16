@@ -6,6 +6,7 @@
     import { toast } from "svelte-sonner";
     import { userApi } from '$lib/users/apiClient';
     import { catlist } from '$lib/escort/store/catlistStore';
+    import { tokenStore } from '$lib/store/tokenStore';
 
     let tab = 'login';
     let loginMethod = 'password';
@@ -46,6 +47,11 @@
                 catlist.set(userData.catList);
             }
             
+            // Handle tokens if present in response
+            if (userData.tokens !== undefined) {
+                tokenStore.setTokens(userData.tokens);
+            }
+            
             toast.success("¡Inicio de sesión correcto!");
             await goto('/');
         } catch (error) {
@@ -81,6 +87,11 @@
             otpUrl = response.otpUrl;
             registerStep = 'otp';
             dSuserAuthStore.login({ username: register.username });
+            
+            // Handle tokens if present in response
+            if (response.tokens !== undefined) {
+                tokenStore.setTokens(response.tokens);
+            }
         } catch (error) {
             if (error.message === 'Username already exists') {
                 toast.error('El nombre de usuario ya existe. Probá con otro.');

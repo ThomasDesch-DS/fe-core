@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
+import { tokenStore } from '$lib/store/tokenStore';
 
 // Extended user interface with profile data
 interface DSUser {
@@ -114,6 +115,8 @@ function createDSUserAuthStore() {
                 user: null,
                 isLoading: false
             });
+            // Clear tokens on logout
+            tokenStore.clearTokens();
         },
         setLoading: (isLoading: boolean) => {
             update(state => persistState({
