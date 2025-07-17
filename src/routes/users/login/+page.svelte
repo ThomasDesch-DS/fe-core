@@ -12,7 +12,20 @@
     let loginMethod = 'password';
     let forgotMethod = 'password';
     let login = { username: '', credential: '' };
-    let register = { username: '', password: '', age: null };
+    import { Gender } from '$lib/escort/types/gender';
+
+    let register = { username: '', password: '', age: null, gender: '' };
+
+    const genderOptions = [
+        { value: Gender.MALE, label: 'Hombre / Male' },
+        { value: Gender.FEMALE, label: 'Mujer / Female' },
+        { value: Gender.NON_BINARY, label: 'No binarie / Non-binary' },
+        { value: Gender.TRANSGENDER_MALE, label: 'Hombre trans / Transgender Male' },
+        { value: Gender.TRANSGENDER_FEMALE, label: 'Mujer trans / Transgender Female' },
+        { value: Gender.GENDER_FLUID, label: 'Género fluido / Gender Fluid' },
+        { value: Gender.OTHER, label: 'Otro / Otra / Otre / Other' },
+        { value: Gender.UNDISCLOSED, label: 'No especificado / Undisclosed' }
+    ];
     let acceptTerms = false;
     let forgot = { username: '', credential: '', newPass: '' };
     let passphrase = '';
@@ -82,7 +95,7 @@
         }
 
         try {
-            const response = await registerUser(register);
+            const response = await registerUser({ ...register, gender: register.gender });
             passphrase = response.passphrase;
             otpUrl = response.otpUrl;
             registerStep = 'otp';
@@ -229,6 +242,15 @@
                     <div class="space-y-1">
                         <label class="block text-sm sm:text-base md:text-lg">Age</label>
                         <input type="number" min="18" placeholder="21" bind:value={register.age} required class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20" />
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block text-sm sm:text-base md:text-lg">Gender</label>
+                        <select bind:value={register.gender} required class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20">
+                            <option value="" disabled selected>Select your gender</option>
+                            {#each genderOptions as option}
+                                <option value={option.value}>{option.label}</option>
+                            {/each}
+                        </select>
                     </div>
                     <div class="flex items-center space-x-2">
                         <input type="checkbox" id="acceptTerms" bind:checked={acceptTerms} required class="form-checkbox h-4 w-4 text-white transition duration-150 ease-in-out" />

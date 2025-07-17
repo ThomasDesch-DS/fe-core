@@ -1,4 +1,4 @@
-import type { FormData } from '../types';
+import type { FormData, Gender } from '../types';
 import { stepStore } from '../store/formStore';
 
 const BASE_URL = import.meta.env.VITE_API_URL + '/escort';
@@ -84,7 +84,7 @@ export async function submitRegistration(formData: FormData) {
             ethnicity: formData.ethnicity,
             nationality: formData.nationality,
             skinColor: formData.skinColor,
-            gender: formData.gender,
+            gender: formData.gender as Gender,
             waxingLevel: formData.waxingLevel,
             bust: parseInt(formData.bust),
             waist: parseInt(formData.waist),

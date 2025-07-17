@@ -36,14 +36,14 @@ export const virtualServices = [
 ];
 
 export const genderOptions = [
-    {value:'MALE',label:'Male'},
-    {value:'FEMALE',label:'Female'},
-    {value:'NON_BINARY',label:'Non-binary'},
-    {value:'TRANSGENDER_MALE',label:'Transgender Male'},
-    {value:'TRANSGENDER_FEMALE',label:'Transgender Female'},
-    {value:'GENDER_FLUID',label:'Gender Fluid'},
-    {value:'OTHER',label:'Other'},
-    {value:'UNDISCLOSED',label:'Undisclosed'}
+    { value: 'MALE', label: 'Hombre / Male' },
+    { value: 'FEMALE', label: 'Mujer / Female' },
+    { value: 'NON_BINARY', label: 'No binarie / Non-binary' },
+    { value: 'TRANSGENDER_MALE', label: 'Hombre trans / Transgender Male' },
+    { value: 'TRANSGENDER_FEMALE', label: 'Mujer trans / Transgender Female' },
+    { value: 'GENDER_FLUID', label: 'Género fluido / Gender Fluid' },
+    { value: 'OTHER', label: 'Otro / Otra / Otre / Other' },
+    { value: 'UNDISCLOSED', label: 'No especificado / Undisclosed' }
 ];
 
 export const hairColorOptions = [

@@ -1,4 +1,4 @@
-// Type definitions for the escort registration form
+export * from './gender';
 
 export interface ContactMethodEntry { 
     value: string; 
@@ -36,7 +36,7 @@ export interface FormData {
     email: string;
     code: string;
     age: string;
-    gender: string;
+    gender: Gender;
     privatePhoneNumber: string;
     publicPhoneNumber: string;
     idNumber: string;
