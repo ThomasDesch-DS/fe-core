@@ -7,6 +7,7 @@
     import { userApi } from '$lib/users/apiClient';
     import { catlist } from '$lib/escort/store/catlistStore';
     import { tokenStore } from '$lib/store/tokenStore';
+    import LoadingAnimation from "$lib/common/LoadingAnimation.svelte";
 
     let tab = 'login';
     let loginMethod = 'password';
@@ -32,6 +33,7 @@
     let otpUrl = '';
     let otp = '';
     let registerStep = 'form'; // 'form', 'otp', 'verifyOtp'
+    let isLoading = false;
 
     function switchTab(t) {
         tab = t;
@@ -50,6 +52,7 @@
             otp: loginMethod === 'otp' ? login.credential : null
         };
 
+        isLoading = true;
         try {
             const userData = await userApi.post('/login', body);
             dSuserAuthStore.login({ username: userData.username });
@@ -70,6 +73,8 @@
         } catch (error) {
             console.error('Error de login:', error);
             toast.error(`Error al iniciar sesión: ${error.message || 'Error desconocido'}`);
+        } finally {
+            isLoading = false;
         }
     }
 
@@ -94,6 +99,7 @@
             return;
         }
 
+        isLoading = true;
         try {
             const response = await registerUser({ ...register, gender: register.gender });
             passphrase = response.passphrase;
@@ -114,10 +120,13 @@
                 console.error(error);
                 toast.error('El registro falló. Intentá de nuevo.');
             }
+        } finally {
+            isLoading = false;
         }
     }
 
     async function handleVerifyOtp() {
+        isLoading = true;
         try {
             const userData = await userApi.post('/validate/otp', { otp });
             dSuserAuthStore.login({ username: userData.username || 'user' });
@@ -126,6 +135,8 @@
         } catch (error) {
             console.error('Error al verificar OTP:', error);
             toast.error(`Ese código OTP no sirve: ${error.message || 'Error desconocido'}. Fijate bien e intentá de nuevo.`);
+        } finally {
+            isLoading = false;
         }
     }
 
@@ -141,6 +152,7 @@
             body.otp = forgot.credential;
         }
 
+        isLoading = true;
         try {
             await userApi.post('/forgot', body);
             toast.success('¡Restablecimiento de contraseña exitoso! Ahora podés iniciar sesión con tu nueva contraseña.');
@@ -148,11 +160,17 @@
         } catch (error) {
             console.error('Error al restablecer contraseña:', error);
             toast.error("Las credenciales son inválidas. Revisá tu usuario y contraseña e intentá de nuevo.");
+        } finally {
+            isLoading = false;
         }
     }
 </script>
 
-
+{#if isLoading}
+    <div class="min-h-screen flex flex-col justify-center items-center bg-black px-4">
+        <LoadingAnimation />
+    </div>
+{:else}
 <div class="min-h-screen bg-black flex items-center justify-center p-4 sm:p-6 md:p-8">
     <div class="bg-black text-white rounded-2xl shadow-lg w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg ring-1 ring-white/10 p-6 sm:p-8 md:p-10">
         <!-- Título general -->
@@ -341,3 +359,5 @@
         {/if}
     </div>
 </div>
+{/if}
+

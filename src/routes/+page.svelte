@@ -1,5 +1,6 @@
 <!-- src/routes/escort/+page.svelte -->
 <script lang="ts">
+  import LoadingAnimation from "$lib/common/LoadingAnimation.svelte";
   import { onMount } from 'svelte';
 
   // ---------- CONFIG ----------
@@ -431,8 +432,6 @@
   <div bind:this={sentinel}></div>
 
   {#if loading || searchLoading}
-    <p class="text-center text-white mt-4">
-      {isSearchMode ? 'Buscando...' : 'Loading more…'}
-    </p>
+    <LoadingAnimation/>
   {/if}
 </main>
