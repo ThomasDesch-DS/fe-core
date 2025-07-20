@@ -271,7 +271,7 @@
 </script>
 
 <svelte:head>
-  <link rel="preconnect" href="https://nexus.daisyssecrets.com" />
+  <link rel="preconnect" href={ import.meta.env.VITE_MEDIA_CDN} />
   {#if escorts.length && escorts[0]?.media}
     <link
             rel="preload"

@@ -98,6 +98,12 @@
     }
 </script>
 
+<svelte:head>
+    <title>Face Swap</title>
+    <link rel="preconnect" href={ import.meta.env.VITE_MEDIA_CDN} />
+</svelte:head>
+
+
 <style>
     .spinner {
         border: 4px solid white;

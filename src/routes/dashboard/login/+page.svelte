@@ -44,6 +44,10 @@
     };
 </script>
 
+<svelte:head>
+    <title>Entrar</title>
+</svelte:head>
+
 <style>
     /* Por si necesitás global */
 </style>

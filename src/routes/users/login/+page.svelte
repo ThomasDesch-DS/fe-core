@@ -166,6 +166,10 @@
     }
 </script>
 
+<svelte:head>
+    <title>Accede a tu cuenta</title>
+</svelte:head>
+
 {#if isLoading}
     <div class="min-h-screen flex flex-col justify-center items-center bg-black px-4">
         <LoadingAnimation />

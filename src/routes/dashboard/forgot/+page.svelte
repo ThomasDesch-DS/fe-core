@@ -40,6 +40,10 @@
     };
 </script>
 
+<svelte:head>
+    <title>Olvidé mi contraseña</title>
+</svelte:head>
+
 {#if isLoading}
     <div class="min-h-screen flex flex-col justify-center items-center bg-black px-4">
         <LoadingAnimation />

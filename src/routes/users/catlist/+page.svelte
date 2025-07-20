@@ -44,6 +44,12 @@
     }
 </script>
 
+<svelte:head>
+    <title>Mi Catlist</title>
+    <link rel="preconnect" href={ import.meta.env.VITE_MEDIA_CDN} />
+</svelte:head>
+
+
 <main class="p-8 bg-black text-white">
     <h1 class="text-4xl font-bold mb-8">Mi Catlist 🐱</h1>
 

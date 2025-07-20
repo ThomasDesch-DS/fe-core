@@ -411,8 +411,9 @@
 </script>
 
 <svelte:head>
-	<title>Mercado Pago Payment - DeepSeek</title>
+	<title>Pagos en Mercado Pago</title>
 </svelte:head>
+
 
 {#if toastMsg}
 	<div class="fixed z-50 top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-lg font-semibold

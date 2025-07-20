@@ -197,7 +197,7 @@
 </script>
 
 <svelte:head>
-	<title>Payments - DeepSeek</title>
+	<title>Gestionar pagos</title>
 	<style>
 		@keyframes fade-in {
 			from {

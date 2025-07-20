@@ -283,7 +283,7 @@
 </script>
 
 <svelte:head>
-    <link rel="preconnect" href="https://nexus.daisyssecrets.com" />
+    <link rel="preconnect" href={ import.meta.env.VITE_MEDIA_CDN} />
     {#if escort?.media.profilePicture}
         <link rel="preload" as="image" href={escort.media.profilePicture} />
     {/if}
