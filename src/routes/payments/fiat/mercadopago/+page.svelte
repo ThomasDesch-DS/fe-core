@@ -57,6 +57,56 @@
 		}
 	}
 
+	function savePaymentIntentToStorage() {
+		if (typeof localStorage !== 'undefined' && paymentIntent) {
+			const paymentData = {
+				paymentIntent,
+				actualPrice,
+				tokenAmount,
+				packageId,
+				timestamp: Date.now()
+			};
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(paymentData));
+		}
+	}
+
+	function loadPaymentIntentFromStorage() {
+		if (typeof localStorage !== 'undefined') {
+			const stored = localStorage.getItem(STORAGE_KEY);
+			if (stored) {
+				try {
+					const paymentData = JSON.parse(stored);
+					// Check if data is not older than 5 minutes
+					const fiveMinutes = 5 * 60 * 1000;
+					const elapsed = Date.now() - paymentData.timestamp;
+					
+					if (elapsed < fiveMinutes) {
+						paymentIntent = paymentData.paymentIntent;
+						actualPrice = paymentData.actualPrice;
+						tokenAmount = paymentData.tokenAmount;
+						if (paymentData.packageId) {
+							packageId = paymentData.packageId;
+						}
+						
+						// Calculate remaining time and start countdown
+						const remaining = fiveMinutes - elapsed;
+						intentTimeRemaining = remaining;
+						startExpiryCountdown();
+						
+						return true;
+					} else {
+						// Remove expired data
+						localStorage.removeItem(STORAGE_KEY);
+					}
+				} catch (error) {
+					console.error('Error loading payment intent from storage:', error);
+					localStorage.removeItem(STORAGE_KEY);
+				}
+			}
+		}
+		return false;
+	}
+
 	async function createPaymentIntent() {
 		try {
 			const paymentIntentData = {
@@ -84,6 +134,12 @@
 			actualPrice = parseFloat(decoded.price || decoded.amount || '0');
 			tokenAmount = parseInt(decoded.tokens || tokenAmount.toString());
 			
+			// Save to localStorage for persistence
+			savePaymentIntentToStorage();
+			
+			// Start 5-minute countdown
+			startExpiryCountdown();
+			
 			console.log('Payment intent created:', { paymentIntent, actualPrice, tokenAmount });
 		} catch (error) {
 			console.error('Error creating payment intent:', error);
@@ -102,12 +158,58 @@
 	let identificationNumber = "";
 	let cardToken = "";
 	let isTokenizing = false;
+	let intentExpiryTimer: NodeJS.Timeout | null = null;
+	let intentTimeRemaining = 0;
+	let isIntentExpired = false;
+
+	// Storage key for payment intent persistence
+	const STORAGE_KEY = `mercadopago-payment-intent-${tokenAmount}`;
 
 	// Remove paymentMethodId requirement from reactive validation to avoid race condition
 	$: isFormValid = cardholderName.trim() !== "" && identificationNumber.trim() !== "" && cardToken !== "";
 	
 	// Debug logging for form validation
 	$: console.log({ paymentMethodId, cardToken, isFormValid });
+
+	// Start expiry countdown (5 minutes = 300,000ms)
+	function startExpiryCountdown() {
+		intentTimeRemaining = 300000; // 5 minutes
+		isIntentExpired = false;
+		
+		if (intentExpiryTimer) {
+			clearInterval(intentExpiryTimer);
+		}
+		
+		intentExpiryTimer = setInterval(() => {
+			intentTimeRemaining -= 1000;
+			if (intentTimeRemaining <= 0) {
+				isIntentExpired = true;
+				if (intentExpiryTimer) {
+					clearInterval(intentExpiryTimer);
+					intentExpiryTimer = null;
+				}
+			}
+		}, 1000);
+	}
+
+	function formatTimeRemaining(ms: number): string {
+		const minutes = Math.floor(ms / 60000);
+		const seconds = Math.floor((ms % 60000) / 1000);
+		return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+	}
+
+	async function refreshPaymentIntent() {
+		isIntentExpired = false;
+		intentTimeRemaining = 0;
+		if (intentExpiryTimer) {
+			clearInterval(intentExpiryTimer);
+			intentExpiryTimer = null;
+		}
+		// Reset form state
+		cardToken = "";
+		paymentMethodId = "";
+		await createPaymentIntent();
+	}
 
 	// Function to create card token when personal info is complete
 	async function createCardTokenIfReady() {
@@ -144,7 +246,12 @@
 		}
 		
 		await fetchTokenPrices();
-		await createPaymentIntent();
+		
+		// Try to load existing payment intent from storage first
+		const hasStoredIntent = loadPaymentIntentFromStorage();
+		if (!hasStoredIntent) {
+			await createPaymentIntent();
+		}
 
 		const { loadMercadoPago } = await import("@mercadopago/sdk-js");
 		await loadMercadoPago();
@@ -392,6 +499,11 @@
 				// Add tokens to account
 				tokenStore.addTokens(tokenAmount);
 				
+				// Clear stored payment intent on successful payment
+				if (typeof localStorage !== 'undefined') {
+					localStorage.removeItem(STORAGE_KEY);
+				}
+				
 				// Redirect back to payments after success
 				setTimeout(() => {
 					goto('/payments');
@@ -450,10 +562,43 @@
 						{/if}
 					</span>
 				</div>
+				
+				{#if intentTimeRemaining > 0 && !isIntentExpired}
+					<div class="mt-3 pt-3 border-t border-gray-800">
+						<div class="flex justify-between items-center">
+							<span class="text-gray-400 text-xs">Payment expires in</span>
+							<span class="text-orange-400 font-mono text-sm">
+								{formatTimeRemaining(intentTimeRemaining)}
+							</span>
+						</div>
+					</div>
+				{/if}
 			</div>
 
-			<h2 class="text-white text-2xl font-semibold mb-8 tracking-tight">Pagar con tarjeta</h2>
-			<form id="form-checkout" class="flex flex-col gap-6" autocomplete="off" on:submit={handleSubmit}>
+			{#if isIntentExpired}
+				<div class="text-center py-8">
+					<div class="bg-red-900/20 border border-red-500/20 rounded-lg p-6 mb-6">
+						<div class="flex justify-center mb-4">
+							<svg class="w-12 h-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+							</svg>
+						</div>
+						<h3 class="text-red-200 font-medium text-lg mb-2">Payment Intent Expired</h3>
+						<p class="text-red-300 text-sm mb-6">
+							Your payment session has expired after 5 minutes for security reasons. Please generate a new one to continue.
+						</p>
+						<button
+							type="button"
+							class="w-full h-12 rounded-2xl bg-white text-black font-bold text-lg shadow-xl hover:bg-white/90 transition"
+							on:click={refreshPaymentIntent}
+						>
+							Generate New Payment Session
+						</button>
+					</div>
+				</div>
+			{:else}
+				<h2 class="text-white text-2xl font-semibold mb-8 tracking-tight">Pagar con tarjeta</h2>
+				<form id="form-checkout" class="flex flex-col gap-6" autocomplete="off" on:submit={handleSubmit}>
 				<div class="flex flex-col gap-2">
 					<label for="cardNumber" class="text-white text-sm font-semibold">Número de tarjeta</label>
 					<div id="cardNumber" class="h-12 rounded-xl bg-white ring-1 ring-white/20 flex items-center px-4"></div>
@@ -515,6 +660,7 @@
 					{isLoading ? "Procesando..." : `Pagar $${(actualPrice || 0).toFixed(2)} ARS`}
 				</button>
 			</form>
+			{/if}
 		</div>
 	</div>
 {/if}

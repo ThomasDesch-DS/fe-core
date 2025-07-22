@@ -190,6 +190,8 @@
 			goto(`/payments/fiat/mercadopago?tokens=${selectedTokenAmount}`);
 		} else if (method === 'stripe') {
 			goto(`/payments/fiat/stripe?tokens=${selectedTokenAmount}`);
+		} else if (method === 'usdc') {
+			goto(`/payments/crypto/usdc?tokens=${selectedTokenAmount}`);
 		} else {
 			console.log(`Selected payment method: ${method}`);
 		}
