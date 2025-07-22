@@ -1,10 +1,10 @@
-<!-- src/routes/+page.svelte -->
 <script lang="ts">
     import { onDestroy } from 'svelte';
     import { getMediaUrl } from "../../util/MediaUtils";
-    import {dSuserAuthStore} from "$lib/escort/store/dsUserAuthStore";
-    import {toast} from "svelte-sonner";
-    import {goto} from "$app/navigation";
+    import { dSuserAuthStore } from "$lib/escort/store/dsUserAuthStore";
+    import { toast } from "svelte-sonner";
+    import { goto } from "$app/navigation";
+    import CaptchaWrapper from '$lib/components/CaptchaWrapper.svelte';
 
     let file1: File | null = null;
     let file2: File | null = null;
@@ -12,12 +12,14 @@
     let preview2 = '';
     let base641 = '';
     let base642 = '';
-
     let isLoading = false;
     let resultUrl = '';
     let errorMessage = '';
     let isLoggedIn: boolean;
     $: isLoggedIn = $dSuserAuthStore.isAuthenticated;
+
+    let captchaToken = '';
+    let captchaValid = false; // For bonus UX
 
     const tips = [
         'Mientras esperás, hacé un mate y relajate.',
@@ -36,14 +38,10 @@
             currentTip = tips[idx];
         }, 5000);
     }
-
     function stopTips() {
         clearInterval(tipInterval);
     }
-
-    onDestroy(() => {
-        stopTips();
-    });
+    onDestroy(() => stopTips());
 
     function handleFileChange(event: Event, slot: 1 | 2) {
         errorMessage = '';
@@ -68,6 +66,11 @@
         reader.readAsDataURL(file);
     }
 
+    function handleCaptcha(token: string) {
+        captchaToken = token;
+        captchaValid = !!token;
+    }
+
     async function processSwap() {
         if (!base641 || !base642) return;
         if (!isLoggedIn) {
@@ -75,19 +78,29 @@
             goto("/users/login");
             return;
         }
+        if (!captchaToken) {
+            errorMessage = 'Por favor, completá el captcha.';
+            return;
+        }
         isLoading = true;
         resultUrl = '';
         startTips();
+        errorMessage = '';
         try {
             const resp = await fetch(import.meta.env.VITE_API_URL + '/face-swap', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-captcha-token': captchaToken
+                },
                 credentials: 'include',
                 body: JSON.stringify({ input: base641, swap: base642 })
             });
             if (!resp.ok) throw new Error('Status ' + resp.status);
             const data = await resp.json();
             resultUrl = getMediaUrl("null", data.result, "swap");
+            // After swap, you could optionally reset the captcha here for security
+            captchaValid = false;
         } catch (err) {
             console.error(err);
             errorMessage = 'Ocurrió un error durante el swap. Intentá de nuevo.';
@@ -102,7 +115,6 @@
     <title>Face Swap</title>
     <link rel="preconnect" href={ import.meta.env.VITE_MEDIA_CDN} />
 </svelte:head>
-
 
 <style>
     .spinner {
@@ -121,12 +133,9 @@
 <div class="min-h-screen bg-black flex flex-col items-center justify-center p-4 text-white">
     <h1 class="text-2xl mb-6 font-bold">Intercambiá caras 💥</h1>
 
-    <!-- Círculos grandes y responsivos -->
+    <!-- Circles for images -->
     <div class="flex flex-col sm:flex-row gap-10">
-        <!-- Círculo 1 -->
-        <label
-                class="w-44 h-44 sm:w-60 sm:h-60 rounded-full border-4 border-white flex items-center justify-center overflow-hidden cursor-pointer transition hover:border-pink-400"
-                for="file1">
+        <label class="w-44 h-44 sm:w-60 sm:h-60 rounded-full border-4 border-white flex items-center justify-center overflow-hidden cursor-pointer transition hover:border-pink-400" for="file1">
             {#if preview1}
                 <img src="{preview1}" alt="Preview 1" class="object-cover w-full h-full" />
             {:else}
@@ -135,10 +144,7 @@
         </label>
         <input id="file1" type="file" accept="image/*" class="hidden" on:change="{e => handleFileChange(e, 1)}" />
 
-        <!-- Círculo 2 -->
-        <label
-                class="w-44 h-44 sm:w-60 sm:h-60 rounded-full border-4 border-white flex items-center justify-center overflow-hidden cursor-pointer transition hover:border-pink-400"
-                for="file2">
+        <label class="w-44 h-44 sm:w-60 sm:h-60 rounded-full border-4 border-white flex items-center justify-center overflow-hidden cursor-pointer transition hover:border-pink-400" for="file2">
             {#if preview2}
                 <img src="{preview2}" alt="Preview 2" class="object-cover w-full h-full" />
             {:else}
@@ -148,14 +154,27 @@
         <input id="file2" type="file" accept="image/*" class="hidden" on:change="{e => handleFileChange(e, 2)}" />
     </div>
 
+    <!-- Error messages -->
     {#if errorMessage}
         <p class="mt-4 text-red-500 text-center">{errorMessage}</p>
     {/if}
 
+    <!-- Captcha (Turnstile) widget -->
+    <div class="mt-8 mb-3">
+        <CaptchaWrapper
+                siteKey={import.meta.env.VITE_TURNSTILE}
+                onVerify={handleCaptcha}
+        />
+        {#if !captchaValid}
+            <p class="text-xs text-pink-400 mt-2 text-center">Por favor, resolvé el captcha para continuar.</p>
+        {/if}
+    </div>
+
+    <!-- Swap Button (disabled until ready and captcha valid) -->
     <button
-            class="mt-10 px-8 py-3 bg-white text-black font-bold text-lg rounded-full shadow-lg disabled:opacity-50 transition hover:scale-105 active:scale-98"
+            class="mt-2 px-8 py-3 bg-white text-black font-bold text-lg rounded-full shadow-lg disabled:opacity-50 transition hover:scale-105 active:scale-98"
             on:click="{processSwap}"
-            disabled="{!base641 || !base642 || isLoading}">
+            disabled="{!base641 || !base642 || isLoading || !captchaValid}">
         {#if isLoading}
             Procesando…
         {:else}
@@ -174,11 +193,8 @@
         <div class="mt-8 flex flex-col items-center">
             <img src="{resultUrl}" alt="Resultado Face-Swap"
                  class="max-w-full sm:max-w-sm rounded border-2 border-white shadow-lg" />
-            <!-- Botón de descarga -->
-            <a
-                    href="{resultUrl}"
-                    download="face-swap.png"
-                    class="mt-5 px-8 py-3 bg-white text-black font-semibold text-lg rounded-full shadow-lg hover:scale-105 transition">
+            <a href="{resultUrl}" download="face-swap.png"
+               class="mt-5 px-8 py-3 bg-white text-black font-semibold text-lg rounded-full shadow-lg hover:scale-105 transition">
                 Descargá la imagen
             </a>
         </div>
