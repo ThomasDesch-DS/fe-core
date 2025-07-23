@@ -38,7 +38,8 @@
     "sortablejs": "^1.15.6",
     "svelte-qr": "^1.0.0",
     "svelte-qrcode": "^1.0.1",
-    "svelte-sonner": "^1.0.5"
+    "svelte-sonner": "^1.0.5",
+    "posthog-js": "^1.36.0"
   },
   "overrides": {
     "cookie": "1.0.2"

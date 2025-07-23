@@ -9,6 +9,8 @@
   import { browser } from '$app/environment';
   import { beforeNavigate, afterNavigate } from '$app/navigation';
   import posthog from 'posthog-js';
+  import {onMount} from "svelte";
+  import {initPosthog, trackPageOpen} from "$lib/analytics/analytics";
 
   if (browser) {
     beforeNavigate(() => posthog.capture('$pageleave'));
@@ -22,6 +24,13 @@
     ageStatus = state.status;
     animationComplete = state.isAnimationComplete;
   });
+
+  if (browser) {
+    onMount(() => {
+      initPosthog();
+      trackPageOpen();
+    });
+  }
 </script>
 
 {#if ageStatus === 'pending'}
@@ -31,7 +40,7 @@
 {:else if ageStatus === 'approved' && animationComplete}
   <div class="min-h-screen bg-black text-white flex flex-col">
     <Header/>
-    
+
     <main class="flex-grow container mx-auto px-4 py-8">
       <slot />
       <Toaster
@@ -65,7 +74,7 @@
   }}
       />
     </main>
-    
+
     <Footer/>
   </div>
 {/if}

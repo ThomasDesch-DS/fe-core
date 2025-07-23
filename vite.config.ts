@@ -9,6 +9,11 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['sortablejs']
   },
+  build: {
+    rollupOptions: {
+      external: ['posthog-js']
+    }
+  },
   server: {
     fs: {
       allow: ['./static']

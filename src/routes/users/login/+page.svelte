@@ -1,4 +1,5 @@
-<script>
+<script lang="ts">
+    import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import { registerUser } from '$lib/userApi';
     import QRWrapper from "$lib/components/QRWrapper.svelte";
@@ -8,14 +9,31 @@
     import { catlist } from '$lib/escort/store/catlistStore';
     import { tokenStore } from '$lib/store/tokenStore';
     import LoadingAnimation from "$lib/common/LoadingAnimation.svelte";
+    import posthog from 'posthog-js';
+    import { initPosthog } from '$lib/analytics/analytics';
+    import { Gender } from '$lib/escort/types/gender';
+
+    // --- initialize analytics and track page open ---
+    onMount(() => {
+        initPosthog();
+        posthog.capture('pageOpen', {
+            page: 'dsUserAuth',
+            timestamp: new Date().toISOString()
+        });
+    });
 
     let tab = 'login';
     let loginMethod = 'password';
     let forgotMethod = 'password';
     let login = { username: '', credential: '' };
-    import { Gender } from '$lib/escort/types/gender';
-
     let register = { username: '', password: '', age: null, gender: '' };
+    let acceptTerms = false;
+    let forgot = { username: '', credential: '', newPass: '' };
+    let passphrase = '';
+    let otpUrl = '';
+    let otp = '';
+    let registerStep = 'form'; // 'form', 'otp', 'verifyOtp'
+    let isLoading = false;
 
     const genderOptions = [
         { value: Gender.MALE, label: 'Hombre / Male' },
@@ -27,18 +45,11 @@
         { value: Gender.OTHER, label: 'Otro / Otra / Otre / Other' },
         { value: Gender.UNDISCLOSED, label: 'No especificado / Undisclosed' }
     ];
-    let acceptTerms = false;
-    let forgot = { username: '', credential: '', newPass: '' };
-    let passphrase = '';
-    let otpUrl = '';
-    let otp = '';
-    let registerStep = 'form'; // 'form', 'otp', 'verifyOtp'
-    let isLoading = false;
 
-    function switchTab(t) {
+    function switchTab(t: string) {
         tab = t;
         login = { username: '', credential: '' };
-        register = { username: '', password: '', age: null };
+        register = { username: '', password: '', age: null, gender: '' };
         forgot = { username: '', credential: '', newPass: '' };
         loginMethod = 'password';
         forgotMethod = 'password';
@@ -56,18 +67,19 @@
         try {
             const userData = await userApi.post('/login', body);
             dSuserAuthStore.login({ username: userData.username });
-            
-            // Save catList to catlistStore if present in the response
-            if (userData.catList) {
-                console.log('User login response catList:', userData.catList);
-                catlist.set(userData.catList);
-            }
-            
-            // Handle tokens if present in response
-            if (userData.tokens !== undefined) {
-                tokenStore.setTokens(userData.tokens);
-            }
-            
+
+            // Analytics: identify + capture login
+            posthog.identify(userData.username, { userType: 'DSUser' });
+            posthog.capture('login', {
+                userType: 'DSUser',
+                username: userData.username,
+                timestamp: new Date().toISOString()
+            });
+
+            // Persist other data
+            if (userData.catList) catlist.set(userData.catList);
+            if (userData.tokens !== undefined) tokenStore.setTokens(userData.tokens);
+
             toast.success("¡Inicio de sesión correcto!");
             await goto('/');
         } catch (error) {
@@ -83,17 +95,14 @@
             toast.error('El nombre de usuario tiene que tener al menos 3 caracteres.');
             return;
         }
-
         if (register.password.length < 8) {
             toast.error('La contraseña tiene que tener al menos 8 caracteres.');
             return;
         }
-
-        if (register.age < 18) {
+        if (register.age! < 18) {
             toast.error('Tenés que tener al menos 18 años para registrarte.');
             return;
         }
-
         if (!acceptTerms) {
             toast.error('Debes aceptar los Términos y Condiciones para registrarte.');
             return;
@@ -106,12 +115,19 @@
             otpUrl = response.otpUrl;
             registerStep = 'otp';
             dSuserAuthStore.login({ username: register.username });
-            
-            // Handle tokens if present in response
-            if (response.tokens !== undefined) {
-                tokenStore.setTokens(response.tokens);
-            }
-        } catch (error) {
+
+            // Analytics: identify + capture register
+            posthog.identify(register.username, { userType: 'DSUser' });
+            posthog.capture('register', {
+                userType: 'DSUser',
+                username: register.username,
+                age: register.age,
+                gender: register.gender,
+                timestamp: new Date().toISOString()
+            });
+
+            if (response.tokens !== undefined) tokenStore.setTokens(response.tokens);
+        } catch (error: any) {
             if (error.message === 'Username already exists') {
                 toast.error('El nombre de usuario ya existe. Probá con otro.');
             } else if (error.message === 'Too many requests') {
@@ -129,33 +145,42 @@
         isLoading = true;
         try {
             const userData = await userApi.post('/validate/otp', { otp });
-            dSuserAuthStore.login({ username: userData.username || 'user' });
+            dSuserAuthStore.login({ username: userData.username || register.username });
+
+            // Analytics: capture OTP verify
+            posthog.capture('otpVerified', {
+                userType: 'DSUser',
+                username: userData.username || register.username,
+                timestamp: new Date().toISOString()
+            });
+
             toast.success('¡Código verificado! Ya podés loguearte.');
             await goto('/');
         } catch (error) {
             console.error('Error al verificar OTP:', error);
-            toast.error(`Ese código OTP no sirve: ${error.message || 'Error desconocido'}. Fijate bien e intentá de nuevo.`);
+            toast.error(`Ese código OTP no sirve: ${error.message || 'Error desconocido'}`);
         } finally {
             isLoading = false;
         }
     }
 
     async function handleForgot() {
-        const body = {
-            username: forgot.username,
-            newPass: forgot.newPass,
-        };
-
-        if (forgotMethod === 'password') {
-            body.passphrase = forgot.credential;
-        } else if (forgotMethod === 'otp') {
-            body.otp = forgot.credential;
-        }
+        const body: any = { username: forgot.username, newPass: forgot.newPass };
+        if (forgotMethod === 'password') body.passphrase = forgot.credential;
+        else if (forgotMethod === 'otp') body.otp = forgot.credential;
 
         isLoading = true;
         try {
             await userApi.post('/forgot', body);
-            toast.success('¡Restablecimiento de contraseña exitoso! Ahora podés iniciar sesión con tu nueva contraseña.');
+
+            // Analytics: capture reset
+            posthog.capture('passwordReset', {
+                userType: 'DSUser',
+                username: forgot.username,
+                timestamp: new Date().toISOString()
+            });
+
+            toast.success('¡Restablecimiento de contraseña exitoso!');
             await goto('/users/login');
         } catch (error) {
             console.error('Error al restablecer contraseña:', error);
