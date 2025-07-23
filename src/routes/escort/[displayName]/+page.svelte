@@ -10,6 +10,7 @@
     import { catlist } from "$lib/escort/store/catlistStore";
     import { dSuserAuthStore } from "$lib/escort/store/dsUserAuthStore";
     import { goto } from "$app/navigation";
+    import PriceChart from "$lib/charts/PriceChart.svelte";
 
     // ---- CONFIGURACIÓN ----
     const ESCORT_CACHE_KEY = 'escortDetailCache';
@@ -687,7 +688,15 @@
                 <p class="uppercase font-medium">TIEMPO COMPLETO</p>
             {/if}
         </section>
-
+        <section class="bg-black py-16 px-8 md:px-16">
+            <h2 class="text-3xl font-semibold mb-4 text-white">
+                Rango de Precios
+            </h2>
+            <p class="text-gray-400 mb-6">
+                “Barato” a la izquierda — “Caro” a la derecha
+            </p>
+            <PriceChart currentEscortPrice={escort.servicesInfo.hourPrice.amount}/>
+        </section>
         <!-- CONTACTO -->
         <section class="bg-black py-16 px-8 md:px-16 text-white">
             <h2 class="text-4xl font-semibold mb-6">Contacto</h2>
@@ -707,5 +716,6 @@
                 {/each}
             </div>
         </section>
+
     {/if}
 </main>

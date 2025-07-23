@@ -1,11 +1,15 @@
 <script lang="ts">
-    export let onClick: () => void;
+    import { focusNextOnEnter } from '../utils/formUtils';
+    export let onClick: (() => void) | undefined = undefined;
     export let disabled = false;
+    export let type: 'button' | 'submit' | 'reset' = 'button';
 </script>
 
 <button 
+    use:focusNextOnEnter
     on:click={onClick} 
-    disabled={disabled}
+    {type}
+    {disabled}
     class="w-full py-2 bg-white text-black rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
 >
     <slot></slot>

@@ -1,11 +1,12 @@
 import { defineConfig } from 'vite'
 import { sveltekit } from '@sveltejs/kit/vite'
-import Icons from 'unplugin-icons/vite';
-
+import Icons from 'unplugin-icons/vite'
 
 export default defineConfig({
-  plugins: [sveltekit(),
-    Icons({ compiler: 'svelte', autoInstall: true }),],
+  plugins: [
+    sveltekit(),
+    Icons({ compiler: 'svelte', autoInstall: true }),
+  ],
   optimizeDeps: {
     exclude: ['sortablejs']
   },
@@ -18,5 +19,9 @@ export default defineConfig({
     fs: {
       allow: ['./static']
     }
+  },
+  ssr: {
+    // 👇 Add this line
+    noExternal: ['svelte-chartjs']
   }
 })

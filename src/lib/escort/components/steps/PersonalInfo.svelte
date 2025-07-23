@@ -4,6 +4,7 @@
     import Button from '../Button.svelte';
     import SelectInput from '../SelectInput.svelte';
     import { genderOptions } from '../../store/formStore';
+    import { focusNextOnEnter } from '../../utils/formUtils';
     
     export let formData;
     
@@ -106,133 +107,164 @@
 
 <!-- Paso 1: Nombre -->
 {#if $stepStore === 1}
-    <h2 class="text-3xl font-bold text-white mb-6">Che, ¿cómo te llamás?</h2>
-    <TextInput bind:value={formData.name} placeholder="Ej: Juan, María" />
-    <Button onClick={handleName}>
-        { formData.name.trim() ? `¡Dale, ${formData.name}!` : 'Siguiente' }
-    </Button>
+    <form on:submit|preventDefault={handleName}>
+        <h2 class="text-3xl font-bold text-white mb-6">Che, ¿cómo te llamás?</h2>
+        <TextInput bind:value={formData.name} placeholder="Ej: Juan, María" autofocus />
+        <Button type="submit">
+            { formData.name.trim() ? `¡Dale, ${formData.name}!` : 'Siguiente' }
+        </Button>
+    </form>
 {/if}
 
 <!-- Paso 2: Apellido -->
 {#if $stepStore === 2}
-    <h2 class="text-3xl font-bold text-white mb-6">Buenísimo, {formData.name}. ¿Y tu apellido?</h2>
-    <TextInput bind:value={formData.surname} placeholder="Ej: Pérez, García" />
-    <Button onClick={handleSurname}>
-        { formData.surname.trim() ? `¡Buenísimo, ${formData.surname}!` : 'Siguiente' }
-    </Button>
+    <form on:submit|preventDefault={handleSurname}>
+        <h2 class="text-3xl font-bold text-white mb-6">Buenísimo, {formData.name}. ¿Y tu apellido?</h2>
+        <TextInput bind:value={formData.surname} placeholder="Ej: Pérez, García" autofocus />
+        <Button type="submit">
+            { formData.surname.trim() ? `¡Buenísimo, ${formData.surname}!` : 'Siguiente' }
+        </Button>
+    </form>
 {/if}
 
 <!-- Paso 3: Display Name -->
 {#if $stepStore === 3}
-    <h2 class="text-3xl font-bold text-white mb-6">Elegí un nombre público</h2>
-    <p class="text-gray-400 mb-4">Para mantener tu anonimato, no pongas tu nombre real.</p>
-    <TextInput bind:value={formData.displayName} placeholder="Ej: LunaSensual, MisterX" />
-    <Button onClick={handleDisplayName}>
-        { formData.displayName.trim() ? `¡Genial, ${formData.displayName}!` : 'Siguiente' }
-    </Button>
+    <form on:submit|preventDefault={handleDisplayName}>
+        <h2 class="text-3xl font-bold text-white mb-6">Elegí un nombre público</h2>
+        <p class="text-gray-400 mb-4">Para mantener tu anonimato, no pongas tu nombre real.</p>
+        <TextInput bind:value={formData.displayName} placeholder="Ej: LunaSensual, MisterX" autofocus />
+        <Button type="submit">
+            { formData.displayName.trim() ? `¡Genial, ${formData.displayName}!` : 'Siguiente' }
+        </Button>
+    </form>
 {/if}
 
 <!-- Paso 4: Email -->
 {#if $stepStore === 4}
-    <h2 class="text-3xl font-bold text-white mb-6">Perfecto, {formData.displayName}. ¿Cuál es tu mail?</h2>
-    <TextInput type="email" bind:value={formData.email} placeholder="Ej: ejemplo@correo.com" error={emailError} />
-    {#if emailError}
-        <p class="text-red-500 text-sm mt-1 mb-3">{emailError}</p>
-    {/if}
-    <Button onClick={handleEmail} disabled={loading}>
-        {#if loading}
-            Enviando...
-        {:else}
-            { formData.email.trim() ? 'Mandame el código' : 'Siguiente' }
+    <form on:submit|preventDefault={handleEmail}>
+        <h2 class="text-3xl font-bold text-white mb-6">Perfecto, {formData.displayName}. ¿Cuál es tu mail?</h2>
+        <TextInput type="email" bind:value={formData.email} placeholder="Ej: ejemplo@correo.com" error={emailError} autofocus />
+        {#if emailError}
+            <p class="text-red-500 text-sm mt-1 mb-3">{emailError}</p>
         {/if}
-    </Button>
+        <Button type="submit" disabled={loading}>
+            {#if loading}
+                Enviando...
+            {:else}
+                { formData.email.trim() ? 'Mandame el código' : 'Siguiente' }
+            {/if}
+        </Button>
+    </form>
 {/if}
 
 <!-- Paso 5: Verificar código -->
 {#if $stepStore === 5}
-    <h2 class="text-3xl font-bold text-white mb-6">¡Te mandamos un código a {formData.email}!</h2>
-    <TextInput bind:value={formData.code} placeholder="Ej: 123456" error={codeError} />
-    {#if codeError}
-        <p class="text-red-500 text-sm mt-1 mb-3">{codeError}</p>
-    {/if}
-    <Button onClick={handleCode} disabled={loading}>
-        {#if loading}
-            Verificando...
-        {:else}
-            { formData.code.trim() ? 'Verificar código' : 'Siguiente' }
+    <form on:submit|preventDefault={handleCode}>
+        <h2 class="text-3xl font-bold text-white mb-6">¡Te mandamos un código a {formData.email}!</h2>
+        <TextInput bind:value={formData.code} placeholder="Ej: 123456" error={codeError} autofocus />
+        {#if codeError}
+            <p class="text-red-500 text-sm mt-1 mb-3">{codeError}</p>
         {/if}
-    </Button>
+        <Button type="submit" disabled={loading}>
+            {#if loading}
+                Verificando...
+            {:else}
+                { formData.code.trim() ? 'Verificar código' : 'Siguiente' }
+            {/if}
+        </Button>
+    </form>
 {/if}
 
 <!-- Paso 6: Edad -->
 {#if $stepStore === 6}
-    <h2 class="text-3xl font-bold text-white mb-6">Che, ¿cuántos años tenés?</h2>
-    <TextInput type="number" bind:value={formData.age} min="18" placeholder="Ej: 25" />
-    <Button onClick={handleAge}>
-        { formData.age.trim() ? `¡Listo, tenés ${formData.age}!` : 'Siguiente' }
-    </Button>
+    <form on:submit|preventDefault={handleAge}>
+        <h2 class="text-3xl font-bold text-white mb-6">Che, ¿cuántos años tenés?</h2>
+        <TextInput type="number" bind:value={formData.age} min="18" placeholder="Ej: 25" autofocus />
+        <Button type="submit">
+            { formData.age.trim() ? `¡Listo, tenés ${formData.age}!` : 'Siguiente' }
+        </Button>
+    </form>
 {/if}
 
 <!-- Paso 7: Género -->
 {#if $stepStore === 7}
-    <h2 class="text-3xl font-bold text-white mb-6">Contame tu género</h2>
-    <SelectInput 
-        bind:value={formData.gender} 
-        options={genderOptions} 
-        placeholder="Elegí tu género" 
-    />
-    <Button onClick={handleGender}>
-        { formData.gender ? '¡Perfecto!' : 'Siguiente' }
-    </Button>
+    <form on:submit|preventDefault={handleGender}>
+        <h2 class="text-3xl font-bold text-white mb-6">Contame tu género</h2>
+        <SelectInput 
+            bind:value={formData.gender} 
+            options={genderOptions} 
+            placeholder="Elegí tu género"
+            autofocus
+        />
+        <Button type="submit">
+            { formData.gender ? '¡Perfecto!' : 'Siguiente' }
+        </Button>
+    </form>
 {/if}
 
 <!-- Paso 8: Número privado -->
 {#if $stepStore === 8}
-    <h2 class="text-3xl font-bold text-white mb-6">Dale, {formData.displayName}. Poné tu número privado</h2>
-    <p class="text-gray-400 mb-4">Solo nosotros lo veremos; puede coincidir con el público, pero es mejor que no.</p>
-    <TextInput type="tel" bind:value={formData.privatePhoneNumber} placeholder="Ej: +54 9 11 1234-5678" />
-    <Button onClick={handlePrivatePhone}>
-        { formData.privatePhoneNumber.trim() ? '¡Listo!' : 'Siguiente' }
-    </Button>
+    <form on:submit|preventDefault={handlePrivatePhone}>
+        <h2 class="text-3xl font-bold text-white mb-6">Dale, {formData.displayName}. Poné tu número privado</h2>
+        <p class="text-gray-400 mb-4">Solo nosotros lo veremos; puede coincidir con el público, pero es mejor que no.</p>
+        <TextInput type="tel" bind:value={formData.privatePhoneNumber} placeholder="Ej: +54 9 11 1234-5678" autofocus />
+        <Button type="submit">
+            { formData.privatePhoneNumber.trim() ? '¡Listo!' : 'Siguiente' }
+        </Button>
+    </form>
 {/if}
 
 <!-- Paso 9: Número público -->
 {#if $stepStore === 9}
-    <h2 class="text-3xl font-bold text-white mb-6">Ahora tu número público</h2>
-    <p class="text-gray-400 mb-4">Este se mostrará en la web. Podés usar el mismo que el privado, pero mejor si no.</p>
-    <TextInput type="tel" bind:value={formData.publicPhoneNumber} placeholder="Ej: +54 9 11 8765-4321" />
-    <Button onClick={handlePublicPhone}>
-        { formData.publicPhoneNumber.trim() ? '¡Genial!' : 'Siguiente' }
-    </Button>
+    <form on:submit|preventDefault={handlePublicPhone}>
+        <h2 class="text-3xl font-bold text-white mb-6">Ahora tu número público</h2>
+        <p class="text-gray-400 mb-4">Este se mostrará en la web. Podés usar el mismo que el privado, pero mejor si no.</p>
+        <TextInput type="tel" bind:value={formData.publicPhoneNumber} placeholder="Ej: +54 9 11 8765-4321" autofocus />
+        <Button type="submit">
+            { formData.publicPhoneNumber.trim() ? '¡Genial!' : 'Siguiente' }
+        </Button>
+    </form>
 {/if}
 
 <!-- Paso 10: DNI/ID -->
 {#if $stepStore === 10}
-    <h2 class="text-3xl font-bold text-white mb-6">Copado, {formData.displayName}. Pasá tu DNI/ID</h2>
-    <p class="text-gray-400 mb-4">Puede ser tu DNI argentino o ID de otro país.</p>
-    <TextInput bind:value={formData.idNumber} placeholder="Ej: 30.123.456 / ID12345678" />
-    <Button onClick={handleIDNumber}>
-        { formData.idNumber.trim() ? '¡Perfecto!' : 'Siguiente' }
-    </Button>
+    <form on:submit|preventDefault={handleIDNumber}>
+        <h2 class="text-3xl font-bold text-white mb-6">Copado, {formData.displayName}. Pasá tu DNI/ID</h2>
+        <p class="text-gray-400 mb-4">Puede ser tu DNI argentino o ID de otro país.</p>
+        <TextInput bind:value={formData.idNumber} placeholder="Ej: 30.123.456 / ID12345678" autofocus />
+        <Button type="submit">
+            { formData.idNumber.trim() ? '¡Perfecto!' : 'Siguiente' }
+        </Button>
+    </form>
 {/if}
 
 <!-- Paso 11: Contraseña -->
 {#if $stepStore === 11}
-    <h2 class="text-3xl font-bold text-white mb-6">Elegí una contraseña</h2>
-    <TextInput type="password" bind:value={formData.password} placeholder="Contraseña" />
-    <TextInput type="password" bind:value={formData.confirmPassword} placeholder="Confirmar contraseña" />
-    <Button onClick={handlePassword}>Siguiente</Button>
+    <form on:submit|preventDefault={handlePassword}>
+        <h2 class="text-3xl font-bold text-white mb-6">Elegí una contraseña</h2>
+        <TextInput type="password" bind:value={formData.password} placeholder="Contraseña" autofocus />
+        <TextInput type="password" bind:value={formData.confirmPassword} placeholder="Confirmar contraseña" />
+        <Button type="submit">Siguiente</Button>
+    </form>
 {/if}
 
 <!-- Paso 11.5: Documentación -->
 {#if $stepStore === 11.5}
-    <h2 class="text-3xl font-bold text-white mb-6">Agregá tu documentación</h2>
-    <p class="text-gray-400 mb-4">Para validar tu perfil necesitamos documentación que demuestre que tenés más de 18 años.</p>
-    <textarea 
-        bind:value={formData.documentation} 
-        rows="3"
-        placeholder="Ejemplo: DNI 35123123, nacido 15/02/1990"
-        class="w-full px-4 py-2 bg-gray-900 text-white border border-gray-700 rounded mb-4"
-    />
-    <Button onClick={handleDocumentation}>Siguiente</Button>
+    <form on:submit|preventDefault={handleDocumentation}>
+        <h2 class="text-3xl font-bold text-white mb-6">Agregá tu documentación</h2>
+        <p class="text-gray-400 mb-4">Para validar tu perfil necesitamos documentación que demuestre que tenés más de 18 años.</p>
+        <textarea 
+            use:focusNextOnEnter
+            bind:value={formData.documentation} 
+            rows="3"
+            placeholder="Ejemplo: DNI 35123123, nacido 15/02/1990"
+            class="w-full px-4 py-2 bg-gray-900 text-white border border-gray-700 rounded mb-4"
+            autofocus
+        />
+        <Button type="submit">Siguiente</Button>
+    </form>
 {/if}
+
+<style>
+    /* Estilos adicionales si son necesarios */
+</style>
