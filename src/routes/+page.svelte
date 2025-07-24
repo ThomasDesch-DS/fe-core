@@ -1,6 +1,7 @@
 <!-- src/routes/escort/+page.svelte -->
 <script lang="ts">
   import LoadingAnimation from "$lib/common/LoadingAnimation.svelte";
+  import MotelPreviews from "$lib/components/MotelPreviews.svelte";
   import { onMount } from 'svelte';
 
   // ---------- CONFIG ----------
@@ -386,6 +387,9 @@
       </div>
     </div>
   {/if}
+
+  <!-- Motel Previews Section -->
+  <MotelPreviews />
 
   <div class="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-8 place-items-center">
     {#each escorts as escort (escort.id)}

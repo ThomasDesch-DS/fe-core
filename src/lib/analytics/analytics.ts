@@ -95,3 +95,28 @@ export function trackEscortAudio(props: Record<string, any> = {}) {
 export function trackCatlistAction(props: Record<string, any> = {}) {
     posthog.capture('catlistAction', enrichProps(props));
 }
+
+// Motel tracking functions
+export function trackMotelPreviewsView(props: Record<string, any> = {}) {
+    posthog.capture('motelPreviewsView', enrichProps(props));
+}
+
+export function trackMotelPreviewClick(props: Record<string, any> = {}) {
+    posthog.capture('motelPreviewClick', enrichProps(props));
+}
+
+export function trackMotelDetailView(props: Record<string, any> = {}) {
+    posthog.capture('motelDetailView', enrichProps(props));
+}
+
+export function trackMotelContact(props: Record<string, any> = {}) {
+    posthog.capture('motelContact', enrichProps(props));
+}
+
+export function trackMotelMapView(props: Record<string, any> = {}) {
+    posthog.capture('motelMapView', enrichProps(props));
+}
+
+export function trackMotelImageGallery(props: Record<string, any> = {}) {
+    posthog.capture('motelImageGallery', enrichProps(props));
+}

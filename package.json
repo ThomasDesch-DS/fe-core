@@ -37,6 +37,7 @@
     "chart.js": "^4.5.0",
     "heroicons-svelte": "^2.0.2",
     "jwt-decode": "^4.0.0",
+    "leaflet": "^1.9.4",
     "lightweight-charts": "^5.0.8",
     "posthog-js": "^1.36.0",
     "sortablejs": "^1.15.6",
