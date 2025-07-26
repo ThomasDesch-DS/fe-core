@@ -2,6 +2,7 @@
 <script lang="ts">
   import LoadingAnimation from "$lib/common/LoadingAnimation.svelte";
   import MotelPreviews from "$lib/components/MotelPreviews.svelte";
+  import LocationSelector from "$lib/components/LocationSelector.svelte";
   import { onMount } from 'svelte';
 
   // ---------- CONFIG ----------
@@ -53,6 +54,15 @@
   let searchPage = 0;
   let searchTotalPages = 1;
 
+  // Location filtering
+  let selectedState = '';
+  let selectedCity = '';
+  let selectedHood = '';
+  let isLocationMode = false;
+  let locationLoading = false;
+  let locationPage = 0;
+  let locationTotalPages = 1;
+
   // ---------- CACHE UTILS ----------
   function getCache(): Record<string, ListCacheEntry> {
     try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}'); }
@@ -61,12 +71,16 @@
   function saveCache(c: Record<string, ListCacheEntry>) {
     localStorage.setItem(CACHE_KEY, JSON.stringify(c));
   }
-  function makeKey({ search = '', page = 0, size = 100 } = {}) {
-    return search
-            ? `search::${search.toLowerCase().trim()}::${page}::${size}`
-            : `list::${page}::${size}`;
+  function makeKey({ search = '', page = 0, size = 100, state = '', city = '', hood = '' } = {}) {
+    if (search) {
+      return `search::${search.toLowerCase().trim()}::${page}::${size}`;
+    }
+    if (state || city || hood) {
+      return `loc::${state}::${city}::${hood}::${page}::${size}`;
+    }
+    return `list::${page}::${size}`;
   }
-  function getFromCache(opts = { search: '', page: 0, size: 100 }) {
+  function getFromCache(opts = { search: '', page: 0, size: 100, state: '', city: '', hood: '' }) {
     const cache = getCache();
     const key = makeKey(opts);
     const entry = cache[key];
@@ -227,10 +241,99 @@
     }
   }
 
+  // ---------- LOCATION SEARCH ----------
+  async function loadLocationEscorts() {
+    if (locationLoading || locationPage >= locationTotalPages) return;
+    locationLoading = true;
+
+    const cached = getFromCache({ 
+      page: locationPage, 
+      size, 
+      state: selectedState, 
+      city: selectedCity, 
+      hood: selectedHood 
+    });
+    if (cached) {
+      escorts = [...escorts, ...cached.escorts];
+      locationTotalPages = cached.totalPages;
+      locationPage += 1;
+      locationLoading = false;
+      return;
+    }
+
+    try {
+      let url = `${import.meta.env.VITE_API_URL}/escort/location/${encodeURIComponent(selectedState)}?page=${locationPage}&size=${size}`;
+      if (selectedCity) url += `&city=${encodeURIComponent(selectedCity)}`;
+      if (selectedHood) url += `&hood=${encodeURIComponent(selectedHood)}`;
+      
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: ApiResponse = await res.json();
+
+      escorts = [...escorts, ...data.content];
+      locationTotalPages = data.totalPages;
+      setToCache({ 
+        page: locationPage, 
+        size, 
+        state: selectedState, 
+        city: selectedCity, 
+        hood: selectedHood 
+      }, {
+        escorts: data.content,
+        page: locationPage,
+        totalPages: data.totalPages,
+        timestamp: Date.now()
+      });
+      locationPage += 1;
+    } catch (err) {
+      console.error('Failed to load location escorts:', err);
+    } finally {
+      locationLoading = false;
+    }
+  }
+
+  async function handleLocationSearch() {
+    if (!selectedState) return;
+    
+    isLocationMode = true;
+    isSearchMode = false;
+    searchQuery = '';
+    escorts = [];
+    locationPage = 0;
+    locationTotalPages = 1;
+    loadLocationEscorts();
+  }
+
+  function handleLocationChange(event: CustomEvent) {
+    const { state, city, hood } = event.detail;
+    selectedState = state;
+    selectedCity = city;
+    selectedHood = hood;
+    
+    if (state) {
+      handleLocationSearch();
+    } else {
+      clearAllFilters();
+    }
+  }
+
   // ---------- CLEAR SEARCH ----------
   function clearSearch() {
     searchQuery = '';
     isSearchMode = false;
+    escorts = [];
+    page = 0;
+    totalPages = 1;
+    loadEscorts();
+  }
+
+  function clearAllFilters() {
+    searchQuery = '';
+    selectedState = '';
+    selectedCity = '';
+    selectedHood = '';
+    isSearchMode = false;
+    isLocationMode = false;
     escorts = [];
     page = 0;
     totalPages = 1;
@@ -254,7 +357,13 @@
     const io = new IntersectionObserver(
             ([entry]) => {
               if (entry.isIntersecting) {
-                isSearchMode ? loadMoreSearchResults() : loadEscorts();
+                if (isSearchMode) {
+                  loadMoreSearchResults();
+                } else if (isLocationMode) {
+                  loadLocationEscorts();
+                } else {
+                  loadEscorts();
+                }
               }
             },
             { rootMargin: '300px' }
@@ -368,6 +477,16 @@
     </div>
   </div>
 
+  <!-- Location Selector -->
+  <div class="max-w-4xl mx-auto mb-8">
+    <LocationSelector 
+      bind:selectedState
+      bind:selectedCity
+      bind:selectedHood
+      on:locationChange={handleLocationChange}
+    />
+  </div>
+
   <!-- Search Results Header -->
   {#if isSearchMode}
     <div class="max-w-7xl mx-auto mb-6 px-4">
@@ -377,6 +496,29 @@
         </h2>
         <button
                 on:click={clearSearch}
+                class="text-zinc-400 hover:text-white text-sm transition-colors duration-200 flex items-center space-x-1"
+        >
+          <span>Ver todos</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  {:else if isLocationMode}
+    <div class="max-w-7xl mx-auto mb-6 px-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-white text-lg font-medium">
+          {#if selectedHood}
+            Escorts en {selectedHood}, {selectedCity}, {selectedState}
+          {:else if selectedCity}
+            Escorts en {selectedCity}, {selectedState}
+          {:else}
+            Escorts en {selectedState}
+          {/if}
+        </h2>
+        <button
+                on:click={clearAllFilters}
                 class="text-zinc-400 hover:text-white text-sm transition-colors duration-200 flex items-center space-x-1"
         >
           <span>Ver todos</span>
@@ -431,11 +573,20 @@
       <h3 class="text-white text-lg font-medium mb-2">No se encontraron resultados</h3>
       <p class="text-zinc-400 text-sm">Intenta con otros términos de búsqueda</p>
     </div>
+  {:else if isLocationMode && escorts.length === 0 && !locationLoading}
+    <div class="text-center py-12">
+      <svg class="w-16 h-16 text-zinc-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+      </svg>
+      <h3 class="text-white text-lg font-medium mb-2">No hay escorts en esta ubicación</h3>
+      <p class="text-zinc-400 text-sm">Intenta seleccionar otra ubicación</p>
+    </div>
   {/if}
 
   <div bind:this={sentinel}></div>
 
-  {#if loading || searchLoading}
+  {#if loading || searchLoading || locationLoading}
     <LoadingAnimation/>
   {/if}
 </main>

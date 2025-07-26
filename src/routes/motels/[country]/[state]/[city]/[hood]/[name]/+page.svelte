@@ -214,23 +214,23 @@
           </div>
 
           <div class="mt-12">
-            <h2 class="text-2xl font-semibold mb-4 text-neutral-100">Chicas disponibles cerca de este alojamiento</h2>
+            <!--    <h2 class="text-2xl font-semibold mb-4 text-neutral-100">Chicas disponibles cerca de este alojamiento</h2>
             <div class="flex overflow-x-auto gap-4 pb-4">
-              {#each Array(5) as _, i}
-                <div class="min-w-[220px] bg-neutral-900 rounded-xl p-4 shadow-md hover:shadow-lg transition-all">
-                  <img
-                    src={`https://source.unsplash.com/random/300x400?sig=${i}&girl`}
-                    alt="Perfil de acompañante"
-                    class="rounded-lg h-48 w-full object-cover mb-3"
-                  />
-                  <div class="text-lg font-medium text-neutral-50">Sofía {i + 1}</div>
-                  <div class="text-sm text-neutral-400">Zona {motel.location.hood || motel.city} · 25 años</div>
-                  <button class="mt-3 w-full bg-neutral-100 text-black text-sm py-1.5 rounded-md hover:bg-neutral-200">
-                    Ver perfil
-                  </button>
-                </div>
-              {/each}
-            </div>
+                {#each Array(5) as _, i}
+                  <div class="min-w-[220px] bg-neutral-900 rounded-xl p-4 shadow-md hover:shadow-lg transition-all">
+                    <img
+                      src={`https://source.unsplash.com/random/300x400?sig=${i}&girl`}
+                      alt="Perfil de acompañante"
+                      class="rounded-lg h-48 w-full object-cover mb-3"
+                    />
+                    <div class="text-lg font-medium text-neutral-50">Sofía {i + 1}</div>
+                    <div class="text-sm text-neutral-400">Zona {motel.location.hood || motel.city} · 25 años</div>
+                    <button class="mt-3 w-full bg-neutral-100 text-black text-sm py-1.5 rounded-md hover:bg-neutral-200">
+                      Ver perfil
+                    </button>
+                  </div>
+                {/each }
+              </div> -->
           </div>
         </div>
 
