@@ -9,36 +9,19 @@
     trackMotelMapView, 
     trackMotelImageGallery 
   } from '$lib/analytics/analytics';
+  import ReviewList from '$lib/components/reviews/ReviewList.svelte';
 
   $: params = $page.params;
   
   let motel: MotelDetailDto | null = null;
   let loading = true;
   let error = false;
-
-  // Mock reviews for now
-  const reviews = [
-    {
-      user: 'Camila R.',
-      date: 'Junio 2025',
-      comment: 'Todo impecable. La cama muy cómoda y la vista increíble. Volvería sin dudas.'
-    },
-    {
-      user: 'Nicolás P.',
-      date: 'Mayo 2025',
-      comment: 'Perfecta ubicación y excelente atención. Ideal para escapadas discretas.'
-    },
-    {
-      user: 'Luisa M.',
-      date: 'Abril 2025',
-      comment: 'Muy limpio y moderno. Lo único que faltó fue una cafetera 😅'
-    }
-  ];
+  let reviewError = '';
 
   async function fetchMotelData() {
     try {
       const { country, state, city, hood, name } = params;
-      const url = `http://localhost:8080/motels/${country}/${state}/${city}/${hood}/${name}`;
+      const url = `${import.meta.env.VITE_API_URL}/motels/${country}/${state}/${city}/${hood}/${name}`;
       
       const response = await fetch(url);
       if (!response.ok) {
@@ -122,6 +105,10 @@
         totalImages: motel.images.length
       });
     }
+  }
+
+  function handleReviewError(event: CustomEvent<string>) {
+    reviewError = event.detail;
   }
 </script>
 
@@ -260,20 +247,17 @@
     </section>
 
     <!-- Reviews Section -->
-    <section class="mt-12 max-w-4xl mx-auto">
-      <h2 class="text-2xl font-semibold text-neutral-100 mb-4">Reseñas</h2>
-      <div class="space-y-6">
-        {#each reviews as review}
-          <div class="bg-neutral-900 p-4 rounded-lg shadow">
-            <div class="flex justify-between mb-1">
-              <span class="text-neutral-100 font-medium">{review.user}</span>
-              <span class="text-neutral-500 text-sm">{review.date}</span>
-            </div>
-            <p class="text-neutral-300 text-sm">{review.comment}</p>
-          </div>
-        {/each}
+    {#if reviewError}
+      <div class="mt-8 max-w-4xl mx-auto bg-red-900/20 border border-red-700 text-red-400 px-4 py-3 rounded-lg">
+        {reviewError}
       </div>
-    </section>
+    {/if}
+    
+    <ReviewList 
+      motelId={motel.id} 
+      motelName={motel.name}
+      on:error={handleReviewError}
+    />
   {/if}
 </main>
 

@@ -35,3 +35,31 @@ export interface MotelDetailDto {
   description: string;
   rating: number;
 }
+
+export interface MotelReview {
+  id: string;
+  motelId: string;
+  userId: string;
+  content: string;
+  username: string;
+  rating: number | null;
+  parentId: string | null;
+  createdAt: number;
+  replies: number;
+}
+
+export interface CreateMotelReviewDto {
+  content: string;
+  rating: number | null;
+  parentId: string | null;
+}
+
+export interface MotelReviewCacheEntry {
+  reviews: MotelReview[];
+  timestamp: number;
+}
+
+export interface MotelReviewRepliesCacheEntry {
+  replies: MotelReview[];
+  timestamp: number;
+}

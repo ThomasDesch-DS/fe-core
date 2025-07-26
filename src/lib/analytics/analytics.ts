@@ -120,3 +120,11 @@ export function trackMotelMapView(props: Record<string, any> = {}) {
 export function trackMotelImageGallery(props: Record<string, any> = {}) {
     posthog.capture('motelImageGallery', enrichProps(props));
 }
+
+export function trackMotelReviewsView(props: Record<string, any> = {}) {
+    posthog.capture('motelReviewsView', enrichProps(props));
+}
+
+export function trackMotelReviewSubmit(props: Record<string, any> = {}) {
+    posthog.capture('motelReviewSubmit', enrichProps(props));
+}
