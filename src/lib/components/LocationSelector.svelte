@@ -21,6 +21,7 @@
   export let selectedState = '';
   export let selectedCity = '';
   export let selectedHood = '';
+  export let apiEndpoint = 'escort'; // 'escort' or 'motels'
 
   let locationData: LocationData | null = null;
   let loading = false;
@@ -41,7 +42,7 @@
     error = false;
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/escort/locations`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/${apiEndpoint}/locations`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       locationData = await response.json();
     } catch (err) {
