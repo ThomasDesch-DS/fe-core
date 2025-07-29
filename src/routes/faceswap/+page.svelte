@@ -27,7 +27,6 @@
 
     const tips = [
         'Mientras esperás, hacé un mate y relajate.',
-        'Che, ¿sabías que podés revisar tu feed mientras tanto?',
         'No te distraigas con más swaps… ¡este va a quedar épico!',
         'Tip pro: guardá tu cara favorita antes de que se vaya.',
     ];
@@ -224,4 +223,7 @@
             </a>
         </div>
     {/if}
+    <div class="mt-12 text-sm text-center text-zinc-400 max-w-md mx-auto px-4">
+        ⚠️ <strong>Disclaimer:</strong> El Face Swap es solo para uso recreativo. No subas fotos sin consentimiento ni generes contenido ofensivo o ilegal. Las imágenes que generás <strong>no se guardan</strong> en nuestros servidores y desaparecen una vez descargadas. El uso de esta herramienta es bajo tu exclusiva responsabilidad.
+    </div>
 </div>
