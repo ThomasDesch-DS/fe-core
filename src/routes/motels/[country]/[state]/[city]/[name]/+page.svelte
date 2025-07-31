@@ -39,7 +39,7 @@
     try {
       const { country, state, city, name } = params;
       // For motels without hood, construct URL without hood parameter
-      const url = `http://localhost:8080/motels/${country}/${state}/${city}/${name}`;
+      const url = import.meta.env.VITE_API_URL+`/motels/${country}/${state}/${city}/${name}`;
       
       const response = await fetch(url);
       if (!response.ok) {

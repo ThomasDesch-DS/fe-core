@@ -10,7 +10,7 @@
     export let currentEscortPrice = 52;
 
     async function cargarDatosYRenderizarGrafico() {
-        const res = await fetch(`http://localhost:8080/escort/prices`);
+        const res = await fetch(import.meta.env.VITE_API_URL+`/escort/prices`);
         const json = await res.json();
 
         const bins = json.bins;
