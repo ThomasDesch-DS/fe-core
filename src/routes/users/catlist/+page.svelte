@@ -5,14 +5,38 @@
     import type { CatlistItem } from "$lib/escort/store/catlistStore";
     import { getMediaUrl } from "../../../util/MediaUtils";
     import { toast } from "svelte-sonner";
+    import { trackPageOpen, initPosthog, trackCatlistAction } from "$lib/analytics/analytics";
 
     let savedCats: CatlistItem[] = [];
     onMount(() => {
-        const unsub = catlist.subscribe(v => savedCats = v);
+        initPosthog();
+        trackPageOpen({
+            page: 'catlist',
+            catlistSize: savedCats.length
+        });
+        const unsub = catlist.subscribe(v => {
+            savedCats = v;
+            // Track catlist size changes for analytics
+            if (savedCats.length > 0) {
+                trackCatlistAction({
+                    action: 'catlist_updated',
+                    catlistSize: savedCats.length,
+                    visitedCount: savedCats.filter(c => c.visited).length
+                });
+            }
+        });
         return () => unsub();
     });
 
     async function toggleVisited(item: CatlistItem) {
+        trackCatlistAction({
+            action: 'toggle_visited',
+            escortId: item.escortId,
+            escortName: item.displayName,
+            fromVisited: item.visited,
+            toVisited: !item.visited
+        });
+        
         const promise = catlist.setVisited(item.id, !item.visited);
         toast.promise(promise, {
             loading: item.visited
@@ -26,12 +50,26 @@
     }
 
     function deleteCat(item: CatlistItem) {
+        trackCatlistAction({
+            action: 'delete_initiated',
+            escortId: item.escortId,
+            escortName: item.displayName,
+            wasVisited: item.visited
+        });
+        
         // toast de confirmación con botón
         toast(`¿Eliminar a ${item.displayName}?`, {
             duration: Infinity, // queda hasta que lo toquen
             action: {
                 label: 'Sí, eliminar',
                 onClick: async () => {
+                    trackCatlistAction({
+                        action: 'delete_confirmed',
+                        escortId: item.escortId,
+                        escortName: item.displayName,
+                        wasVisited: item.visited
+                    });
+                    
                     const promise = catlist.remove(item.id);
                     toast.promise(promise, {
                         loading: "Eliminando perfil…",
@@ -44,6 +82,12 @@
     }
 </script>
 
+<svelte:head>
+    <title>Mi Catlist</title>
+    <link rel="preconnect" href={ import.meta.env.VITE_MEDIA_CDN} />
+</svelte:head>
+
+
 <main class="p-8 bg-black text-white">
     <h1 class="text-4xl font-bold mb-8">Mi Catlist 🐱</h1>
 
@@ -55,6 +99,14 @@
                 <a
                         href={`/escort/${cat.slug}`}
                         class="relative block rounded-lg overflow-hidden transform hover:scale-105 transition"
+                        on:click={() => trackCatlistAction({
+                            action: 'view_escort',
+                            escortId: cat.escortId,
+                            escortName: cat.displayName,
+                            wasVisited: cat.visited,
+                            catlistPosition: savedCats.indexOf(cat) + 1,
+                            totalCatlistSize: savedCats.length
+                        })}
                 >
                     <div
                             class="aspect-square bg-black"

@@ -1,6 +1,7 @@
 import { escortAuthStore } from '../store/escortAuthStore';
 import { catlist } from '../store/catlistStore';
 import { api } from './apiClient';
+import { tokenStore } from '$lib/store/tokenStore';
 
 /**
  * Login user with email and password
@@ -30,6 +31,11 @@ export async function login(email: string, password: string): Promise<boolean> {
                 catlist.set(response.catList);
             }
             
+            // Handle tokens if present in response
+            if (response.tokens !== undefined) {
+                tokenStore.setTokens(response.tokens);
+            }
+            
             // Set up auto refresh timer
             setupTokenRefresh();
             return true;
@@ -52,12 +58,16 @@ export async function logout(): Promise<void> {
         // Clear local state regardless of server response
         escortAuthStore.logout();
         
+        // Clear tokens
+        tokenStore.clearTokens();
+        
         // Clear refresh timer
         clearTokenRefresh();
     } catch (error) {
         console.error('Logout error:', error);
         // Still clear local state even if API call fails
         escortAuthStore.logout();
+        tokenStore.clearTokens();
         clearTokenRefresh();
     }
 }
@@ -92,6 +102,7 @@ export async function refreshToken(): Promise<boolean> {
             // Token is invalid or expired, log out the user
             isLoggedIn = false;
             escortAuthStore.logout();
+            tokenStore.clearTokens();
             clearTokenRefresh(); // Clear the refresh timer
         }
         

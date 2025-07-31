@@ -888,6 +888,10 @@
 
 </style>
 
+<svelte:head>
+    <title>Tu panel</title>
+</svelte:head>
+
 {#if authState.isLoading}
     <div class="min-h-screen flex items-center justify-center bg-black text-white">
         <p>Cargando perfil...</p>

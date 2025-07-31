@@ -46,6 +46,10 @@
     };
 </script>
 
+<svelte:head>
+    <title>Crea una nueva contraseña</title>
+</svelte:head>
+
 <form on:submit|preventDefault={handleSubmit} class="min-h-screen flex items-center justify-center bg-black px-4">
     <div class="w-full max-w-sm space-y-6">
         <h2 class="text-white text-2xl font-semibold text-center">Restablecé tu contraseña</h2>

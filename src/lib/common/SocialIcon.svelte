@@ -6,6 +6,7 @@
 
     export let type;
     export let value;
+    export let onClick = null;
 
     const getIcon = (type) => {
         switch (type) {
@@ -44,6 +45,7 @@
             target="_blank"
             rel="noopener noreferrer"
             class="flex items-center gap-2 border border-gray-700 px-3 py-1 rounded text-white hover:text-white hover:border-white transition"
+            on:click={onClick}
     >
         <Icon class="w-5 h-5" />
         <span class="text-lg">{value}</span>

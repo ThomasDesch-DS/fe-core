@@ -1,4 +1,5 @@
-<script>
+<script lang="ts">
+    import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import { registerUser } from '$lib/userApi';
     import QRWrapper from "$lib/components/QRWrapper.svelte";
@@ -6,23 +7,49 @@
     import { toast } from "svelte-sonner";
     import { userApi } from '$lib/users/apiClient';
     import { catlist } from '$lib/escort/store/catlistStore';
+    import { tokenStore } from '$lib/store/tokenStore';
+    import LoadingAnimation from "$lib/common/LoadingAnimation.svelte";
+    import posthog from 'posthog-js';
+    import { initPosthog } from '$lib/analytics/analytics';
+    import { Gender } from '$lib/escort/types/gender';
+
+    // --- initialize analytics and track page open ---
+    onMount(() => {
+        initPosthog();
+        posthog.capture('pageOpen', {
+            page: 'dsUserAuth',
+            timestamp: new Date().toISOString()
+        });
+    });
 
     let tab = 'login';
     let loginMethod = 'password';
     let forgotMethod = 'password';
     let login = { username: '', credential: '' };
-    let register = { username: '', password: '', age: null };
+    let register = { username: '', password: '', age: null, gender: '' };
     let acceptTerms = false;
     let forgot = { username: '', credential: '', newPass: '' };
     let passphrase = '';
     let otpUrl = '';
     let otp = '';
     let registerStep = 'form'; // 'form', 'otp', 'verifyOtp'
+    let isLoading = false;
 
-    function switchTab(t) {
+    const genderOptions = [
+        { value: Gender.MALE, label: 'Hombre / Male' },
+        { value: Gender.FEMALE, label: 'Mujer / Female' },
+        { value: Gender.NON_BINARY, label: 'No binarie / Non-binary' },
+        { value: Gender.TRANSGENDER_MALE, label: 'Hombre trans / Transgender Male' },
+        { value: Gender.TRANSGENDER_FEMALE, label: 'Mujer trans / Transgender Female' },
+        { value: Gender.GENDER_FLUID, label: 'Género fluido / Gender Fluid' },
+        { value: Gender.OTHER, label: 'Otro / Otra / Otre / Other' },
+        { value: Gender.UNDISCLOSED, label: 'No especificado / Undisclosed' }
+    ];
+
+    function switchTab(t: string) {
         tab = t;
         login = { username: '', credential: '' };
-        register = { username: '', password: '', age: null };
+        register = { username: '', password: '', age: null, gender: '' };
         forgot = { username: '', credential: '', newPass: '' };
         loginMethod = 'password';
         forgotMethod = 'password';
@@ -36,21 +63,30 @@
             otp: loginMethod === 'otp' ? login.credential : null
         };
 
+        isLoading = true;
         try {
             const userData = await userApi.post('/login', body);
             dSuserAuthStore.login({ username: userData.username });
-            
-            // Save catList to catlistStore if present in the response
-            if (userData.catList) {
-                console.log('User login response catList:', userData.catList);
-                catlist.set(userData.catList);
-            }
-            
+
+            // Analytics: identify + capture login
+            posthog.identify(userData.username, { userType: 'DSUser' });
+            posthog.capture('login', {
+                userType: 'DSUser',
+                username: userData.username,
+                timestamp: new Date().toISOString()
+            });
+
+            // Persist other data
+            if (userData.catList) catlist.set(userData.catList);
+            if (userData.tokens !== undefined) tokenStore.setTokens(userData.tokens);
+
             toast.success("¡Inicio de sesión correcto!");
             await goto('/');
         } catch (error) {
             console.error('Error de login:', error);
             toast.error(`Error al iniciar sesión: ${error.message || 'Error desconocido'}`);
+        } finally {
+            isLoading = false;
         }
     }
 
@@ -59,29 +95,39 @@
             toast.error('El nombre de usuario tiene que tener al menos 3 caracteres.');
             return;
         }
-
         if (register.password.length < 8) {
             toast.error('La contraseña tiene que tener al menos 8 caracteres.');
             return;
         }
-
-        if (register.age < 18) {
+        if (register.age! < 18) {
             toast.error('Tenés que tener al menos 18 años para registrarte.');
             return;
         }
-
         if (!acceptTerms) {
             toast.error('Debes aceptar los Términos y Condiciones para registrarte.');
             return;
         }
 
+        isLoading = true;
         try {
-            const response = await registerUser(register);
+            const response = await registerUser({ ...register, gender: register.gender });
             passphrase = response.passphrase;
             otpUrl = response.otpUrl;
             registerStep = 'otp';
             dSuserAuthStore.login({ username: register.username });
-        } catch (error) {
+
+            // Analytics: identify + capture register
+            posthog.identify(register.username, { userType: 'DSUser' });
+            posthog.capture('register', {
+                userType: 'DSUser',
+                username: register.username,
+                age: register.age,
+                gender: register.gender,
+                timestamp: new Date().toISOString()
+            });
+
+            if (response.tokens !== undefined) tokenStore.setTokens(response.tokens);
+        } catch (error: any) {
             if (error.message === 'Username already exists') {
                 toast.error('El nombre de usuario ya existe. Probá con otro.');
             } else if (error.message === 'Too many requests') {
@@ -90,45 +136,70 @@
                 console.error(error);
                 toast.error('El registro falló. Intentá de nuevo.');
             }
+        } finally {
+            isLoading = false;
         }
     }
 
     async function handleVerifyOtp() {
+        isLoading = true;
         try {
             const userData = await userApi.post('/validate/otp', { otp });
-            dSuserAuthStore.login({ username: userData.username || 'user' });
+            dSuserAuthStore.login({ username: userData.username || register.username });
+
+            // Analytics: capture OTP verify
+            posthog.capture('otpVerified', {
+                userType: 'DSUser',
+                username: userData.username || register.username,
+                timestamp: new Date().toISOString()
+            });
+
             toast.success('¡Código verificado! Ya podés loguearte.');
             await goto('/');
         } catch (error) {
             console.error('Error al verificar OTP:', error);
-            toast.error(`Ese código OTP no sirve: ${error.message || 'Error desconocido'}. Fijate bien e intentá de nuevo.`);
+            toast.error(`Ese código OTP no sirve: ${error.message || 'Error desconocido'}`);
+        } finally {
+            isLoading = false;
         }
     }
 
     async function handleForgot() {
-        const body = {
-            username: forgot.username,
-            newPass: forgot.newPass,
-        };
+        const body: any = { username: forgot.username, newPass: forgot.newPass };
+        if (forgotMethod === 'password') body.passphrase = forgot.credential;
+        else if (forgotMethod === 'otp') body.otp = forgot.credential;
 
-        if (forgotMethod === 'password') {
-            body.passphrase = forgot.credential;
-        } else if (forgotMethod === 'otp') {
-            body.otp = forgot.credential;
-        }
-
+        isLoading = true;
         try {
             await userApi.post('/forgot', body);
-            toast.success('¡Restablecimiento de contraseña exitoso! Ahora podés iniciar sesión con tu nueva contraseña.');
+
+            // Analytics: capture reset
+            posthog.capture('passwordReset', {
+                userType: 'DSUser',
+                username: forgot.username,
+                timestamp: new Date().toISOString()
+            });
+
+            toast.success('¡Restablecimiento de contraseña exitoso!');
             await goto('/users/login');
         } catch (error) {
             console.error('Error al restablecer contraseña:', error);
             toast.error("Las credenciales son inválidas. Revisá tu usuario y contraseña e intentá de nuevo.");
+        } finally {
+            isLoading = false;
         }
     }
 </script>
 
+<svelte:head>
+    <title>Accede a tu cuenta</title>
+</svelte:head>
 
+{#if isLoading}
+    <div class="min-h-screen flex flex-col justify-center items-center bg-black px-4">
+        <LoadingAnimation />
+    </div>
+{:else}
 <div class="min-h-screen bg-black flex items-center justify-center p-4 sm:p-6 md:p-8">
     <div class="bg-black text-white rounded-2xl shadow-lg w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg ring-1 ring-white/10 p-6 sm:p-8 md:p-10">
         <!-- Título general -->
@@ -219,6 +290,15 @@
                         <label class="block text-sm sm:text-base md:text-lg">Age</label>
                         <input type="number" min="18" placeholder="21" bind:value={register.age} required class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20" />
                     </div>
+                    <div class="space-y-1">
+                        <label class="block text-sm sm:text-base md:text-lg">Gender</label>
+                        <select bind:value={register.gender} required class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20">
+                            <option value="" disabled selected>Select your gender</option>
+                            {#each genderOptions as option}
+                                <option value={option.value}>{option.label}</option>
+                            {/each}
+                        </select>
+                    </div>
                     <div class="flex items-center space-x-2">
                         <input type="checkbox" id="acceptTerms" bind:checked={acceptTerms} required class="form-checkbox h-4 w-4 text-white transition duration-150 ease-in-out" />
                         <label for="acceptTerms" class="text-sm sm:text-base md:text-lg text-gray-400">
@@ -308,3 +388,5 @@
         {/if}
     </div>
 </div>
+{/if}
+

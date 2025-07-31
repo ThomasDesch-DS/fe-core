@@ -10,6 +10,9 @@
     import { catlist } from "$lib/escort/store/catlistStore";
     import { dSuserAuthStore } from "$lib/escort/store/dsUserAuthStore";
     import { goto } from "$app/navigation";
+    import PriceChart from "$lib/charts/PriceChart.svelte";
+    import { trackPageOpen, initPosthog, trackEscortContact, trackEscortGallery, trackEscortCatlist, trackEscortShare, trackEscortAudio } from "$lib/analytics/analytics";
+    import posthog from 'posthog-js';
 
     // ---- CONFIGURACIÓN ----
     const ESCORT_CACHE_KEY = 'escortDetailCache';
@@ -87,6 +90,11 @@
         }
         const existing = $catlist.find(i => i.escortId === escort.id);
         if (existing) {
+            trackEscortCatlist({
+                action: 'remove',
+                escortId: escort.id,
+                escortName: escort.displayName
+            });
             const promise = catlist.remove(existing.id);
             toast.promise(promise, {
                 loading: 'Quitando de tu Catlist…',
@@ -94,6 +102,11 @@
                 error: 'No se pudo quitar 😕'
             });
         } else {
+            trackEscortCatlist({
+                action: 'add',
+                escortId: escort.id,
+                escortName: escort.displayName
+            });
             const promise = catlist.add(escort.id, {
                 slug: $page.params.displayName,
                 displayName: escort.displayName,
@@ -164,6 +177,13 @@
 
     // ---- UX HANDLERS ----
     function openModal(i: number) {
+        trackEscortGallery({
+            action: 'modal_open',
+            imageIndex: i,
+            totalImages: sortedPics.length,
+            escortId: escort?.id,
+            escortName: escort?.displayName
+        });
         modalIndex = i;
         modalOpen = true;
         history.pushState({ lightbox: true }, '');
@@ -173,9 +193,21 @@
         if (history.state?.lightbox) history.back();
     }
     function prevImage() {
+        trackEscortGallery({
+            action: 'image_prev',
+            fromIndex: modalIndex,
+            toIndex: (modalIndex - 1 + sortedPics.length) % sortedPics.length,
+            escortId: escort?.id
+        });
         modalIndex = (modalIndex - 1 + sortedPics.length) % sortedPics.length;
     }
     function nextImage() {
+        trackEscortGallery({
+            action: 'image_next',
+            fromIndex: modalIndex,
+            toIndex: (modalIndex + 1) % sortedPics.length,
+            escortId: escort?.id
+        });
         modalIndex = (modalIndex + 1) % sortedPics.length;
     }
     function handleKeydown(e: KeyboardEvent) {
@@ -202,18 +234,36 @@
         const url = window.location.href;
         try {
             if (navigator.share) {
+                trackEscortShare({
+                    method: 'native_share',
+                    escortId: escort?.id,
+                    escortName: escort?.displayName
+                });
                 await navigator.share({ title: escort?.displayName, url });
             } else {
+                trackEscortShare({
+                    method: 'clipboard_copy',
+                    escortId: escort?.id,
+                    escortName: escort?.displayName
+                });
                 await navigator.clipboard.writeText(url);
                 toast.success('¡Link copiado!');
             }
         } catch (err) {
             console.error('Error compartiendo:', err);
+            trackEscortShare({
+                method: 'error',
+                escortId: escort?.id,
+                escortName: escort?.displayName,
+                error: err.message
+            });
         }
     }
 
     // ---- FETCH Y MOUNT ----
     onMount(async () => {
+        initPosthog();
+        trackPageOpen();
         window.addEventListener('keydown', handleKeydown);
         window.addEventListener('popstate', handlePopState);
         try {
@@ -280,10 +330,27 @@
     $: if (escort?.displayName) {
         document.title = escort.displayName;
     }
+
+    // ---- AUDIO HANDLERS ----
+    function handleAudioPlay() {
+        trackEscortAudio({
+            action: 'play',
+            escortId: escort?.id,
+            escortName: escort?.displayName
+        });
+    }
+
+    function handleAudioPause() {
+        trackEscortAudio({
+            action: 'pause',
+            escortId: escort?.id,
+            escortName: escort?.displayName
+        });
+    }
 </script>
 
 <svelte:head>
-    <link rel="preconnect" href="https://nexus.daisyssecrets.com" />
+    <link rel="preconnect" href={ import.meta.env.VITE_MEDIA_CDN} />
     {#if escort?.media.profilePicture}
         <link rel="preload" as="image" href={escort.media.profilePicture} />
     {/if}
@@ -391,6 +458,13 @@
                             href={`https://wa.me/${escort.publicPhoneNumber}`}
                             target="_blank"
                             class="btn-vercel"
+                            on:click={() => trackEscortContact({
+                                method: 'whatsapp',
+                                location: 'hero_cta',
+                                phoneNumber: escort.publicPhoneNumber,
+                                escortId: escort.id,
+                                escortName: escort.displayName
+                            })}
                     >
                         Reservá ahora
                     </a>
@@ -435,7 +509,13 @@
                                 d="M9 19V6l12-2v15M9 19l-5-5H5a2 2 0 01-2-2V8a2 2 0 012-2h1l5-5v18z"
                         />
                     </svg>
-                    <audio controls src={audioClipURL} class="audio-player"></audio>
+                    <audio 
+                        controls 
+                        src={audioClipURL} 
+                        class="audio-player"
+                        on:play={handleAudioPlay}
+                        on:pause={handleAudioPause}
+                    ></audio>
                 </div>
             </section>
         {/if}
@@ -449,6 +529,13 @@
             <a
                     href={`https://wa.me/${escort.publicPhoneNumber}`}
                     class="p-3 rounded-full border border-white hover:bg-white/10 transition"
+                    on:click={() => trackEscortContact({
+                        method: 'whatsapp',
+                        location: 'sticky_cta',
+                        phoneNumber: escort.publicPhoneNumber,
+                        escortId: escort.id,
+                        escortName: escort.displayName
+                    })}
             >
                 💬
             </a>
@@ -468,7 +555,15 @@
                                     {activeMediaTab === key
                                         ? 'border-white text-white font-semibold'
                                         : 'border-transparent text-gray-500 hover:text-white hover:border-gray-500'}"
-                                    on:click={() => (activeMediaTab = key)}
+                                    on:click={() => {
+                                        trackEscortGallery({
+                                            action: 'tab_switch',
+                                            fromTab: activeMediaTab,
+                                            toTab: key,
+                                            escortId: escort?.id
+                                        });
+                                        activeMediaTab = key;
+                                    }}
                             >
                                 {label}
                             </button>
@@ -569,7 +664,17 @@
                                     {activeServiceTab === key
                                         ? 'border-white text-white font-semibold'
                                         : 'border-transparent text-gray-500 hover:text-white hover:border-gray-500'}"
-                                    on:click={() => (activeServiceTab = key)}
+                                    on:click={() => {
+                                        // Track service tab switching
+                                        posthog.capture('escortServiceTab', {
+                                            action: 'tab_switch',
+                                            fromTab: activeServiceTab,
+                                            toTab: key,
+                                            escortId: escort?.id,
+                                            escortName: escort?.displayName
+                                        });
+                                        activeServiceTab = key;
+                                    }}
                             >
                                 {label}
                             </button>
@@ -687,7 +792,15 @@
                 <p class="uppercase font-medium">TIEMPO COMPLETO</p>
             {/if}
         </section>
-
+        <section class="bg-black py-16 px-8 md:px-16">
+            <h2 class="text-3xl font-semibold mb-4 text-white">
+                Rango de Precios
+            </h2>
+            <p class="text-gray-400 mb-6">
+                “Barato” a la izquierda — “Caro” a la derecha
+            </p>
+            <PriceChart currentEscortPrice={escort.servicesInfo.hourPrice.amount}/>
+        </section>
         <!-- CONTACTO -->
         <section class="bg-black py-16 px-8 md:px-16 text-white">
             <h2 class="text-4xl font-semibold mb-6">Contacto</h2>
@@ -696,6 +809,13 @@
                     <a
                             href={`https://wa.me/${escort.publicPhoneNumber}`}
                             class="flex items-center gap-2 border border-gray-700 px-3 py-1 rounded text-lg hover:text-white hover:border-white transition"
+                            on:click={() => trackEscortContact({
+                                method: 'whatsapp',
+                                location: 'contact_section',
+                                phoneNumber: escort.publicPhoneNumber,
+                                escortId: escort.id,
+                                escortName: escort.displayName
+                            })}
                     >
                         <IconWhatsapp class="text-green-500 w-5 h-5" />
                         {escort.publicPhoneNumber}
@@ -703,9 +823,20 @@
                 {/if}
 
                 {#each escort.contactMethod as cm}
-                    <SocialIcon type={cm.type} value={cm.value} />
+                    <SocialIcon 
+                        type={cm.type} 
+                        value={cm.value} 
+                        onClick={() => trackEscortContact({
+                            method: cm.type.toLowerCase(),
+                            location: 'contact_section',
+                            contactValue: cm.value,
+                            escortId: escort.id,
+                            escortName: escort.displayName
+                        })}
+                    />
                 {/each}
             </div>
         </section>
+
     {/if}
 </main>

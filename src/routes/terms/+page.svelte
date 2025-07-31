@@ -4,4 +4,9 @@
   export let data;
 </script>
 
+<svelte:head>
+    <title>Términos y condiciones</title>
+</svelte:head>
+
+
 <MarkdownRenderer content={data.content} />

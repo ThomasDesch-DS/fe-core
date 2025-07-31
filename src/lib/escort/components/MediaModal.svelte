@@ -7,10 +7,22 @@
         showModal = false;
         document.body.style.overflow = '';
     }
+
+    function handleKeyDown(event: KeyboardEvent) {
+        if (event.key === 'Escape') {
+            closeModal();
+        }
+    }
 </script>
 
 {#if showModal}
-    <div class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50" on:click={closeModal}>
+    <div 
+        class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50"
+        on:click={closeModal} 
+        on:keydown={handleKeyDown}
+        role="button" 
+        tabindex="0"
+    >
         <div class="relative max-w-4xl max-h-[90vh]">
             <button 
                 class="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full w-10 h-10 flex items-center justify-center hover:bg-opacity-70"
@@ -19,9 +31,11 @@
                 ✕
             </button>
             {#if isVideo}
-                <video src={previewSrc} controls autoplay class="max-w-full max-h-[90vh] rounded-lg" />
+                <video src={previewSrc} controls autoplay class="max-w-full max-h-[90vh] rounded-lg">
+                    <track kind="captions" />
+                </video>
             {:else}
-                <img src={previewSrc} class="max-w-full max-h-[90vh] rounded-lg object-contain" />
+                <img src={previewSrc} alt="preview" class="max-w-full max-h-[90vh] rounded-lg object-contain" />
             {/if}
         </div>
     </div>
