@@ -10,6 +10,7 @@
     trackMotelImageGallery 
   } from '$lib/analytics/analytics';
   import ReviewList from '$lib/components/reviews/ReviewList.svelte';
+  import {getMediaUrl} from "../../../../../../../util/MediaUtils";
 
   $: params = $page.params;
   
@@ -182,7 +183,7 @@
           <div class="mt-6 grid grid-cols-2 md:grid-cols-3 gap-3">
             {#each motel.images as img, index}
               <img
-                src={img}
+                src={getMediaUrl(motel.id, img.media, "motel")}
                 alt="Foto del alojamiento"
                 class="rounded-xl w-full h-44 object-cover shadow-md hover:shadow-lg transition-shadow cursor-pointer"
                 on:click={() => handleImageClick(index)}

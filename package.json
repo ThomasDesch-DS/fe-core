@@ -1,7 +1,7 @@
 {
   "name": "untitled",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
@@ -29,16 +29,17 @@
   },
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^4.6.2",
-    "@humanspeak/svelte-markdown": "^0.8.7",
     "@mercadopago/sdk-js": "^0.0.3",
     "@sveltejs/kit": "^2.22.2",
     "@tanstack/svelte-query": "^5.81.5",
+    "@types/marked": "^6.0.0",
     "apexcharts": "^5.3.1",
     "chart.js": "^4.5.0",
     "heroicons-svelte": "^2.0.2",
     "jwt-decode": "^4.0.0",
     "leaflet": "^1.9.4",
     "lightweight-charts": "^5.0.8",
+    "marked": "^16.1.1",
     "posthog-js": "^1.36.0",
     "sortablejs": "^1.15.6",
     "svelte-apexcharts": "^1.0.2",

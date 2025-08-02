@@ -39,7 +39,7 @@
           ageStore.completeAnimation();
         }, 1500); // Give time for the last phrase to be seen
       }
-    }, 2000);
+    }, 1500);
     
     return () => {
       clearInterval(timer);
@@ -58,11 +58,11 @@
         {phrases[0]}
       </p>
     {:else if currentStep === 1}
-      <p class="text-5xl font-light text-white" in:fade={{ duration: 500 }}>
+      <p class="text-5xl font-light text-white" in:fade={{ duration: 200 }}>
         {phrases[1]}
       </p>
     {:else if currentStep === 2}
-      <p class="text-5xl font-light text-white" in:fade={{ duration: 600 }}>
+      <p class="text-5xl font-light text-white" in:fade={{ duration: 400 }}>
         {phrases[2]}
       </p>
     {/if}

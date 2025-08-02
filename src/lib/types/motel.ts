@@ -1,3 +1,5 @@
+import type {MediaWithOrder} from "$lib/escort/api/profileApi";
+
 export interface MotelLocation {
   country: string;
   state: string;
@@ -29,7 +31,7 @@ export interface MotelDetailDto {
   city: string;
   state: string;
   zipCode: string;
-  images: string[];
+  images: MediaWithOrder[];
   location: MotelLocation;
   coordinates: MotelCoordinates;
   description: string;

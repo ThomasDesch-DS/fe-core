@@ -1,7 +1,9 @@
 <script lang="ts">
-  import SvelteMarkdown from '@humanspeak/svelte-markdown';
+  import { marked } from 'marked';
 
   export let content: string;
 </script>
 
-<SvelteMarkdown source={content} />
+{#if content}
+  {@html marked(content)}
+{/if}
