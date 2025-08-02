@@ -1,17 +1,12 @@
 <script lang="ts">
-  import { onMount, createEventDispatcher } from 'svelte';
+  import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import { ageStore } from '../store/ageStore';
 
-  const dispatch = createEventDispatcher();
-  
-  let currentStep = 0;
+  let showLogo = true;
+  let showPhrases = false;
+  let currentPhrase = 0;
   let audioElement: HTMLAudioElement;
-  const en_phrases = [
-    "We don't tell",
-    "We don't judge",
-    "It's a secret"
-  ];
 
   const phrases = [
     "No contamos,",
@@ -19,30 +14,36 @@
     "Es un secreto"
   ];
 
-
-
-
   onMount(() => {
-    audioElement = new Audio(import.meta.env.VITE_MEDIA_CDN +"/public/audio/intro_es_ar.mp3");
-    audioElement.play();
-    
-    // Preload the main content
+    audioElement = new Audio(import.meta.env.VITE_MEDIA_CDN + "/public/audio/intro_es_ar.mp3");
+    audioElement.play().catch(e => console.error("Audio play failed:", e));
+
     import('../../routes/+page.svelte');
-    
-    // Advance through the animation steps
-    const timer = setInterval(() => {
-      if (currentStep < phrases.length - 1) {
-        currentStep++;
-      } else {
-        clearInterval(timer);
-        setTimeout(() => {
-          ageStore.completeAnimation();
-        }, 1500); // Give time for the last phrase to be seen
-      }
-    }, 1500);
-    
+
+    let phraseInterval: ReturnType<typeof setInterval>;
+
+    const logoTimeout = setTimeout(() => {
+      showLogo = false;
+      setTimeout(() => {
+        showPhrases = true;
+        phraseInterval = setInterval(() => {
+          if (currentPhrase < phrases.length - 1) {
+            currentPhrase++;
+          } else {
+            clearInterval(phraseInterval);
+            setTimeout(() => {
+              ageStore.completeAnimation();
+            }, 1500);
+          }
+        }, 1500);
+      }, 500); // Delay before showing phrases
+    }, 2000);
+
     return () => {
-      clearInterval(timer);
+      clearTimeout(logoTimeout);
+      if (phraseInterval) {
+        clearInterval(phraseInterval);
+      }
       if (audioElement) {
         audioElement.pause();
         audioElement.currentTime = 0;
@@ -53,18 +54,20 @@
 
 <div class="fixed inset-0 bg-black z-40 flex items-center justify-center">
   <div class="text-center">
-    {#if currentStep === 0}
-      <p class="text-5xl font-light text-white" in:fade={{ duration: 500 }}>
-        {phrases[0]}
-      </p>
-    {:else if currentStep === 1}
-      <p class="text-5xl font-light text-white" in:fade={{ duration: 200 }}>
-        {phrases[1]}
-      </p>
-    {:else if currentStep === 2}
-      <p class="text-5xl font-light text-white" in:fade={{ duration: 400 }}>
-        {phrases[2]}
-      </p>
+    {#if showLogo}
+      <div in:fade={{ duration: 500 }} out:fade={{ duration: 500 }}>
+        <img src="/logo.png" alt="Logo" class="h-24 w-24 animate-pulse" />
+      </div>
+    {/if}
+
+    {#if showPhrases}
+      <div class="w-full h-20 flex items-center justify-center">
+        {#key currentPhrase}
+          <p class="text-5xl font-light text-white" in:fade={{ duration: 500 }} out:fade={{ duration: 500 }}>
+            {phrases[currentPhrase]}
+          </p>
+        {/key}
+      </div>
     {/if}
   </div>
 </div>
