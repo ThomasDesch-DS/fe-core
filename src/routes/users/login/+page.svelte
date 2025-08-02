@@ -279,21 +279,21 @@
             {#if registerStep === 'form'}
                 <form on:submit|preventDefault={handleRegister} class="space-y-4 sm:space-y-6 md:space-y-8">
                     <div class="space-y-1">
-                        <label class="block text-sm sm:text-base md:text-lg">Username</label>
-                        <input type="text" placeholder="Tu Username" bind:value={register.username} required class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20" />
+                        <label class="block text-sm sm:text-base md:text-lg">Nombre de usuario</label>
+                        <input type="text" placeholder="Tu nombre de usuario" bind:value={register.username} required class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20" />
                     </div>
                     <div class="space-y-1">
-                        <label class="block text-sm sm:text-base md:text-lg">Password</label>
+                        <label class="block text-sm sm:text-base md:text-lg">Contraseña</label>
                         <input type="password" placeholder="••••••••" bind:value={register.password} required class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20" />
                     </div>
                     <div class="space-y-1">
-                        <label class="block text-sm sm:text-base md:text-lg">Age</label>
+                        <label class="block text-sm sm:text-base md:text-lg">Edad</label>
                         <input type="number" min="18" placeholder="21" bind:value={register.age} required class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20" />
                     </div>
                     <div class="space-y-1">
-                        <label class="block text-sm sm:text-base md:text-lg">Gender</label>
+                        <label class="block text-sm sm:text-base md:text-lg">Género</label>
                         <select bind:value={register.gender} required class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20">
-                            <option value="" disabled selected>Select your gender</option>
+                            <option value="" disabled selected>Seleccioná tu género</option>
                             {#each genderOptions as option}
                                 <option value={option.value}>{option.label}</option>
                             {/each}
@@ -305,7 +305,7 @@
                             Acepto los <a href="/terms" target="_blank" class="text-white hover:underline">Términos y Condiciones</a>
                         </label>
                     </div>
-                    <button type="submit" class="w-full py-2 sm:py-3 md:py-4 rounded-lg bg-white text-black font-medium text-sm sm:text-base md:text-lg hover:bg-gray-200 transition">Register</button>
+                    <button type="submit" class="w-full py-2 sm:py-3 md:py-4 rounded-lg bg-white text-black font-medium text-sm sm:text-base md:text-lg hover:bg-gray-200 transition">Registrarme</button>
                 </form>
             {/if}
 
