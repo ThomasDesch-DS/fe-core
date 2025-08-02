@@ -25,10 +25,11 @@
     let tab = 'login';
     let loginMethod = 'password';
     let forgotMethod = 'password';
-    let login = { username: '', credential: '' };
-    let register = { username: '', password: '', age: null, gender: '' };
+    let shared = { username: '', password: '' };
+    let login = { credential: '' };
+    let register = { age: null, gender: '' };
     let acceptTerms = false;
-    let forgot = { username: '', credential: '', newPass: '' };
+    let forgot = { credential: '', newPass: '' };
     let passphrase = '';
     let otpUrl = '';
     let otp = '';
@@ -48,9 +49,9 @@
 
     function switchTab(t: string) {
         tab = t;
-        login = { username: '', credential: '' };
-        register = { username: '', password: '', age: null, gender: '' };
-        forgot = { username: '', credential: '', newPass: '' };
+        login.credential = '';
+        register = { age: null, gender: '' };
+        forgot = { credential: '', newPass: '' };
         loginMethod = 'password';
         forgotMethod = 'password';
         registerStep = 'form';
@@ -58,8 +59,8 @@
 
     async function handleLogin() {
         const body = {
-            username: login.username,
-            password: loginMethod === 'password' ? login.credential : null,
+            username: shared.username,
+            password: loginMethod === 'password' ? shared.password : null,
             otp: loginMethod === 'otp' ? login.credential : null
         };
 
@@ -91,11 +92,11 @@
     }
 
     async function handleRegister() {
-        if (register.username.length < 3) {
+        if (shared.username.length < 3) {
             toast.error('El nombre de usuario tiene que tener al menos 3 caracteres.');
             return;
         }
-        if (register.password.length < 8) {
+        if (shared.password.length < 8) {
             toast.error('La contraseña tiene que tener al menos 8 caracteres.');
             return;
         }
@@ -110,17 +111,17 @@
 
         isLoading = true;
         try {
-            const response = await registerUser({ ...register, gender: register.gender });
+            const response = await registerUser({ ...register, username: shared.username, password: shared.password, gender: register.gender });
             passphrase = response.passphrase;
             otpUrl = response.otpUrl;
             registerStep = 'otp';
-            dSuserAuthStore.login({ username: register.username });
+            dSuserAuthStore.login({ username: shared.username });
 
             // Analytics: identify + capture register
-            posthog.identify(register.username, { userType: 'DSUser' });
+            posthog.identify(shared.username, { userType: 'DSUser' });
             posthog.capture('register', {
                 userType: 'DSUser',
-                username: register.username,
+                username: shared.username,
                 age: register.age,
                 gender: register.gender,
                 timestamp: new Date().toISOString()
@@ -145,12 +146,12 @@
         isLoading = true;
         try {
             const userData = await userApi.post('/validate/otp', { otp });
-            dSuserAuthStore.login({ username: userData.username || register.username });
+            dSuserAuthStore.login({ username: userData.username || shared.username });
 
             // Analytics: capture OTP verify
             posthog.capture('otpVerified', {
                 userType: 'DSUser',
-                username: userData.username || register.username,
+                username: userData.username || shared.username,
                 timestamp: new Date().toISOString()
             });
 
@@ -165,7 +166,7 @@
     }
 
     async function handleForgot() {
-        const body: any = { username: forgot.username, newPass: forgot.newPass };
+        const body: any = { username: shared.username, newPass: forgot.newPass };
         if (forgotMethod === 'password') body.passphrase = forgot.credential;
         else if (forgotMethod === 'otp') body.otp = forgot.credential;
 
@@ -176,7 +177,7 @@
             // Analytics: capture reset
             posthog.capture('passwordReset', {
                 userType: 'DSUser',
-                username: forgot.username,
+                username: shared.username,
                 timestamp: new Date().toISOString()
             });
 
@@ -244,7 +245,7 @@
                     <input
                             type="text"
                             placeholder="Tu username"
-                            bind:value={login.username}
+                            bind:value={shared.username}
                             required
                             class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20"
                     />
@@ -254,13 +255,23 @@
                         <button type="button" on:click={() => loginMethod = 'password'} class="pb-1 {loginMethod === 'password' ? 'text-white border-b-2 border-white' : 'text-gray-500 hover:text-gray-300'}">Contraseña</button>
                         <button type="button" on:click={() => loginMethod = 'otp'} class="pb-1 {loginMethod === 'otp' ? 'text-white border-b-2 border-white' : 'text-gray-500 hover:text-gray-300'}">OTP</button>
                     </div>
-                    <input
-                            type={loginMethod === 'password' ? 'password' : 'text'}
-                            placeholder={loginMethod === 'password' ? '••••••••' : '123456'}
-                            bind:value={login.credential}
-                            required
-                            class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20"
-                    />
+                    {#if loginMethod === 'password'}
+                        <input
+                                type="password"
+                                placeholder="••••••••"
+                                bind:value={shared.password}
+                                required
+                                class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20"
+                        />
+                    {:else}
+                        <input
+                                type='text'
+                                placeholder='123456'
+                                bind:value={login.credential}
+                                required
+                                class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20"
+                        />
+                    {/if}
                 </div>
                 <button
                         type="submit"
@@ -280,11 +291,11 @@
                 <form on:submit|preventDefault={handleRegister} class="space-y-4 sm:space-y-6 md:space-y-8">
                     <div class="space-y-1">
                         <label class="block text-sm sm:text-base md:text-lg">Nombre de usuario</label>
-                        <input type="text" placeholder="Tu nombre de usuario" bind:value={register.username} required class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20" />
+                        <input type="text" placeholder="Tu nombre de usuario" bind:value={shared.username} required class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20" />
                     </div>
                     <div class="space-y-1">
                         <label class="block text-sm sm:text-base md:text-lg">Contraseña</label>
-                        <input type="password" placeholder="••••••••" bind:value={register.password} required class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20" />
+                        <input type="password" placeholder="••••••••" bind:value={shared.password} required class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20" />
                     </div>
                     <div class="space-y-1">
                         <label class="block text-sm sm:text-base md:text-lg">Edad</label>
@@ -347,7 +358,7 @@
                     <input
                             type="text"
                             placeholder="Tu Username"
-                            bind:value={forgot.username}
+                            bind:value={shared.username}
                             required
                             class="w-full px-4 py-2 sm:px-5 sm:py-3 md:px-6 md:py-4 bg-black text-gray-100 rounded-lg text-sm sm:text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-white/20"
                     />
