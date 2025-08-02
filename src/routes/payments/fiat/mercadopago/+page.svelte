@@ -538,12 +538,12 @@
 	<div class="flex items-center justify-center min-h-screen bg-black">
 		<div class="w-full max-w-lg bg-[#101010] rounded-2xl shadow-2xl px-8 py-10 border border-white/5">
 			<div class="flex justify-between items-center mb-8">
-				<span class="font-bold text-lg text-white/90 tracking-wide">DeepSeek Payment</span>
+				<span class="font-bold text-lg text-white/90 tracking-wide">Pago en Pesos Argentinos</span>
 				<button
 					class="text-gray-400 hover:text-white text-sm"
 					on:click={() => goto('/payments')}
 				>
-					← Back
+					← Atras
 				</button>
 			</div>
 
@@ -644,7 +644,7 @@
 				<input id="token" name="token" type="hidden" bind:value={cardToken} />
 				<input id="paymentMethodId" name="paymentMethodId" type="hidden" bind:value={paymentMethodId} />
 				<input id="transactionAmount" name="transactionAmount" type="hidden" value={actualPrice} />
-				<input id="description" name="description" type="hidden" value="Compra DeepSeek Tokens" />
+				<input id="description" name="description" type="hidden" value="Compra Tokens" />
 
 				<button
 					type="submit"

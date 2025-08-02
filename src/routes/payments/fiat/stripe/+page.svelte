@@ -80,7 +80,7 @@
 </script>
 
 <svelte:head>
-	<title>Stripe Payment - DeepSeek</title>
+	<title>Pago en Dolares</title>
 </svelte:head>
 
 {#if isAuthenticated}

@@ -214,19 +214,18 @@
 		}
 	</style>
 </svelte:head>
-
 {#if isAuthenticated}
 	<div class="min-h-screen bg-black">
 		<div class="max-w-md mx-auto py-12 px-4">
 			<div class="bg-black border border-gray-800 rounded-lg">
 				<div class="px-6 py-8">
 					<div class="text-center mb-8">
-						<h1 class="text-2xl font-medium text-white mb-2">Payments</h1>
-						<p class="text-gray-400 text-sm">Add tokens to your account</p>
+						<h1 class="text-2xl font-medium text-white mb-2">Pagos</h1>
+						<p class="text-gray-400 text-sm">Agregá tokens a tu cuenta</p>
 					</div>
 
 					<div class="bg-gray-900 rounded-lg p-6 mb-8 text-center border border-gray-800">
-						<div class="text-xs text-gray-400 mb-1 uppercase tracking-wide">Current Balance</div>
+						<div class="text-xs text-gray-400 mb-1 uppercase tracking-wide">Saldo actual</div>
 						<div class="text-4xl font-light text-white">
 							{$tokenStore.tokens}
 							<span class="text-lg font-normal text-gray-400 ml-2">tokens</span>
@@ -235,12 +234,12 @@
 
 					<div class="mb-8">
 						<div class="flex justify-between items-center mb-4">
-							<div class="text-sm text-gray-400 uppercase tracking-wide">Select Token Amount</div>
+							<div class="text-sm text-gray-400 uppercase tracking-wide">Elegí la cantidad de tokens</div>
 							<div class="flex items-center gap-1">
-								<span class="text-xs text-gray-500">Show in:</span>
-								<select 
-									bind:value={selectedCurrency}
-									class="bg-gray-800 text-white text-xs px-2 py-1 rounded border border-gray-700 focus:outline-none focus:border-gray-600"
+								<span class="text-xs text-gray-500">Mostrar en:</span>
+								<select
+										bind:value={selectedCurrency}
+										class="bg-gray-800 text-white text-xs px-2 py-1 rounded border border-gray-700 focus:outline-none focus:border-gray-600"
 								>
 									{#each availableCurrencies as currency}
 										<option value={currency.key}>{currency.symbol} {currency.label}</option>
@@ -251,14 +250,14 @@
 						<div class="grid grid-cols-2 gap-3 mb-4">
 							{#each tokenOptions as option}
 								<button
-									class="p-4 rounded-lg border transition-all duration-200 {selectedTokenAmount === option.tokens || (option.tokens === 0 && showCustomInput) ? 'bg-white text-black border-white' : 'bg-gray-900 text-white border-gray-800 hover:border-gray-700'}"
-									on:click={() => handleTokenAmountSelect(option.tokens)}
+										class="p-4 rounded-lg border transition-all duration-200 {selectedTokenAmount === option.tokens || (option.tokens === 0 && showCustomInput) ? 'bg-white text-black border-white' : 'bg-gray-900 text-white border-gray-800 hover:border-gray-700'}"
+										on:click={() => handleTokenAmountSelect(option.tokens)}
 								>
 									<div class="text-sm font-medium">{option.label}</div>
 									{#if option.tokens > 0}
 										<div class="text-xs {selectedTokenAmount === option.tokens ? 'text-gray-600' : 'text-gray-400'} mt-1">
 											{#if isLoadingPrices}
-												Loading...
+												Cargando...
 											{:else if selectedCurrencyInfo}
 												{selectedCurrencyInfo.symbol}{calculateTokenPrice(option.tokens, selectedCurrency).toFixed(selectedCurrency === 'btc' || selectedCurrency === 'eth' ? 6 : 2)} {selectedCurrencyInfo.label}
 											{/if}
@@ -271,23 +270,23 @@
 						{#if showCustomInput}
 							<div class="mb-4">
 								<input
-									type="number"
-									min="2000"
-									placeholder="Enter token amount (min 2000)"
-									class="w-full bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600"
-									on:input={handleCustomTokenInput}
-									bind:value={customTokenAmount}
+										type="number"
+										min="2000"
+										placeholder="Ingresá la cantidad de tokens (mínimo 2000)"
+										class="w-full bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600"
+										on:input={handleCustomTokenInput}
+										bind:value={customTokenAmount}
 								/>
-								<div class="text-xs text-gray-500 mt-1">Minimum: 2000 tokens</div>
+								<div class="text-xs text-gray-500 mt-1">Mínimo: 2000 tokens</div>
 							</div>
 						{/if}
 
 						<div class="bg-gray-900 rounded-lg p-4 border border-gray-800">
 							<div class="flex justify-between items-center text-sm">
-								<span class="text-gray-400">Total Price:</span>
+								<span class="text-gray-400">Precio total:</span>
 								<span class="text-white font-medium">
 									{#if isLoadingPrices}
-										Loading...
+										Cargando...
 									{:else if selectedCurrencyInfo}
 										{selectedCurrencyInfo.symbol}{tokenPrice.toFixed(selectedCurrency === 'btc' || selectedCurrency === 'eth' ? 6 : 2)} {selectedCurrencyInfo.label}
 									{/if}
@@ -299,24 +298,24 @@
 					<div class="space-y-3">
 						<div class="relative">
 							<button
-								class="w-full bg-white hover:bg-gray-100 text-black font-medium py-4 px-6 rounded-lg transition-all duration-200 flex items-center justify-center group"
-								on:click={handleCreditCardClick}
+									class="w-full bg-white hover:bg-gray-100 text-black font-medium py-4 px-6 rounded-lg transition-all duration-200 flex items-center justify-center group"
+									on:click={handleCreditCardClick}
 							>
 								<svg class="w-5 h-5 mr-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
 								</svg>
-								Pay with Credit Card
+								Pagar con tarjeta de crédito
 								<svg class="w-4 h-4 ml-auto transition-transform duration-200 {showCreditCardOptions ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 								</svg>
 							</button>
-							
+
 							{#if showCreditCardOptions}
 								<div class="absolute z-10 w-full mt-2 bg-gray-900 border border-gray-800 rounded-lg shadow-2xl">
 									{#if availablePaymentMethods.fiat.includes('mercado_pago')}
 										<button
-											class="w-full px-6 py-3 text-left hover:bg-gray-800 first:rounded-t-lg transition-colors duration-200"
-											on:click={() => handlePaymentMethodSelect('mercado_pago')}
+												class="w-full px-6 py-3 text-left hover:bg-gray-800 first:rounded-t-lg transition-colors duration-200"
+												on:click={() => handlePaymentMethodSelect('mercado_pago')}
 										>
 											<div class="flex items-center">
 												<div class="w-8 h-8 bg-blue-500 rounded mr-3 flex items-center justify-center">
@@ -331,14 +330,14 @@
 												<div class="w-8 h-8 bg-gray-600 rounded mr-3 flex items-center justify-center">
 													<span class="text-white font-bold text-xs">MP</span>
 												</div>
-												<span class="font-medium text-gray-400">Mercado Pago (Unavailable)</span>
+												<span class="font-medium text-gray-400">Mercado Pago (No disponible)</span>
 											</div>
 										</div>
 									{/if}
 									{#if availablePaymentMethods.fiat.includes('stripe')}
 										<button
-											class="w-full px-6 py-3 text-left hover:bg-gray-800 last:rounded-b-lg border-t border-gray-800 transition-colors duration-200"
-											on:click={() => handlePaymentMethodSelect('stripe')}
+												class="w-full px-6 py-3 text-left hover:bg-gray-800 last:rounded-b-lg border-t border-gray-800 transition-colors duration-200"
+												on:click={() => handlePaymentMethodSelect('stripe')}
 										>
 											<div class="flex items-center">
 												<div class="w-8 h-8 bg-purple-500 rounded mr-3 flex items-center justify-center">
@@ -353,7 +352,7 @@
 												<div class="w-8 h-8 bg-gray-600 rounded mr-3 flex items-center justify-center">
 													<span class="text-white font-bold text-xs">S</span>
 												</div>
-												<span class="font-medium text-gray-400">Stripe (Unavailable)</span>
+												<span class="font-medium text-gray-400">Stripe (No disponible)</span>
 											</div>
 										</div>
 									{/if}
@@ -363,24 +362,24 @@
 
 						<div class="relative">
 							<button
-								class="w-full bg-gray-900 hover:bg-gray-800 text-white font-medium py-4 px-6 rounded-lg transition-all duration-200 flex items-center justify-center border border-gray-800"
-								on:click={handleCryptoClick}
+									class="w-full bg-gray-900 hover:bg-gray-800 text-white font-medium py-4 px-6 rounded-lg transition-all duration-200 flex items-center justify-center border border-gray-800"
+									on:click={handleCryptoClick}
 							>
 								<svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
 								</svg>
-								Pay with Crypto
+								Pagar con cripto
 								<svg class="w-4 h-4 ml-auto transition-transform duration-200 {showCryptoOptions ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 								</svg>
 							</button>
-							
+
 							{#if showCryptoOptions}
 								<div class="absolute z-10 w-full mt-2 bg-gray-900 border border-gray-800 rounded-lg shadow-2xl">
 									{#if availablePaymentMethods.crypto.includes('btc')}
 										<button
-											class="w-full px-6 py-3 text-left hover:bg-gray-800 first:rounded-t-lg transition-colors duration-200"
-											on:click={() => handlePaymentMethodSelect('btc')}
+												class="w-full px-6 py-3 text-left hover:bg-gray-800 first:rounded-t-lg transition-colors duration-200"
+												on:click={() => handlePaymentMethodSelect('btc')}
 										>
 											<div class="flex items-center">
 												<div class="w-8 h-8 bg-orange-500 rounded mr-3 flex items-center justify-center">
@@ -395,14 +394,14 @@
 												<div class="w-8 h-8 bg-gray-600 rounded mr-3 flex items-center justify-center">
 													<span class="text-white font-bold text-xs">₿</span>
 												</div>
-												<span class="font-medium text-gray-400">Bitcoin (Unavailable)</span>
+												<span class="font-medium text-gray-400">Bitcoin (No disponible)</span>
 											</div>
 										</div>
 									{/if}
 									{#if availablePaymentMethods.crypto.includes('eth')}
 										<button
-											class="w-full px-6 py-3 text-left hover:bg-gray-800 border-t border-gray-800 transition-colors duration-200"
-											on:click={() => handlePaymentMethodSelect('eth')}
+												class="w-full px-6 py-3 text-left hover:bg-gray-800 border-t border-gray-800 transition-colors duration-200"
+												on:click={() => handlePaymentMethodSelect('eth')}
 										>
 											<div class="flex items-center">
 												<div class="w-8 h-8 bg-blue-600 rounded mr-3 flex items-center justify-center">
@@ -417,14 +416,14 @@
 												<div class="w-8 h-8 bg-gray-600 rounded mr-3 flex items-center justify-center">
 													<span class="text-white font-bold text-xs">Ξ</span>
 												</div>
-												<span class="font-medium text-gray-400">Ethereum (Unavailable)</span>
+												<span class="font-medium text-gray-400">Ethereum (No disponible)</span>
 											</div>
 										</div>
 									{/if}
 									{#if availablePaymentMethods.crypto.includes('usdc')}
 										<button
-											class="w-full px-6 py-3 text-left hover:bg-gray-800 border-t border-gray-800 transition-colors duration-200"
-											on:click={() => handlePaymentMethodSelect('usdc')}
+												class="w-full px-6 py-3 text-left hover:bg-gray-800 border-t border-gray-800 transition-colors duration-200"
+												on:click={() => handlePaymentMethodSelect('usdc')}
 										>
 											<div class="flex items-center">
 												<div class="w-8 h-8 bg-blue-500 rounded mr-3 flex items-center justify-center">
@@ -439,14 +438,14 @@
 												<div class="w-8 h-8 bg-gray-600 rounded mr-3 flex items-center justify-center">
 													<span class="text-white font-bold text-xs">$</span>
 												</div>
-												<span class="font-medium text-gray-400">USD Coin (Unavailable)</span>
+												<span class="font-medium text-gray-400">USD Coin (No disponible)</span>
 											</div>
 										</div>
 									{/if}
 									{#if availablePaymentMethods.crypto.includes('usdt')}
 										<button
-											class="w-full px-6 py-3 text-left hover:bg-gray-800 border-t border-gray-800 transition-colors duration-200"
-											on:click={() => handlePaymentMethodSelect('usdt')}
+												class="w-full px-6 py-3 text-left hover:bg-gray-800 border-t border-gray-800 transition-colors duration-200"
+												on:click={() => handlePaymentMethodSelect('usdt')}
 										>
 											<div class="flex items-center">
 												<div class="w-8 h-8 bg-green-500 rounded mr-3 flex items-center justify-center">
@@ -461,17 +460,17 @@
 												<div class="w-8 h-8 bg-gray-600 rounded mr-3 flex items-center justify-center">
 													<span class="text-white font-bold text-xs">₮</span>
 												</div>
-												<span class="font-medium text-gray-400">Tether (Unavailable)</span>
+												<span class="font-medium text-gray-400">Tether (No disponible)</span>
 											</div>
 										</div>
 									{/if}
-									<!-- XMR is intentionally disabled as requested -->
+									<!-- XMR está deshabilitado según lo pedido -->
 									<div class="w-full px-6 py-3 text-left opacity-50 cursor-not-allowed border-t border-gray-800 last:rounded-b-lg">
 										<div class="flex items-center">
 											<div class="w-8 h-8 bg-gray-600 rounded mr-3 flex items-center justify-center">
 												<span class="text-white font-bold text-xs">M</span>
 											</div>
-											<span class="font-medium text-gray-400">Monero (Disabled)</span>
+											<span class="font-medium text-gray-400">Monero (Deshabilitado)</span>
 										</div>
 									</div>
 								</div>
@@ -481,7 +480,7 @@
 
 					<div class="mt-8 text-center">
 						<p class="text-xs text-gray-500">
-							Secure payments powered by industry-leading providers
+							Pagos seguros con los mejores proveedores
 						</p>
 					</div>
 				</div>
