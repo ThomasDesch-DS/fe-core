@@ -182,7 +182,7 @@
             });
 
             toast.success('¡Restablecimiento de contraseña exitoso!');
-            await goto('/users/login');
+            await goto('/');
         } catch (error) {
             console.error('Error al restablecer contraseña:', error);
             toast.error("Las credenciales son inválidas. Revisá tu usuario y contraseña e intentá de nuevo.");
