@@ -38,14 +38,7 @@ export function getCurrentUserAnalytics() {
     return { userType: undefined, userId: undefined };
 }
 
-export function initPosthog() {
-    if (typeof window !== 'undefined' && !posthog.__initialized) {
-        posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
-            api_host: import.meta.env.VITE_POSTHOG_HOST
-        });
-        posthog.__initialized = true;
-    }
-}
+// Removed: PostHog is initialized in +layout.ts to avoid duplicate initialization
 
 function enrichProps(props: Record<string, any> = {}) {
     const { userType, userId } = getCurrentUserAnalytics();
