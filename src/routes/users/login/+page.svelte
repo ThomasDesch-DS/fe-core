@@ -10,12 +10,11 @@
     import { tokenStore } from '$lib/store/tokenStore';
     import LoadingAnimation from "$lib/common/LoadingAnimation.svelte";
     import posthog from 'posthog-js';
-    import { initPosthog } from '$lib/analytics/analytics';
     import { Gender } from '$lib/escort/types/gender';
 
     // --- initialize analytics and track page open ---
     onMount(() => {
-        initPosthog();
+        // PostHog initialized in +layout.ts
         posthog.capture('pageOpen', {
             page: 'dsUserAuth',
             timestamp: new Date().toISOString()

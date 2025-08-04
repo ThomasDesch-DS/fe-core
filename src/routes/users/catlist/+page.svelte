@@ -5,11 +5,11 @@
     import type { CatlistItem } from "$lib/escort/store/catlistStore";
     import { getMediaUrl } from "../../../util/MediaUtils";
     import { toast } from "svelte-sonner";
-    import { trackPageOpen, initPosthog, trackCatlistAction } from "$lib/analytics/analytics";
+    import { trackPageOpen, trackCatlistAction } from "$lib/analytics/analytics";
 
     let savedCats: CatlistItem[] = [];
     onMount(() => {
-        initPosthog();
+        // PostHog initialized in +layout.ts
         trackPageOpen({
             page: 'catlist',
             catlistSize: savedCats.length

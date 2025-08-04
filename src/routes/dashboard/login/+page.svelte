@@ -6,7 +6,6 @@
     import { escortAuthStore } from '$lib/escort/store/escortAuthStore.js';
     import { get } from 'svelte/store';
     import LoadingAnimation from "$lib/common/LoadingAnimation.svelte";
-    import { initPosthog } from '$lib/analytics/analytics'; // or your posthog helper
 
     let email = '';
     let password = '';
@@ -28,8 +27,7 @@
     };
 
     onMount(() => {
-        // initialize PostHog once
-        initPosthog();
+        // PostHog is initialized in +layout.ts
     });
 
     const handleSubmit = async () => {

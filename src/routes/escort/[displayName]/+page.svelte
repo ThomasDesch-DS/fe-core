@@ -11,7 +11,7 @@
     import { dSuserAuthStore } from "$lib/escort/store/dsUserAuthStore";
     import { goto } from "$app/navigation";
     import PriceChart from "$lib/charts/PriceChart.svelte";
-    import { trackPageOpen, initPosthog, trackEscortContact, trackEscortGallery, trackEscortCatlist, trackEscortShare, trackEscortAudio } from "$lib/analytics/analytics";
+    import { trackPageOpen, trackEscortContact, trackEscortGallery, trackEscortCatlist, trackEscortShare, trackEscortAudio } from "$lib/analytics/analytics";
     import posthog from 'posthog-js';
 
     // ---- CONFIGURACIÓN ----
@@ -262,7 +262,7 @@
 
     // ---- FETCH Y MOUNT ----
     onMount(async () => {
-        initPosthog();
+        // PostHog initialized in +layout.ts
         trackPageOpen();
         window.addEventListener('keydown', handleKeydown);
         window.addEventListener('popstate', handlePopState);

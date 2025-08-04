@@ -6,7 +6,7 @@
     import { toast } from "svelte-sonner";
     import { goto } from "$app/navigation";
     import CaptchaWrapper from '$lib/components/CaptchaWrapper.svelte';
-    import { trackPageOpen, trackFaceSwap, trackFaceSwapResult, initPosthog } from "$lib/analytics/analytics";
+    import { trackPageOpen, trackFaceSwap, trackFaceSwapResult } from "$lib/analytics/analytics";
     import { get } from 'svelte/store';
     import { tokenStore } from "$lib/store/tokenStore";
 
@@ -75,7 +75,7 @@
     }
 
     onMount(() => {
-        initPosthog();
+        // PostHog initialized in +layout.ts
         trackPageOpen();
     });
 
