@@ -20,6 +20,12 @@ jobs:
       - name: 📦 Install dependencies with Bun
         run: bun install
 
+      - name: 🎭 Install Playwright browsers
+        run: bunx playwright install --with-deps
+
+      - name: 🧪 Run Playwright tests
+        run: bunx playwright test
+
       - name: 🔨 Build project
         run: bun run build
 

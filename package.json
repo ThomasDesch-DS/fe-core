@@ -1,7 +1,7 @@
 {
   "name": "fe-core",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
@@ -30,6 +30,7 @@
   "dependencies": {
     "@fingerprintjs/fingerprintjs": "^4.6.2",
     "@mercadopago/sdk-js": "^0.0.3",
+    "@playwright/test": "^1.54.2",
     "@sveltejs/kit": "^2.22.2",
     "@tanstack/svelte-query": "^5.81.5",
     "@types/marked": "^6.0.0",
