@@ -10,7 +10,7 @@
   import { beforeNavigate, afterNavigate } from '$app/navigation';
   import posthog from 'posthog-js';
   import {onMount} from "svelte";
-  import {initPosthog, trackPageOpen} from "$lib/analytics/analytics";
+  import {trackPageOpen} from "$lib/analytics/analytics";
 
   if (browser) {
     beforeNavigate(() => posthog.capture('$pageleave'));
@@ -27,7 +27,6 @@
 
   if (browser) {
     onMount(() => {
-      initPosthog();
       trackPageOpen();
     });
   }
