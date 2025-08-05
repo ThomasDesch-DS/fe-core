@@ -388,6 +388,73 @@
     .transition-opacity { transition: opacity 0.2s ease-in-out; }
     .pointer-events-none { pointer-events:none; }
     .transform { transform: translateX(-50%); }
+    
+    .media-container {
+        position: relative;
+        overflow: hidden;
+        border-radius: 0.375rem;
+        cursor: pointer;
+    }
+    
+    .media-item {
+        width: 100%;
+        height: 16rem;
+        object-fit: cover;
+        transition: transform 0.3s ease-in-out;
+    }
+    
+    .media-container:hover .media-item {
+        transform: scale(1.1);
+    }
+    
+    .media-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.2);
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+    }
+    
+    .media-container:hover .media-overlay {
+        opacity: 1;
+    }
+    
+    .video-container {
+        position: relative;
+        overflow: hidden;
+        border-radius: 0.375rem;
+    }
+    
+    .video-item {
+        width: 100%;
+        height: 16rem;
+        object-fit: cover;
+        transition: transform 0.3s ease-in-out;
+    }
+    
+    .video-container:hover .video-item {
+        transform: scale(1.05);
+    }
+    
+    @media (max-width: 768px) {
+        .media-item {
+            height: 12rem;
+        }
+        .video-item {
+            height: 12rem;
+        }
+        .media-container:hover .media-item {
+            transform: scale(1.05);
+        }
+    }
 </style>
 
 <main class="font-sans">
@@ -575,52 +642,60 @@
             {#if activeMediaTab === 'all'}
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                     {#each sortedPics as pic, i}
-                        <div class="relative group">
+                        <div class="media-container" on:click={() => openModal(i)}>
                             <img
                                     src={pic.media}
                                     alt="imagen"
                                     loading="lazy"
-                                    class="w-full h-64 object-cover rounded-md transform transition duration-200 group-hover:scale-105 cursor-pointer"
-                                    on:click={() => openModal(i)}
+                                    class="media-item"
                             />
-                            <span class="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded">
+                            <div class="media-overlay">
+                                <span class="text-sm">Ver imagen</span>
+                            </div>
+                            <span class="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded z-10">
                                 #{i + 1}
                             </span>
                         </div>
                     {/each}
                     {#each sortedVideos as vid}
-                        <video
-                                controls
-                                src={vid.media}
-                                class="w-full h-64 object-cover rounded-md"
-                        ></video>
+                        <div class="video-container">
+                            <video
+                                    controls
+                                    src={vid.media}
+                                    class="video-item"
+                            ></video>
+                        </div>
                     {/each}
                 </div>
             {:else if activeMediaTab === 'fotos'}
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                     {#each sortedPics as pic, i}
-                        <div class="relative group">
+                        <div class="media-container" on:click={() => openModal(i)}>
                             <img
                                     src={pic.media}
                                     alt="imagen"
                                     loading="lazy"
-                                    class="w-full h-64 object-cover rounded-md transform transition duration-200 group-hover:scale-105 cursor-pointer"
-                                    on:click={() => openModal(i)}
+                                    class="media-item"
                             />
-                            <span class="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded">
+                            <div class="media-overlay">
+                                <span class="text-sm">Ver imagen</span>
+                            </div>
+                            <span class="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded z-10">
                                 #{i + 1}
                             </span>
                         </div>
                     {/each}
                 </div>
             {:else}
-                <div class="space-y-8">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-8">
                     {#each sortedVideos as vid}
-                        <video
-                                controls
-                                src={vid.media}
-                                class="w-full h-auto rounded-md"
-                        ></video>
+                        <div class="video-container">
+                            <video
+                                    controls
+                                    src={vid.media}
+                                    class="video-item"
+                            ></video>
+                        </div>
                     {/each}
                 </div>
             {/if}
@@ -651,16 +726,16 @@
         {/if}
 
         <!-- SERVICES & PRICING -->
-        <section class="bg-black py-16 px-8 md:px-16">
-            <h2 class="text-4xl font-semibold mb-8">Servicios y Tarifas</h2>
-            <nav class="border-b border-gray-700 mb-8">
-                <ul class="flex gap-6">
+        <section class="bg-black py-16 px-4 sm:px-8 md:px-16">
+            <h2 class="text-3xl sm:text-4xl font-semibold mb-8">Servicios y Tarifas</h2>
+            <nav class="border-b border-gray-700 mb-8 overflow-x-auto">
+                <ul class="flex gap-6 min-w-max">
                     {#each tabs as { key, label }}
-                        <li>
+                        <li class="flex-shrink-0">
                             <button
                                     role="tab"
                                     aria-selected={activeServiceTab === key}
-                                    class="pb-2 px-4 -mb-px border-b-2 transition-all duration-200
+                                    class="pb-2 px-4 -mb-px border-b-2 transition-all duration-200 whitespace-nowrap
                                     {activeServiceTab === key
                                         ? 'border-white text-white font-semibold'
                                         : 'border-transparent text-gray-500 hover:text-white hover:border-gray-500'}"
@@ -684,25 +759,25 @@
             </nav>
 
             {#if activeServiceTab === 'in_person'}
-                <div class="flex flex-wrap gap-3">
+                <div class="flex flex-wrap gap-2 sm:gap-3">
                     {#each escort.servicesInfo.escortServices as s}
-                        <span class="px-4 py-2 bg-gray-800 text-gray-200 rounded-full">
+                        <span class="px-3 py-2 sm:px-4 bg-gray-800 text-gray-200 rounded-full text-sm sm:text-base">
                             {s}
                         </span>
                     {/each}
                 </div>
             {:else if activeServiceTab === 'fantasies'}
-                <div class="flex flex-wrap gap-3">
+                <div class="flex flex-wrap gap-2 sm:gap-3">
                     {#each escort.servicesInfo.escortFantasies as f}
-                        <span class="px-4 py-2 bg-gray-800 text-gray-200 rounded-full">
+                        <span class="px-3 py-2 sm:px-4 bg-gray-800 text-gray-200 rounded-full text-sm sm:text-base">
                             {f}
                         </span>
                     {/each}
                 </div>
             {:else}
-                <div class="flex flex-wrap gap-3">
+                <div class="flex flex-wrap gap-2 sm:gap-3">
                     {#each escort.servicesInfo.virtualServices as v}
-                        <span class="px-4 py-2 bg-gray-800 text-gray-200 rounded-full">
+                        <span class="px-3 py-2 sm:px-4 bg-gray-800 text-gray-200 rounded-full text-sm sm:text-base">
                             {v}
                         </span>
                     {/each}
@@ -716,26 +791,28 @@
                 </p>
 
                 {#if escort.servicesInfo.customRate.length}
-                    <table>
-                        <thead>
-                        <tr>
-                            <th>Servicio</th>
-                            <th>Duración</th>
-                            <th>En mi lugar</th>
-                            <th>A domicilio</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {#each escort.servicesInfo.customRate as cr}
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead>
                             <tr>
-                                <td>{cr.serviceName}</td>
-                                <td>{cr.duration}</td>
-                                <td>${cr.incallPrice.toLocaleString('es-AR')}</td>
-                                <td>${cr.outcallPrice.toLocaleString('es-AR')}</td>
+                                <th class="text-left text-xs sm:text-sm">Servicio</th>
+                                <th class="text-left text-xs sm:text-sm">Duración</th>
+                                <th class="text-left text-xs sm:text-sm">En mi lugar</th>
+                                <th class="text-left text-xs sm:text-sm">A domicilio</th>
                             </tr>
-                        {/each}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                            {#each escort.servicesInfo.customRate as cr}
+                                <tr>
+                                    <td class="text-xs sm:text-sm">{cr.serviceName}</td>
+                                    <td class="text-xs sm:text-sm">{cr.duration}</td>
+                                    <td class="text-xs sm:text-sm">${cr.incallPrice.toLocaleString('es-AR')}</td>
+                                    <td class="text-xs sm:text-sm">${cr.outcallPrice.toLocaleString('es-AR')}</td>
+                                </tr>
+                            {/each}
+                            </tbody>
+                        </table>
+                    </div>
                 {/if}
             </div>
         </section>
@@ -792,15 +869,24 @@
                 <p class="uppercase font-medium">TIEMPO COMPLETO</p>
             {/if}
         </section>
-        <section class="bg-black py-16 px-8 md:px-16">
-            <h2 class="text-3xl font-semibold mb-4 text-white">
+        <section class="bg-black py-16 px-4 sm:px-8 md:px-16">
+            <h2 class="text-3xl font-semibold mb-4 text-white text-center md:text-left">
                 Rango de Precios
             </h2>
-            <p class="text-gray-400 mb-6">
+            <p class="text-gray-400 mb-6 text-center md:text-left">
                 “Barato” a la izquierda — “Caro” a la derecha
             </p>
-            <PriceChart currentEscortPrice={escort.servicesInfo.hourPrice.amount}/>
+            <!-- Contenedor responsivo con scroll horizontal en mobile -->
+            <div class="overflow-x-auto">
+                <div class="flex justify-center min-w-[320px]">
+                    <!-- Ajustamos ancho y alto fijos para mobile y escalamos en pantallas grandes -->
+                    <div class="w-[300px] h-48 sm:w-[500px] sm:h-60 md:w-full md:h-64">
+                        <PriceChart class="w-full h-full" currentEscortPrice={escort.servicesInfo.hourPrice.amount} />
+                    </div>
+                </div>
+            </div>
         </section>
+
         <!-- CONTACTO -->
         <section class="bg-black py-16 px-8 md:px-16 text-white">
             <h2 class="text-4xl font-semibold mb-6">Contacto</h2>
