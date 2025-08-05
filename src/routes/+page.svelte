@@ -3,6 +3,7 @@
   import LoadingAnimation from "$lib/common/LoadingAnimation.svelte";
   import MotelPreviews from "$lib/components/MotelPreviews.svelte";
   import LocationSelector from "$lib/components/LocationSelector.svelte";
+  import NSFWChatbotButton from "$lib/components/NSFWChatbotButton.svelte";
   import { onMount } from 'svelte';
 
   // ---------- CONFIG ----------
@@ -407,6 +408,11 @@
     </a>
   </div>
   <!-- Fin mini-banner -->
+
+  <!-- NSFW Chatbot Button -->
+  <div class="mb-7">
+    <NSFWChatbotButton />
+  </div>
 
   <!-- Search Bar -->
   <div class="max-w-2xl mx-auto mb-12">

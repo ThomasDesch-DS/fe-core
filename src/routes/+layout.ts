@@ -9,12 +9,13 @@ export const load = async () => {
       PUBLIC_POSTHOG_KEY,
       {
         api_host: PUBLIC_POSTHOG_HOST,
-        capture_pageview: false,
+        capture_pageview: true,
         capture_pageleave: false,
         capture_exceptions: true, // This enables capturing exceptions using Error Tracking
         cross_subdomain_cookie: true,
         secure_cookie: true,
-        persistence: 'localStorage+cookie'
+        persistence: 'localStorage+cookie',
+          person_profiles: 'always'
       }
     );
   }
