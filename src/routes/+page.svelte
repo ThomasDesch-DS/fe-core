@@ -5,6 +5,7 @@
   import LocationSelector from "$lib/components/LocationSelector.svelte";
   import NSFWChatbotButton from "$lib/components/NSFWChatbotButton.svelte";
   import { onMount } from 'svelte';
+  import {getMediaUrl} from "../util/MediaUtils";
 
   // ---------- CONFIG ----------
   const CACHE_KEY = 'escortsListCache';
@@ -373,12 +374,6 @@
     return () => io.disconnect();
   });
 
-  // ---------- IMAGE HELPER ----------
-  function getMediaUrl(escortId: string, fileName: string, type: 'profile' | 'pics'): string {
-    if (!fileName) return '';
-    if (fileName.startsWith('http')) return fileName;
-    return `https://nexus.daisyssecrets.com/escorts/${escortId}/${type}/${fileName}`;
-  }
 </script>
 
 <svelte:head>

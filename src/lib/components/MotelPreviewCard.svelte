@@ -2,6 +2,7 @@
   import type { MotelPreviewDto } from '$lib/types/motel';
   import { slugify } from '$lib/utils/slugify';
   import { trackMotelPreviewClick } from '$lib/analytics/analytics';
+  import {getMediaUrl} from "../../util/MediaUtils";
 
   export let motel: MotelPreviewDto;
 
@@ -46,7 +47,7 @@
 >
   <div class="relative overflow-hidden">
     <img
-      src={motel.imageUrl}
+      src={getMediaUrl(motel.id, motel.imageUrl, "motel")}
       alt={`Foto de ${motel.name}`}
       class="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-105"
       loading="lazy"
