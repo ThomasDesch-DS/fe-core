@@ -1,4 +1,5 @@
 <script lang="ts">
+	import posthog from 'posthog-js';
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { dSuserAuthStore } from '$lib/escort/store/dsUserAuthStore';
@@ -6,6 +7,13 @@
 	import { tokenStore } from '$lib/store/tokenStore';
 
 	let mobileMenuOpen = false;
+
+	function trackLoginClick() {
+		posthog.capture('loginLinkClicked', {
+			location: 'header', // optional: lets you know where the click came from
+			timestamp: new Date().toISOString()
+		});
+	}
 
 	function toggleMobileMenu() {
 		mobileMenuOpen = !mobileMenuOpen;
@@ -77,7 +85,9 @@
 			<a href="/dashboard" class="text-sm font-medium hover:text-pink-300 transition">Dashboard</a>
 			<button on:click={handleEscortLogout} class="text-sm font-medium hover:text-red-400 transition">Logout</button>
 		{:else}
-			<a href="/users/login" class="px-5 py-2 text-sm font-medium border border-black rounded-lg bg-white text-black shadow-md hover:shadow-lg hover:bg-gray-200 focus:ring-2 focus:ring-black transition">
+			<a href="/users/login" 
+			   on:click={trackLoginClick}
+			   class="px-5 py-2 text-sm font-medium border border-black rounded-lg bg-white text-black shadow-md hover:shadow-lg hover:bg-gray-200 focus:ring-2 focus:ring-black transition">
 				Login
 			</a>
 		{/if}
