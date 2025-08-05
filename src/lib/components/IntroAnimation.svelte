@@ -3,8 +3,6 @@
   import { fade } from 'svelte/transition';
   import { ageStore } from '../store/ageStore';
 
-  let showLogo = true;
-  let showPhrases = false;
   let currentPhrase = 0;
   let audioElement: HTMLAudioElement;
 
@@ -20,30 +18,19 @@
 
     import('../../routes/+page.svelte');
 
-    let phraseInterval: ReturnType<typeof setInterval>;
-
-    const logoTimeout = setTimeout(() => {
-      showLogo = false;
-      setTimeout(() => {
-        showPhrases = true;
-        phraseInterval = setInterval(() => {
-          if (currentPhrase < phrases.length - 1) {
-            currentPhrase++;
-          } else {
-            clearInterval(phraseInterval);
-            setTimeout(() => {
-              ageStore.completeAnimation();
-            }, 1500);
-          }
+    const phraseInterval = setInterval(() => {
+      if (currentPhrase < phrases.length - 1) {
+        currentPhrase++;
+      } else {
+        clearInterval(phraseInterval);
+        setTimeout(() => {
+          ageStore.completeAnimation();
         }, 1500);
-      }, 500); // Delay before showing phrases
-    }, 2000);
+      }
+    }, 1500);
 
     return () => {
-      clearTimeout(logoTimeout);
-      if (phraseInterval) {
-        clearInterval(phraseInterval);
-      }
+      clearInterval(phraseInterval);
       if (audioElement) {
         audioElement.pause();
         audioElement.currentTime = 0;
@@ -54,20 +41,12 @@
 
 <div class="fixed inset-0 bg-black z-40 flex items-center justify-center">
   <div class="text-center">
-    {#if showLogo}
-      <div in:fade={{ duration: 500 }} out:fade={{ duration: 500 }}>
-        <img src="/logo.png" alt="Logo" class="h-24 w-24 animate-pulse" />
-      </div>
-    {/if}
-
-    {#if showPhrases}
-      <div class="w-full h-20 flex items-center justify-center">
-        {#key currentPhrase}
-          <p class="text-5xl font-light text-white" in:fade={{ duration: 500 }} out:fade={{ duration: 500 }}>
-            {phrases[currentPhrase]}
-          </p>
-        {/key}
-      </div>
-    {/if}
+    <div class="w-full h-20 flex items-center justify-center relative">
+      {#key currentPhrase}
+        <p class="absolute text-3xl sm:text-4xl md:text-5xl font-light text-white" in:fade={{ duration: 500 }} out:fade={{ duration: 500 }}>
+          {phrases[currentPhrase]}
+        </p>
+      {/key}
+    </div>
   </div>
 </div>
