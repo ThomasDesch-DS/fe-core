@@ -18,6 +18,7 @@
   let loading = true;
   let error = false;
   let reviewError = '';
+  let showContact = false;
 
   async function fetchMotelData() {
     try {
@@ -88,6 +89,7 @@
   });
 
   function handleContactClick() {
+    showContact = !showContact;
     if (motel) {
       trackMotelContact({
         motelId: motel.id,
@@ -197,6 +199,18 @@
           </div>
 
           <div class="mt-8">
+            <h2 class="text-2xl font-semibold mb-3 text-neutral-100">Servicios</h2>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+              {#each motel.services as service}
+                <div class="bg-neutral-800 p-4 rounded-lg flex items-center">
+                  <span class="text-green-400 mr-3">✓</span>
+                  <span>{service}</span>
+                </div>
+              {/each}
+            </div>
+          </div>
+
+          <div class="mt-8">
             <h2 class="text-2xl font-semibold mb-3 text-neutral-100">Mapa del alojamiento</h2>
             <div id="map" class="w-full h-72 rounded-xl mt-3" style="z-index: 0;"></div>
           </div>
@@ -232,8 +246,19 @@
             on:click={handleContactClick}
             class="w-full bg-neutral-50 text-black py-3 rounded-lg hover:bg-neutral-200 transition-colors font-semibold"
           >
-            Ver métodos de contacto
+            {#if showContact}Ocultar{:else}Ver{/if} métodos de contacto
           </button>
+
+          {#if showContact}
+            <div class="mt-4 bg-neutral-800 p-4 rounded-lg">
+              <h4 class="font-semibold text-neutral-100 mb-2">Información de Contacto</h4>
+              <ul class="text-neutral-300 space-y-2">
+                {#each motel.contactMethods as method}
+                  <li>{method}</li>
+                {/each}
+              </ul>
+            </div>
+          {/if}
 
           <div class="mt-4 text-sm text-neutral-500">
             <strong>Ubicación:</strong><br>
@@ -242,6 +267,15 @@
             {#if motel.zipCode}
               <br>CP: {motel.zipCode}
             {/if}
+          </div>
+
+          <div class="mt-6">
+            <h3 class="text-lg font-semibold text-neutral-200 mb-3">Etiquetas</h3>
+            <div class="flex flex-wrap gap-2">
+              {#each motel.tags as tag}
+                <span class="bg-neutral-700 text-neutral-300 px-3 py-1 rounded-full text-sm">{tag}</span>
+              {/each}
+            </div>
           </div>
         </div>
       </div>
