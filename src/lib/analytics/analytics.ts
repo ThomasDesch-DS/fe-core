@@ -121,3 +121,11 @@ export function trackMotelReviewsView(props: Record<string, any> = {}) {
 export function trackMotelReviewSubmit(props: Record<string, any> = {}) {
     posthog.capture('motelReviewSubmit', enrichProps(props));
 }
+
+export function trackFooterContactClick(props: Record<string, any> = {}) {
+    posthog.capture('footerContactClick', enrichProps(props));
+}
+
+export function trackFooterTelegramClick(props: Record<string, any> = {}) {
+    posthog.capture('footerTelegramClick', enrichProps(props));
+}

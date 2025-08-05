@@ -2,7 +2,9 @@
     import IgIcon from '~icons/fa6-brands/instagram';
     import RedditIcon from '~icons/fa6-brands/reddit-alien';
     import XIcon from '~icons/fa6-brands/x-twitter'; // Formerly Twitter
+    import TelegramIcon from '~icons/fa6-brands/telegram';
     import FlaskIcon from '~icons/fa6-solid/flask'; // Usa un ícono de "laboratorio" si lo tenés (puede cambiar por otro si preferís)
+    import { trackFooterContactClick, trackFooterTelegramClick } from "$lib/analytics/analytics";
     export let year = new Date().getFullYear();
 </script>
 
@@ -17,7 +19,7 @@
 
         <!-- Links útiles -->
         <nav class="flex flex-col sm:flex-row gap-4 text-sm items-center">
-            <a href="/contacto" class="hover:underline transition">
+            <a href="https://t.me/daisyssecrets" target="_blank" rel="noopener noreferrer" class="hover:underline transition" on:click={() => trackFooterContactClick({ target: 'telegram' })}>
                 Contacto
             </a>
             <a href="/terms" class="hover:underline transition">
@@ -34,7 +36,7 @@
         </nav>
 
         <!-- Redes sociales -->
-        <div class="flex space-x-4 text-white text-2xl">
+        <div class="flex space-x-4 text-white text-2xl items-center">
             <a href="https://instagram.com/daisys__secrets" target="_blank" rel="noopener noreferrer" class="hover:opacity-80 transition">
                 <IgIcon />
             </a>
@@ -44,6 +46,13 @@
             <a href="https://x.com" target="_blank" rel="noopener noreferrer" class="hover:opacity-80 transition">
                 <XIcon />
             </a>
+            <div class="relative group">
+                <span class="cursor-pointer hover:opacity-80 transition" on:click={() => trackFooterTelegramClick({ option: 'main_icon' })}><TelegramIcon /></span>
+                <div class="absolute bottom-full mb-2 w-48 hidden group-hover:flex flex-col items-center bg-gray-800 rounded-lg p-2" style="left: 50%; transform: translateX(-50%);">
+                     <a href="https://t.me/daisyssecretsAR" target="_blank" rel="noopener noreferrer" class="text-sm text-white hover:underline whitespace-nowrap" on:click={() => trackFooterTelegramClick({ option: 'channel' })}>Canal Principal</a>
+                     <a href="https://t.me/daisyssecrets" target="_blank" rel="noopener noreferrer" class="text-sm text-white hover:underline mt-1 whitespace-nowrap" on:click={() => trackFooterTelegramClick({ option: 'contact' })}>Contacto Directo</a>
+                </div>
+            </div>
         </div>
 
         <!-- Copyright -->
@@ -67,5 +76,9 @@
     }
     .hover\:bg-pink-700:hover {
         background-color: #db2777; /* Tailwind's pink-700 */
+    }
+
+    .group:hover .group-hover\:flex {
+        display: flex;
     }
 </style>
