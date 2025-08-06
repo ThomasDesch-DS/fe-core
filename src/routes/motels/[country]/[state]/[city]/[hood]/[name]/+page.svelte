@@ -37,7 +37,7 @@
         trackMotelDetailView({
           motelId: motel.id,
           motelName: motel.name,
-          motelLocation: `${motel.location.hood || ''}, ${motel.city}`,
+          motelLocation: `${motel.location.hood || ''}, ${motel.location.city}`,
           country: motel.location.country,
           state: motel.location.state,
           city: motel.location.city,
@@ -117,14 +117,14 @@
 
 <svelte:head>
   {#if motel}
-    <title>{motel.name} en {motel.location.hood ? `${motel.location.hood}, ` : ''}{motel.city} - Motel {motel.rating}/10 | Daisy's Secrets</title>
-    <meta name="description" content="{motel.description} Ubicado en {motel.address}, {motel.city}. Rating: {motel.rating}/10. Reservá ahora en Daisy's Secrets." />
-    <meta property="og:title" content="{motel.name} - Motel en {motel.city}" />
+    <title>{motel.name} en {motel.location.hood ? `${motel.location.hood}, ` : ''}{motel.location.city} - Motel {motel.rating}/10 | Daisy's Secrets</title>
+    <meta name="description" content="{motel.description} Ubicado en {motel.address}, {motel.location.city}. Rating: {motel.rating}/10. Reservá ahora en Daisy's Secrets." />
+    <meta property="og:title" content="{motel.name} - Motel en {motel.location.city}" />
     <meta property="og:description" content="{motel.description}" />
     <meta property="og:image" content="{motel.images[0] || ''}" />
     <meta property="og:type" content="business.business" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="{motel.name} - Motel en {motel.city}" />
+    <meta name="twitter:title" content="{motel.name} - Motel en {motel.location.city}" />
     <meta name="twitter:description" content="{motel.description}" />
     <meta name="twitter:image" content="{motel.images[0] || ''}" />
     <link rel="canonical" href="{$page.url.href}" />
@@ -210,6 +210,95 @@
             </div>
           </div>
 
+          {#if motel.rooms && motel.rooms.length > 0}
+          <div class="mt-8">
+            <h2 class="text-2xl font-semibold mb-3 text-neutral-100">Habitaciones</h2>
+            <div class="grid gap-6">
+              {#each motel.rooms as room}
+                <div class="bg-neutral-800 p-6 rounded-lg">
+                  <h3 class="text-xl font-semibold text-neutral-100 mb-2">{room.name}</h3>
+                  <p class="text-neutral-300 mb-4">{room.description}</p>
+                  
+                  {#if room.features && room.features.length > 0}
+                    <div class="mb-4">
+                      <h4 class="text-sm font-semibold text-neutral-200 mb-2">Características:</h4>
+                      <div class="flex flex-wrap gap-2">
+                        {#each room.features as feature}
+                          <span class="bg-neutral-700 text-neutral-300 px-2 py-1 rounded text-sm">{feature}</span>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
+
+                  {#if room.images && room.images.length > 0}
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-3">
+                      {#each room.images as img, index}
+                        <img
+                          src={getMediaUrl(motel.id, img.media, "motel")}
+                          alt="Foto de {room.name}"
+                          class="rounded w-full h-32 object-cover"
+                        />
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          </div>
+          {/if}
+
+          {#if motel.motelStaySlots && motel.motelStaySlots.length > 0}
+          <div class="mt-8">
+            <h2 class="text-2xl font-semibold mb-3 text-neutral-100">Tarifas por Turno</h2>
+            <div class="grid gap-4">
+              {#each motel.motelStaySlots as slot}
+                {@const room = motel.rooms?.find(r => r.id === slot.roomId)}
+                <div class="bg-neutral-800 p-4 rounded-lg flex justify-between items-center">
+                  <div>
+                    <div class="font-semibold text-neutral-100">{room ? room.name : slot.roomId}</div>
+                    <div class="text-sm text-neutral-400">
+                      {slot.days.join(', ')} • {slot.durationHours}h
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-lg font-bold text-green-400">${slot.price.toLocaleString()}</div>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+          {/if}
+
+          {#if motel.overnightInfo && motel.overnightInfo.length > 0}
+          <div class="mt-8">
+            <h2 class="text-2xl font-semibold mb-3 text-neutral-100">Pernocte</h2>
+            <div class="grid gap-4">
+              {#each motel.overnightInfo as overnight}
+                {@const room = motel.rooms?.find(r => r.id === overnight.roomId)}
+                <div class="bg-neutral-800 p-4 rounded-lg">
+                  <div class="flex justify-between items-start mb-2">
+                    <div>
+                      <div class="font-semibold text-neutral-100">{room ? room.name : overnight.roomId}</div>
+                      <div class="text-sm text-neutral-400">{overnight.days.join(', ')}</div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-lg font-bold text-green-400">+${overnight.surcharge.toLocaleString()}</div>
+                      <div class="text-sm text-neutral-400">adicional</div>
+                    </div>
+                  </div>
+                  <div class="text-sm text-neutral-300 space-y-1">
+                    <div>Check-in: {overnight.checkInTime} • Check-out: {overnight.checkOutTime}</div>
+                    <div>Desayuno incluido hasta: {overnight.breakfastIncludedUntil}</div>
+                    {#if overnight.notes}
+                      <div class="text-neutral-400 italic">{overnight.notes}</div>
+                    {/if}
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+          {/if}
+
           <div class="mt-8">
             <h2 class="text-2xl font-semibold mb-3 text-neutral-100">Mapa del alojamiento</h2>
             <div id="map" class="w-full h-72 rounded-xl mt-3" style="z-index: 0;"></div>
@@ -226,7 +315,7 @@
                       class="rounded-lg h-48 w-full object-cover mb-3"
                     />
                     <div class="text-lg font-medium text-neutral-50">Sofía {i + 1}</div>
-                    <div class="text-sm text-neutral-400">Zona {motel.location.hood || motel.city} · 25 años</div>
+                    <div class="text-sm text-neutral-400">Zona {motel.location.hood || motel.location.city} · 25 años</div>
                     <button class="mt-3 w-full bg-neutral-100 text-black text-sm py-1.5 rounded-md hover:bg-neutral-200">
                       Ver perfil
                     </button>
@@ -262,10 +351,10 @@
 
           <div class="mt-4 text-sm text-neutral-500">
             <strong>Ubicación:</strong><br>
-            {motel.location.hood ? `${motel.location.hood}, ` : ''}{motel.city}<br>
-            {motel.state}, {motel.location.country}
-            {#if motel.zipCode}
-              <br>CP: {motel.zipCode}
+            {motel.location.hood ? `${motel.location.hood}, ` : ''}{motel.location.city}<br>
+            {motel.location.state}, {motel.location.country}
+            {#if motel.location.zipCode}
+              <br>CP: {motel.location.zipCode}
             {/if}
           </div>
 
