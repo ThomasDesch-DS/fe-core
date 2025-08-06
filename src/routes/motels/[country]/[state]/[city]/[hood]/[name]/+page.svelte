@@ -10,7 +10,10 @@
     trackMotelImageGallery 
   } from '$lib/analytics/analytics';
   import ReviewList from '$lib/components/reviews/ReviewList.svelte';
+  import ImageLightbox from '$lib/components/ImageLightbox.svelte';
   import {getMediaUrl} from "../../../../../../../util/MediaUtils";
+  import { fetchMotelReviews } from '$lib/api/reviews';
+  import type { MotelReview } from '$lib/types/motel';
 
   $: params = $page.params;
   
@@ -19,6 +22,11 @@
   let error = false;
   let reviewError = '';
   let showContact = false;
+  let reviews: MotelReview[] = [];
+  let reviewCount = 0;
+  let lightboxImages: string[] = [];
+  let lightboxOpen = false;
+  let lightboxCurrentIndex = 0;
 
   async function fetchMotelData() {
     try {
@@ -31,6 +39,19 @@
       }
       
       motel = await response.json();
+      
+      // Fetch reviews for schema.org data
+      if (motel) {
+        try {
+          reviews = await fetchMotelReviews(motel.id);
+          // Filter out replies (parentId !== null) and only count top-level reviews
+          const topLevelReviews = reviews.filter(r => !r.parentId);
+          reviewCount = topLevelReviews.length;
+        } catch (reviewErr) {
+          console.warn('Failed to fetch reviews for schema:', reviewErr);
+          // Continue without reviews data
+        }
+      }
       
       // Track motel detail view
       if (motel) {
@@ -99,15 +120,31 @@
     }
   }
 
-  function handleImageClick(imageIndex: number) {
+  function handleImageClick(imageIndex: number, imageType: 'motel' | 'room' = 'motel', roomImages?: any[]) {
     if (motel) {
+      // Prepare images for lightbox
+      if (imageType === 'motel') {
+        lightboxImages = motel.images.map(img => getMediaUrl(motel.id, img.media, "motel"));
+        lightboxCurrentIndex = imageIndex;
+      } else if (roomImages) {
+        lightboxImages = roomImages.map(img => getMediaUrl(motel.id, img.media, "motel"));
+        lightboxCurrentIndex = imageIndex;
+      }
+      
+      lightboxOpen = true;
+      
+      // Track analytics
       trackMotelImageGallery({
         motelId: motel.id,
         motelName: motel.name,
         imageIndex,
-        totalImages: motel.images.length
+        totalImages: lightboxImages.length
       });
     }
+  }
+
+  function handleLightboxClose() {
+    lightboxOpen = false;
   }
 
   function handleReviewError(event: CustomEvent<string>) {
@@ -118,16 +155,71 @@
 <svelte:head>
   {#if motel}
     <title>{motel.name} en {motel.location.hood ? `${motel.location.hood}, ` : ''}{motel.location.city} - Motel {motel.rating}/10 | Daisy's Secrets</title>
-    <meta name="description" content="{motel.description} Ubicado en {motel.address}, {motel.location.city}. Rating: {motel.rating}/10. Reservá ahora en Daisy's Secrets." />
+    <meta name="description" content="{motel.description || `Disfrutá de ${motel.name}, alojamiento ubicado en ${motel.address}, ${motel.location.city}`}. Rating: {motel.rating}/10. Reservá ahora en Daisy's Secrets." />
     <meta property="og:title" content="{motel.name} - Motel en {motel.location.city}" />
     <meta property="og:description" content="{motel.description}" />
-    <meta property="og:image" content="{motel.images[0] || ''}" />
+    <meta property="og:image" content="{motel.images[0] ? getMediaUrl(motel.id, motel.images[0].media, 'motel') : ''}" />
     <meta property="og:type" content="business.business" />
+    <meta property="og:locale" content="es_AR" />
+    <meta property="og:site_name" content="Daisy's Secrets" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="{motel.name} - Motel en {motel.location.city}" />
     <meta name="twitter:description" content="{motel.description}" />
-    <meta name="twitter:image" content="{motel.images[0] || ''}" />
+    <meta name="twitter:image" content="{motel.images[0] ? getMediaUrl(motel.id, motel.images[0].media, 'motel') : ''}" />
     <link rel="canonical" href="{$page.url.href}" />
+    <link rel="alternate" hreflang="es-ar" href="{$page.url.href}" />
+    <link rel="alternate" hreflang="es" href="{$page.url.href}" />
+    <link rel="alternate" hreflang="x-default" href="{$page.url.href}" />
+    <script type="application/ld+json">
+      {JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "LodgingBusiness",
+        name: motel.name,
+        description: motel.description || `Alojamiento discreto y de calidad en ${motel.location.city}`,
+        address: {
+          "@type": "PostalAddress",
+          streetAddress: motel.address,
+          addressLocality: motel.location.city,
+          addressRegion: motel.location.state,
+          addressCountry: motel.location.country,
+          postalCode: motel.location.zipCode
+        },
+        image: motel.images?.length > 0 ? motel.images.map(img => getMediaUrl(motel.id, img.media, "motel")) : [],
+        geo: {
+          "@type": "GeoCoordinates",
+          latitude: motel.coordinates.latitude,
+          longitude: motel.coordinates.longitude
+        },
+        aggregateRating: {
+          "@type": "AggregateRating",
+          ratingValue: motel.rating,
+          reviewCount: reviewCount || 0,
+          bestRating: "10",
+          worstRating: "1"
+        },
+        url: $page.url.href,
+        telephone: motel.contactMethods?.find(method => method.startsWith('tel:'))?.replace('tel:', '') || undefined,
+        amenityFeature: motel.services?.map(service => ({
+          "@type": "LocationFeatureSpecification",
+          name: service
+        })) || [],
+        review: reviews?.filter(r => !r.parentId && r.rating !== null).slice(0, 3).map(r => ({
+          "@type": "Review",
+          author: {
+            "@type": "Person",
+            name: r.username || 'Usuario Anónimo'
+          },
+          reviewRating: {
+            "@type": "Rating",
+            ratingValue: r.rating,
+            bestRating: "10",
+            worstRating: "1"
+          },
+          reviewBody: r.content,
+          datePublished: new Date(r.createdAt).toISOString().split('T')[0]
+        })) || []
+      })}
+    </script>
   {:else}
     <title>Cargando motel... | Daisy's Secrets</title>
     <meta name="description" content="Descubre los mejores moteles en Argentina con Daisy's Secrets. Alojamientos discretos y de calidad." />
@@ -187,8 +279,8 @@
               <img
                 src={getMediaUrl(motel.id, img.media, "motel")}
                 alt="Foto del alojamiento"
-                class="rounded-xl w-full h-44 object-cover shadow-md hover:shadow-lg transition-shadow cursor-pointer"
-                on:click={() => handleImageClick(index)}
+                class="rounded-xl w-full h-44 object-cover shadow-md hover:shadow-lg transition-all cursor-pointer hover:scale-105"
+                on:click={() => handleImageClick(index, 'motel')}
               />
             {/each}
           </div>
@@ -236,7 +328,8 @@
                         <img
                           src={getMediaUrl(motel.id, img.media, "motel")}
                           alt="Foto de {room.name}"
-                          class="rounded w-full h-32 object-cover"
+                          class="rounded w-full h-32 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          on:click={() => handleImageClick(index, 'room', room.images)}
                         />
                       {/each}
                     </div>
@@ -384,6 +477,15 @@
     />
   {/if}
 </main>
+
+<!-- Image Lightbox -->
+<ImageLightbox 
+  images={lightboxImages}
+  currentIndex={lightboxCurrentIndex}
+  isOpen={lightboxOpen}
+  alt="{motel?.name || 'Imagen del motel'}"
+  on:close={handleLightboxClose}
+/>
 
 <style>
   img {
