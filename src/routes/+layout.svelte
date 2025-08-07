@@ -26,8 +26,15 @@
   });
 
   if (browser) {
+    const start = Date.now();
     onMount(() => {
       trackPageOpen();
+      posthog.capture('page_view');
+
+      window.addEventListener('beforeunload', () => {
+        const duration = Date.now() - start;
+        posthog.capture('page_leave', { duration_ms: duration });
+      });
     });
   }
 </script>
