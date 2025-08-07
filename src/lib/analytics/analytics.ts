@@ -63,7 +63,6 @@ export function trackFaceSwapResult(props: Record<string, any> = {}) {
     posthog.capture('faceSwapResult', enrichProps(props));
 }
 
-// Escort page tracking functions
 export function trackEscortContact(props: Record<string, any> = {}) {
     posthog.capture('escortContact', enrichProps(props));
 }
@@ -82,6 +81,14 @@ export function trackEscortShare(props: Record<string, any> = {}) {
 
 export function trackEscortAudio(props: Record<string, any> = {}) {
     posthog.capture('escortAudio', enrichProps(props));
+}
+
+export function trackEscortSearch(props: Record<string, any> = {}) {
+    posthog.capture('escortSearch', enrichProps(props));
+}
+
+export function trackEscortSearchResultClick(props: Record<string, any> = {}) {
+    posthog.capture('escortSearchResultClick', enrichProps(props));
 }
 
 // Catlist page tracking functions

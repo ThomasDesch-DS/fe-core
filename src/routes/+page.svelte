@@ -6,6 +6,7 @@
   import NSFWChatbotButton from "$lib/components/NSFWChatbotButton.svelte";
   import { onMount } from 'svelte';
   import {getMediaUrl} from "../util/MediaUtils";
+  import { trackEscortSearch, trackEscortSearchResultClick } from '$lib/analytics/analytics';
 
   // ---------- CONFIG ----------
   const CACHE_KEY = 'escortsListCache';
@@ -176,6 +177,9 @@
   // ---------- LOAD SEARCH ----------
   async function handleSearch() {
     if (!searchQuery.trim()) return;
+
+    trackEscortSearch({ query: searchQuery.trim() });
+
     searchLoading = true;
     isSearchMode = true;
     searchPage = 0;
@@ -539,6 +543,7 @@
       <a
               href={`/escort/${encodeURIComponent(escort.slug)}`}
               on:mouseenter={() => prefetchDetail(escort.slug)}
+              on:click={() => trackEscortSearchResultClick({ query: searchQuery.trim(), clickedResult: escort.slug })}
               class="relative bg-black rounded-lg overflow-hidden shadow-lg flex flex-col items-center hover:opacity-90 transition-opacity max-w-md"
       >
         <div class="relative bg-black rounded-lg overflow-hidden shadow-lg flex flex-col items-center">
