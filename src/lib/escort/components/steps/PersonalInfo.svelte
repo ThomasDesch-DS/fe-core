@@ -114,6 +114,17 @@
             { formData.name.trim() ? `¡Dale, ${formData.name}!` : 'Siguiente' }
         </Button>
     </form>
+
+    <!-- Login link styled like Vercel’s minimal UX -->
+    <div class="mt-6 text-center">
+        <p class="text-gray-400 text-sm">
+            ¿Ya tenés cuenta?
+            <a href="/dashboard/login"
+               class="text-white font-medium hover:underline hover:text-gray-200 transition-colors">
+                Iniciá sesión
+            </a>
+        </p>
+    </div>
 {/if}
 
 <!-- Paso 2: Apellido -->
