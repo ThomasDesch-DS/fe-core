@@ -1,4 +1,4 @@
-import type { MotelPreviewDto, MotelPreviewCacheEntry } from '$lib/types/motel';
+import type { MotelPreviewDto, MotelPreviewCacheEntry, MotelDetailDto } from '$lib/types/motel';
 
 const CACHE_KEY = 'motelPreviewsCache';
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
@@ -57,5 +57,19 @@ export async function fetchMotelPreviews(): Promise<MotelPreviewDto[]> {
   } catch (error) {
     console.error('Failed to fetch motel previews:', error);
     return [];
+  }
+}
+
+export async function fetchMotelDetail(slug: string): Promise<MotelDetailDto> {
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/motels/slug/${slug}`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const motel: MotelDetailDto = await response.json();
+    return motel;
+  } catch (error) {
+    console.error(`Failed to fetch motel detail for slug ${slug}:`, error);
+    throw error; // Re-throw to be handled by the calling component
   }
 }

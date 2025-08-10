@@ -3,20 +3,20 @@
   import { page } from '$app/stores';
   import 'leaflet/dist/leaflet.css';
   import type { MotelDetailDto } from '$lib/types/motel';
-  import { 
-    trackMotelDetailView, 
-    trackMotelContact, 
-    trackMotelMapView, 
-    trackMotelImageGallery 
+  import {
+    trackMotelDetailView,
+    trackMotelContact,
+    trackMotelMapView,
+    trackMotelImageGallery
   } from '$lib/analytics/analytics';
   import ReviewList from '$lib/components/reviews/ReviewList.svelte';
   import ImageLightbox from '$lib/components/ImageLightbox.svelte';
-  import {getMediaUrl} from "../../../../../../../util/MediaUtils";
+  import { getMediaUrl } from "../../../../../../../util/MediaUtils";
   import { fetchMotelReviews } from '$lib/api/reviews';
   import type { MotelReview } from '$lib/types/motel';
 
   $: params = $page.params;
-  
+
   let motel: MotelDetailDto | null = null;
   let loading = true;
   let error = false;
@@ -28,31 +28,48 @@
   let lightboxOpen = false;
   let lightboxCurrentIndex = 0;
 
+  function normalizeMotel(m: any): MotelDetailDto {
+    // map backend fields to the FE names expected by the template
+    m.motelStaySlots = m.motelStaySlots ?? m.generalStaySlots ?? [];
+    m.overnightInfo  = m.overnightInfo  ?? m.generalOvernightInfos ?? [];
+
+    // normalize a telephone we can use in JSON-LD + clickable UI
+    const rawTel = m.contactMethods?.find((val: string) =>
+            typeof val === 'string' && (val.startsWith('tel:') || /^\+?\d[\d\s\-().]+$/.test(val))
+    );
+    const tel = rawTel
+            ? (rawTel.startsWith('tel:') ? rawTel : `tel:${rawTel.replace(/[^\d+]/g,'')}`)
+            : undefined;
+
+    m.__telephone = tel; // stash for JSON-LD and UI
+    return m as MotelDetailDto;
+  }
+
   async function fetchMotelData() {
     try {
       const { country, state, city, hood, name } = params;
       const url = `${import.meta.env.VITE_API_URL}/motels/${country}/${state}/${city}/${hood}/${name}`;
-      
+
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
-      
-      motel = await response.json();
-      
+
+      const data = await response.json();
+      motel = normalizeMotel(data);
+
       // Fetch reviews for schema.org data
       if (motel) {
         try {
           reviews = await fetchMotelReviews(motel.id);
-          // Filter out replies (parentId !== null) and only count top-level reviews
           const topLevelReviews = reviews.filter(r => !r.parentId);
           reviewCount = topLevelReviews.length;
         } catch (reviewErr) {
           console.warn('Failed to fetch reviews for schema:', reviewErr);
-          // Continue without reviews data
+          // carry on without reviews
         }
       }
-      
+
       // Track motel detail view
       if (motel) {
         trackMotelDetailView({
@@ -63,7 +80,6 @@
           state: motel.location.state,
           city: motel.location.city,
           hood: motel.location.hood,
-          rating: motel.rating,
           hasHood: Boolean(motel.location.hood),
           routeType: 'with_hood'
         });
@@ -78,7 +94,7 @@
 
   onMount(async () => {
     await fetchMotelData();
-    
+
     if (motel) {
       const L = await import('leaflet');
 
@@ -93,19 +109,17 @@
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
       L.marker([motel.coordinates.latitude, motel.coordinates.longitude])
-        .addTo(map)
-        .bindPopup(motel.name)
-        .openPopup();
-        
+              .addTo(map)
+              .bindPopup(motel.name)
+              .openPopup();
+
       // Track map view
-      if (motel) {
-        trackMotelMapView({
-          motelId: motel.id,
-          motelName: motel.name,
-          latitude: motel.coordinates.latitude,
-          longitude: motel.coordinates.longitude
-        });
-      }
+      trackMotelMapView({
+        motelId: motel.id,
+        motelName: motel.name,
+        latitude: motel.coordinates.latitude,
+        longitude: motel.coordinates.longitude
+      });
     }
   });
 
@@ -121,26 +135,24 @@
   }
 
   function handleImageClick(imageIndex: number, imageType: 'motel' | 'room' = 'motel', roomImages?: any[]) {
-    if (motel) {
-      // Prepare images for lightbox
-      if (imageType === 'motel') {
-        lightboxImages = motel.images.map(img => getMediaUrl(motel.id, img.media, "motel"));
-        lightboxCurrentIndex = imageIndex;
-      } else if (roomImages) {
-        lightboxImages = roomImages.map(img => getMediaUrl(motel.id, img.media, "motel"));
-        lightboxCurrentIndex = imageIndex;
-      }
-      
-      lightboxOpen = true;
-      
-      // Track analytics
-      trackMotelImageGallery({
-        motelId: motel.id,
-        motelName: motel.name,
-        imageIndex,
-        totalImages: lightboxImages.length
-      });
+    if (!motel) return;
+
+    if (imageType === 'motel') {
+      lightboxImages = motel.images.map(img => getMediaUrl(motel!.id, img.media, "motel"));
+      lightboxCurrentIndex = imageIndex;
+    } else if (roomImages) {
+      lightboxImages = roomImages.map(img => getMediaUrl(motel!.id, img.media, "motel"));
+      lightboxCurrentIndex = imageIndex;
     }
+
+    lightboxOpen = true;
+
+    trackMotelImageGallery({
+      motelId: motel.id,
+      motelName: motel.name,
+      imageIndex,
+      totalImages: lightboxImages.length
+    });
   }
 
   function handleLightboxClose() {
@@ -154,8 +166,8 @@
 
 <svelte:head>
   {#if motel}
-    <title>{motel.name} en {motel.location.hood ? `${motel.location.hood}, ` : ''}{motel.location.city} - Motel {motel.rating}/10 | Daisy's Secrets</title>
-    <meta name="description" content="{motel.description || `Disfrutá de ${motel.name}, alojamiento ubicado en ${motel.address}, ${motel.location.city}`}. Rating: {motel.rating}/10. Reservá ahora en Daisy's Secrets." />
+    <title>{motel.name} en {motel.location.hood ? `${motel.location.hood}, ` : ''}{motel.location.city} | Daisy's Secrets</title>
+    <meta name="description" content="{motel.description || `Disfrutá de ${motel.name}, alojamiento ubicado en ${motel.address}, ${motel.location.city}`}. Reservá ahora en Daisy's Secrets." />
     <meta property="og:title" content="{motel.name} - Motel en {motel.location.city}" />
     <meta property="og:description" content="{motel.description}" />
     <meta property="og:image" content="{motel.images[0] ? getMediaUrl(motel.id, motel.images[0].media, 'motel') : ''}" />
@@ -192,13 +204,13 @@
         },
         aggregateRating: {
           "@type": "AggregateRating",
-          ratingValue: motel.rating,
+          ratingValue: motel.rating ?? undefined,
           reviewCount: reviewCount || 0,
           bestRating: "10",
           worstRating: "1"
         },
         url: $page.url.href,
-        telephone: motel.contactMethods?.find(method => method.startsWith('tel:'))?.replace('tel:', '') || undefined,
+        telephone: motel.__telephone ? motel.__telephone.replace('tel:', '') : undefined,
         amenityFeature: motel.services?.map(service => ({
           "@type": "LocationFeatureSpecification",
           name: service
@@ -234,16 +246,16 @@
         <div class="md:w-2/3 animate-pulse">
           <div class="h-12 bg-neutral-800 rounded mb-4"></div>
           <div class="h-6 bg-neutral-800 rounded w-2/3 mb-6"></div>
-          
+
           <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
             {#each Array(6) as _}
               <div class="h-44 bg-neutral-800 rounded-xl"></div>
             {/each}
           </div>
-          
+
           <div class="h-72 bg-neutral-800 rounded-xl"></div>
         </div>
-        
+
         <div class="md:w-[28%] bg-neutral-900 p-8 rounded-2xl mt-8 md:mt-0 animate-pulse">
           <div class="h-16 bg-neutral-800 rounded mb-3"></div>
           <div class="h-4 bg-neutral-800 rounded w-3/4 mb-4"></div>
@@ -259,9 +271,9 @@
       <p class="text-neutral-400 mb-8">
         No pudimos cargar la información de este motel. Por favor, intenta nuevamente.
       </p>
-      <button 
-        on:click={() => window.history.back()}
-        class="bg-neutral-100 text-black px-6 py-3 rounded-lg hover:bg-neutral-200 transition-colors font-semibold"
+      <button
+              on:click={() => window.history.back()}
+              class="bg-neutral-100 text-black px-6 py-3 rounded-lg hover:bg-neutral-200 transition-colors font-semibold"
       >
         Volver atrás
       </button>
@@ -275,12 +287,12 @@
           <p class="text-neutral-400">{motel.address}</p>
 
           <div class="mt-6 grid grid-cols-2 md:grid-cols-3 gap-3">
-            {#each motel.images as img, index}
+            {#each motel.images.sort((a, b) => a.order - b.order) as img, index}
               <img
-                src={getMediaUrl(motel.id, img.media, "motel")}
-                alt="Foto del alojamiento"
-                class="rounded-xl w-full h-44 object-cover shadow-md hover:shadow-lg transition-all cursor-pointer hover:scale-105"
-                on:click={() => handleImageClick(index, 'motel')}
+                      src={getMediaUrl(motel.id, img.media, "motel")}
+                      alt="Foto del alojamiento"
+                      class="rounded-xl w-full h-44 object-cover shadow-md hover:shadow-lg transition-all cursor-pointer hover:scale-105"
+                      on:click={() => handleImageClick(index, 'motel')}
               />
             {/each}
           </div>
@@ -303,93 +315,95 @@
           </div>
 
           {#if motel.rooms && motel.rooms.length > 0}
-          <div class="mt-8">
-            <h2 class="text-2xl font-semibold mb-3 text-neutral-100">Habitaciones</h2>
-            <div class="grid gap-6">
-              {#each motel.rooms as room}
-                <div class="bg-neutral-800 p-6 rounded-lg">
-                  <h3 class="text-xl font-semibold text-neutral-100 mb-2">{room.name}</h3>
-                  <p class="text-neutral-300 mb-4">{room.description}</p>
-                  
-                  {#if room.features && room.features.length > 0}
-                    <div class="mb-4">
-                      <h4 class="text-sm font-semibold text-neutral-200 mb-2">Características:</h4>
-                      <div class="flex flex-wrap gap-2">
-                        {#each room.features as feature}
-                          <span class="bg-neutral-700 text-neutral-300 px-2 py-1 rounded text-sm">{feature}</span>
+            <div class="mt-8">
+              <h2 class="text-2xl font-semibold mb-3 text-neutral-100">Habitaciones</h2>
+              <div class="grid gap-6">
+                {#each motel.rooms as room}
+                  <div class="bg-neutral-800 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold text-neutral-100 mb-1">{room.name}</h3>
+                    {#if room.price != null}
+                      <div class="text-sm text-neutral-400 mb-2">Desde ${room.price.toLocaleString('es-AR')}</div>
+                    {/if}
+                    <p class="text-neutral-300 mb-4">{room.description}</p>
+
+                    {#if room.features && room.features.length > 0}
+                      <div class="mb-4">
+                        <h4 class="text-sm font-semibold text-neutral-200 mb-2">Características:</h4>
+                        <div class="flex flex-wrap gap-2">
+                          {#each room.features as feature}
+                            <span class="bg-neutral-700 text-neutral-300 px-2 py-1 rounded text-sm">{feature}</span>
+                          {/each}
+                        </div>
+                      </div>
+                    {/if}
+
+                    {#if room.images && room.images.length > 0}
+                      <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-3">
+                        {#each room.images as img, index}
+                          <img
+                                  src={getMediaUrl(motel.id, img.media, "motel")}
+                                  alt="Foto de {room.name}"
+                                  class="rounded w-full h-32 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                  on:click={() => handleImageClick(index, 'room', room.images)}
+                          />
                         {/each}
                       </div>
-                    </div>
-                  {/if}
-
-                  {#if room.images && room.images.length > 0}
-                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-3">
-                      {#each room.images as img, index}
-                        <img
-                          src={getMediaUrl(motel.id, img.media, "motel")}
-                          alt="Foto de {room.name}"
-                          class="rounded w-full h-32 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                          on:click={() => handleImageClick(index, 'room', room.images)}
-                        />
-                      {/each}
-                    </div>
-                  {/if}
-                </div>
-              {/each}
+                    {/if}
+                  </div>
+                {/each}
+              </div>
             </div>
-          </div>
           {/if}
 
           {#if motel.motelStaySlots && motel.motelStaySlots.length > 0}
-          <div class="mt-8">
-            <h2 class="text-2xl font-semibold mb-3 text-neutral-100">Tarifas por Turno</h2>
-            <div class="grid gap-4">
-              {#each motel.motelStaySlots as slot}
-                {@const room = motel.rooms?.find(r => r.id === slot.roomId)}
-                <div class="bg-neutral-800 p-4 rounded-lg flex justify-between items-center">
-                  <div>
-                    <div class="font-semibold text-neutral-100">{room ? room.name : slot.roomId}</div>
-                    <div class="text-sm text-neutral-400">
-                      {slot.days.join(', ')} • {slot.durationHours}h
+            <div class="mt-8">
+              <h2 class="text-2xl font-semibold mb-3 text-neutral-100">Tarifas por Turno</h2>
+              <div class="grid gap-4">
+                {#each motel.motelStaySlots as slot}
+                  {@const room = motel.rooms?.find(r => r.id === slot.roomId)}
+                  <div class="bg-neutral-800 p-4 rounded-lg flex justify-between items-center">
+                    <div>
+                      <div class="font-semibold text-neutral-100">{room ? room.name : (slot.roomId || 'General')}</div>
+                      <div class="text-sm text-neutral-400">
+                        {Array.isArray(slot.days) ? slot.days.join(', ') : ''}{slot.durationHours ? ` • ${slot.durationHours}h` : ''}
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <div class="text-lg font-bold text-green-400">${slot.price?.toLocaleString('es-AR')}</div>
                     </div>
                   </div>
-                  <div class="text-right">
-                    <div class="text-lg font-bold text-green-400">${slot.price.toLocaleString()}</div>
-                  </div>
-                </div>
-              {/each}
+                {/each}
+              </div>
             </div>
-          </div>
           {/if}
 
           {#if motel.overnightInfo && motel.overnightInfo.length > 0}
-          <div class="mt-8">
-            <h2 class="text-2xl font-semibold mb-3 text-neutral-100">Pernocte</h2>
-            <div class="grid gap-4">
-              {#each motel.overnightInfo as overnight}
-                {@const room = motel.rooms?.find(r => r.id === overnight.roomId)}
-                <div class="bg-neutral-800 p-4 rounded-lg">
-                  <div class="flex justify-between items-start mb-2">
-                    <div>
-                      <div class="font-semibold text-neutral-100">{room ? room.name : overnight.roomId}</div>
-                      <div class="text-sm text-neutral-400">{overnight.days.join(', ')}</div>
+            <div class="mt-8">
+              <h2 class="text-2xl font-semibold mb-3 text-neutral-100">Pernocte</h2>
+              <div class="grid gap-4">
+                {#each motel.overnightInfo as overnight}
+                  {@const room = motel.rooms?.find(r => r.id === (overnight as any).roomId)}
+                  <div class="bg-neutral-800 p-4 rounded-lg">
+                    <div class="flex justify-between items-start mb-2">
+                      <div>
+                        <div class="font-semibold text-neutral-100">{room ? room.name : 'Pernocte general'}</div>
+                        <div class="text-sm text-neutral-400">{Array.isArray(overnight.days) ? overnight.days.join(', ') : ''}</div>
+                      </div>
+                      <div class="text-right">
+                        <div class="text-lg font-bold text-green-400">${overnight.price.toLocaleString('es-AR')}</div>
+                        <div class="text-sm text-neutral-400">por pernocte</div>
+                      </div>
                     </div>
-                    <div class="text-right">
-                      <div class="text-lg font-bold text-green-400">+${overnight.surcharge.toLocaleString()}</div>
-                      <div class="text-sm text-neutral-400">adicional</div>
+                    <div class="text-sm text-neutral-300 space-y-1">
+                      <div>Check-in: {overnight.checkInTime} • Check-out: {overnight.checkOutTime}</div>
+                      {#if overnight.breakfastIncluded}
+                        <div>Desayuno incluido</div>
+                      {/if}
                     </div>
                   </div>
-                  <div class="text-sm text-neutral-300 space-y-1">
-                    <div>Check-in: {overnight.checkInTime} • Check-out: {overnight.checkOutTime}</div>
-                    <div>Desayuno incluido hasta: {overnight.breakfastIncludedUntil}</div>
-                    {#if overnight.notes}
-                      <div class="text-neutral-400 italic">{overnight.notes}</div>
-                    {/if}
-                  </div>
-                </div>
-              {/each}
+                {/each}
+              </div>
             </div>
-          </div>
           {/if}
 
           <div class="mt-8">
@@ -398,35 +412,19 @@
           </div>
 
           <div class="mt-12">
-            <!--    <h2 class="text-2xl font-semibold mb-4 text-neutral-100">Chicas disponibles cerca de este alojamiento</h2>
-            <div class="flex overflow-x-auto gap-4 pb-4">
-                {#each Array(5) as _, i}
-                  <div class="min-w-[220px] bg-neutral-900 rounded-xl p-4 shadow-md hover:shadow-lg transition-all">
-                    <img
-                      src={`https://source.unsplash.com/random/300x400?sig=${i}&girl`}
-                      alt="Perfil de acompañante"
-                      class="rounded-lg h-48 w-full object-cover mb-3"
-                    />
-                    <div class="text-lg font-medium text-neutral-50">Sofía {i + 1}</div>
-                    <div class="text-sm text-neutral-400">Zona {motel.location.hood || motel.location.city} · 25 años</div>
-                    <button class="mt-3 w-full bg-neutral-100 text-black text-sm py-1.5 rounded-md hover:bg-neutral-200">
-                      Ver perfil
-                    </button>
-                  </div>
-                {/each }
-              </div> -->
+            <!-- reserved for nearby profiles -->
           </div>
         </div>
 
         <div class="md:w-[28%] bg-neutral-900 p-8 rounded-2xl mt-8 md:mt-0 shadow-2xl">
-          <div class="text-5xl font-bold text-green-400 mb-3">{motel.rating}</div>
+          <div class="text-2xl font-bold text-green-400 mb-3">Alojamiento verificado</div>
           <p class="text-sm text-neutral-400 mb-4">
-            Puntuación del alojamiento
+            La información de este alojamiento ha sido verificada por nuestro equipo.
           </p>
 
-          <button 
-            on:click={handleContactClick}
-            class="w-full bg-neutral-50 text-black py-3 rounded-lg hover:bg-neutral-200 transition-colors font-semibold"
+          <button
+                  on:click={handleContactClick}
+                  class="w-full bg-neutral-50 text-black py-3 rounded-lg hover:bg-neutral-200 transition-colors font-semibold"
           >
             {#if showContact}Ocultar{:else}Ver{/if} métodos de contacto
           </button>
@@ -436,7 +434,12 @@
               <h4 class="font-semibold text-neutral-100 mb-2">Información de Contacto</h4>
               <ul class="text-neutral-300 space-y-2">
                 {#each motel.contactMethods as method}
-                  <li>{method}</li>
+                  {#if typeof method === 'string' && (method.startsWith('tel:') || /^\+?\d[\d\s\-().]+$/.test(method))}
+                    {@const tel = method.startsWith('tel:') ? method : `tel:${method.replace(/[^\d+]/g,'')}`}
+                    <li><a href={tel} class="underline underline-offset-2 hover:text-neutral-100">{method.replace(/^tel:/,'')}</a></li>
+                  {:else}
+                    <li>{method}</li>
+                  {/if}
                 {/each}
               </ul>
             </div>
@@ -469,22 +472,22 @@
         {reviewError}
       </div>
     {/if}
-    
-    <ReviewList 
-      motelId={motel.id} 
-      motelName={motel.name}
-      on:error={handleReviewError}
+
+    <ReviewList
+            motelId={motel.id}
+            motelName={motel.name}
+            on:error={handleReviewError}
     />
   {/if}
 </main>
 
 <!-- Image Lightbox -->
-<ImageLightbox 
-  images={lightboxImages}
-  currentIndex={lightboxCurrentIndex}
-  isOpen={lightboxOpen}
-  alt="{motel?.name || 'Imagen del motel'}"
-  on:close={handleLightboxClose}
+<ImageLightbox
+        images={lightboxImages}
+        currentIndex={lightboxCurrentIndex}
+        isOpen={lightboxOpen}
+        alt="{motel?.name || 'Imagen del motel'}"
+        on:close={handleLightboxClose}
 />
 
 <style>
