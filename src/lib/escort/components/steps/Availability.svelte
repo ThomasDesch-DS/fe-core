@@ -4,6 +4,12 @@
     import TextInput from '../TextInput.svelte';
     import { daysMap } from '../../store/formStore';
     import { addTimeSlot, removeTimeSlot, copyScheduleToAllDays } from '../../utils/scheduleUtils';
+    import { onMount } from 'svelte';
+    import {
+        trackRegisterStepAvailability,
+        trackRegisterStepAvailabilityPrefs,
+        trackRegisterStepAvailabilitySchedule
+    } from '../../../analytics/analytics';
     
     export let formData;
     
@@ -38,6 +44,21 @@
     
     function handleCopyScheduleToAllDays(sourceDay) {
         formData.daySlots = copyScheduleToAllDays(formData.daySlots, sourceDay);
+    }
+
+    onMount(() => {
+        trackRegisterStepAvailability({ userType: 'Escort' });
+    });
+
+    $: {
+        switch ($stepStore) {
+            case 33:
+                trackRegisterStepAvailabilityPrefs({ userType: 'Escort' });
+                break;
+            case 34:
+                trackRegisterStepAvailabilitySchedule({ userType: 'Escort' });
+                break;
+        }
     }
 </script>
 

@@ -4,6 +4,11 @@
     import TextInput from '../TextInput.svelte';
     import SelectInput from '../SelectInput.svelte';
     import { countriesList } from '../../store/formStore';
+    import { onMount } from 'svelte';
+    import {
+        trackRegisterStepLocation,
+        trackRegisterStepLocationLocation
+    } from '../../../analytics/analytics';
     
     export let formData;
     
@@ -11,6 +16,16 @@
     function handleLocation() { 
         if (!formData.country || !formData.state.trim() || !formData.city.trim() || !formData.hood.trim()) return; 
         stepStore.set(38); 
+    }
+
+    onMount(() => {
+        trackRegisterStepLocation({ userType: 'Escort' });
+    });
+
+    $: {
+        if ($stepStore === 37) {
+            trackRegisterStepLocationLocation({ userType: 'Escort' });
+        }
     }
 </script>
 

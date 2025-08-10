@@ -11,7 +11,7 @@
     import { dSuserAuthStore } from "$lib/escort/store/dsUserAuthStore";
     import { goto } from "$app/navigation";
     import PriceChart from "$lib/charts/PriceChart.svelte";
-    import { trackPageOpen, trackEscortContact, trackEscortGallery, trackEscortCatlist, trackEscortShare, trackEscortAudio } from "$lib/analytics/analytics";
+    import { trackPageOpen, trackEscortContact, trackEscortGallery, trackEscortCatlist, trackEscortShare, trackEscortAudio, trackEscortDetailView } from "$lib/analytics/analytics";
     import posthog from 'posthog-js';
 
     // ---- CONFIGURACIÓN ----
@@ -280,6 +280,12 @@
                     );
                 }
                 escort = cachedEscort;
+                trackEscortDetailView({
+                    escortId: escort.id,
+                    escortName: escort.displayName,
+                    location: escort.location,
+                    age: escort.age,
+                });
             } else {
                 const data = await api.get<Escort>(`/${displayName}`);
                 if (data.media.profilePicture) {
@@ -291,6 +297,12 @@
                 }
                 escort = data;
                 setToCache(displayName, data);
+                trackEscortDetailView({
+                    escortId: escort.id,
+                    escortName: escort.displayName,
+                    location: escort.location,
+                    age: escort.age,
+                });
             }
         } catch (err) {
             console.error(err);

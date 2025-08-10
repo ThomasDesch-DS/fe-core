@@ -6,6 +6,7 @@
     import { escortAuthStore } from '$lib/escort/store/escortAuthStore.js';
     import { get } from 'svelte/store';
     import LoadingAnimation from "$lib/common/LoadingAnimation.svelte";
+    import { trackUserLogin } from "$lib/analytics/analytics";
 
     let email = '';
     let password = '';
@@ -49,17 +50,13 @@
                 displayName: escortUser.displayName
             });
 
-            // --- capture a login event ---
-            posthog.capture('login', {
-                userType: 'Escort',
-                sessionId: sessionStorage.getItem('sessionId'),
-                timestamp: new Date().toISOString()
-            });
+            trackUserLogin({ success: true, userType: 'Escort' });
 
             // now navigate
             goto('/dashboard');
         } catch (err) {
             error = err.message || 'Error al iniciar sesión. Intentá nuevamente.';
+            trackUserLogin({ success: false, userType: 'Escort', error: err.message });
         } finally {
             isLoading = false;
         }

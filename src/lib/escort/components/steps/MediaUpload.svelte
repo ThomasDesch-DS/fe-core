@@ -5,6 +5,16 @@
     import { toBase64 } from '../../utils/mediaUtils';
     import MediaModal from '../MediaModal.svelte';
     import Sortable from 'sortablejs';
+    import {
+        trackRegisterStepMediaUpload,
+        trackRegisterStepMediaUploadProfilePic,
+        trackRegisterStepMediaUploadExtraPics,
+        trackRegisterStepMediaUploadVideos,
+        trackRegisterStepMediaUploadAudio,
+        trackRegisterStepMediaUploadKycIdPhoto,
+        trackRegisterStepMediaUploadKycIdFront,
+        trackRegisterStepMediaUploadKycIdBack
+    } from '../../../analytics/analytics';
     
     export let formData;
     
@@ -38,7 +48,10 @@
     // File upload handlers
     async function handleProfilePic(e) {
         const file = e.target.files[0];
-        try { formData.profilePicBase64 = await toBase64(file); }
+        try { 
+            formData.profilePicBase64 = await toBase64(file);
+            trackRegisterStepMediaUploadProfilePic({ userType: 'Escort' });
+        }
         catch(err) { alert(err); }
     }
     
@@ -48,6 +61,7 @@
                 const b64 = await toBase64(f);
                 formData.pics.push({ id: formData.mediaId++, base64: b64, order: formData.pics.length });
                 formData.pics = [...formData.pics]; // Trigger reactivity
+                trackRegisterStepMediaUploadExtraPics({ userType: 'Escort' });
             } catch(err) { alert(err); }
         }
     }
@@ -58,35 +72,49 @@
                 const b64 = await toBase64(f);
                 formData.videos.push({ id: formData.mediaId++, base64: b64, order: formData.videos.length });
                 formData.videos = [...formData.videos]; // Trigger reactivity
+                trackRegisterStepMediaUploadVideos({ userType: 'Escort' });
             } catch(err) { alert(err); }
         }
     }
     
     async function handleAudio(e) {
         const file = e.target.files[0];
-        try { formData.audioClipBase64 = await toBase64(file); }
+        try { 
+            formData.audioClipBase64 = await toBase64(file);
+            trackRegisterStepMediaUploadAudio({ userType: 'Escort' });
+        }
         catch(err) { alert(err); }
     }
     
     async function handleKycIdPhoto(e) {
         const file = e.target.files[0];
-        try { formData.kycIdPhoto = await toBase64(file); }
+        try { 
+            formData.kycIdPhoto = await toBase64(file);
+            trackRegisterStepMediaUploadKycIdPhoto({ userType: 'Escort' });
+        }
         catch(err) { alert(err); }
     }
     
     async function handleKycIdFront(e) {
         const file = e.target.files[0];
-        try { formData.kycIdFront = await toBase64(file); }
+        try { 
+            formData.kycIdFront = await toBase64(file);
+            trackRegisterStepMediaUploadKycIdFront({ userType: 'Escort' });
+        }
         catch(err) { alert(err); }
     }
     
     async function handleKycIdBack(e) {
         const file = e.target.files[0];
-        try { formData.kycIdBack = await toBase64(file); }
+        try { 
+            formData.kycIdBack = await toBase64(file);
+            trackRegisterStepMediaUploadKycIdBack({ userType: 'Escort' });
+        }
         catch(err) { alert(err); }
     }
     
     onMount(() => {
+        trackRegisterStepMediaUpload({ userType: 'Escort' });
         function initSortable() {
             if (picsContainer) {
                 // Destroy existing instance if it exists

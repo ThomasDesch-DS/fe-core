@@ -9,6 +9,17 @@
         massageTypes,
         virtualServices
     } from '../../store/formStore';
+    import { onMount } from 'svelte';
+    import {
+        trackRegisterStepServicesInfo,
+        trackRegisterStepServicesInfoServices,
+        trackRegisterStepServicesInfoFantasies,
+        trackRegisterStepServicesInfoMassages,
+        trackRegisterStepServicesInfoVirtual,
+        trackRegisterStepServicesInfoHourPrice,
+        trackRegisterStepServicesInfoCustomRates,
+        trackRegisterStepServicesInfoGoToAvailability
+    } from '../../../analytics/analytics';
     
     export let formData;
     
@@ -44,6 +55,36 @@
     
     function handleCustomRates() { 
         stepStore.set(32); 
+    }
+
+    onMount(() => {
+        trackRegisterStepServicesInfo({ userType: 'Escort' });
+    });
+
+    $: {
+        switch ($stepStore) {
+            case 26:
+                trackRegisterStepServicesInfoServices({ userType: 'Escort' });
+                break;
+            case 27:
+                trackRegisterStepServicesInfoFantasies({ userType: 'Escort' });
+                break;
+            case 28:
+                trackRegisterStepServicesInfoMassages({ userType: 'Escort' });
+                break;
+            case 29:
+                trackRegisterStepServicesInfoVirtual({ userType: 'Escort' });
+                break;
+            case 30:
+                trackRegisterStepServicesInfoHourPrice({ userType: 'Escort' });
+                break;
+            case 31:
+                trackRegisterStepServicesInfoCustomRates({ userType: 'Escort' });
+                break;
+            case 32:
+                trackRegisterStepServicesInfoGoToAvailability({ userType: 'Escort' });
+                break;
+        }
     }
 </script>
 

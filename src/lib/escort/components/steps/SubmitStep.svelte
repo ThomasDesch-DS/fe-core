@@ -4,6 +4,8 @@
     import { submitRegistration } from '../../api/registerApi';
     import SuccessRegister from '../SuccessRegister.svelte';
     import LoadingAnimation from "../../../common/LoadingAnimation.svelte";
+    import { trackUserRegister, trackRegisterStepSubmit, trackRegisterStepSubmitSubmit } from "../../../analytics/analytics";
+    import { onMount } from 'svelte';
 
     export let formData;
 
@@ -18,11 +20,23 @@
         try {
             await submitRegistration(formData);
             registrationSuccess = true;
+            trackUserRegister({ success: true, userType: 'Escort' });
         } catch(error) {
             submitError = error.message || 'Error al registrar. Intentá nuevamente.';
+            trackUserRegister({ success: false, userType: 'Escort', error: error.message });
             console.error(error);
         } finally {
             loading = false;
+        }
+    }
+
+    onMount(() => {
+        trackRegisterStepSubmit({ userType: 'Escort' });
+    });
+
+    $: {
+        if ($stepStore === 39) {
+            trackRegisterStepSubmitSubmit({ userType: 'Escort' });
         }
     }
 </script>

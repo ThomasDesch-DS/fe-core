@@ -1,6 +1,8 @@
 <script lang="ts">
-    import { goto } from '$app/navigation';
     import { page } from '$app/stores';
+    import { goto } from '$app/navigation';
+    import LoadingAnimation from "$lib/common/LoadingAnimation.svelte";
+    import { trackUserResetPassword } from "$lib/analytics/analytics";
 
     let pass = '';
     let confirmPassword = '';
@@ -13,33 +15,33 @@
     const handleSubmit = async () => {
         error = '';
         success = '';
-        if (!pass || !confirmPassword) {
-            error = 'Completá ambos campos.';
+        if (password !== confirmPassword) {
+            error = 'Las contraseñas no coinciden.';
             return;
         }
-        if (pass !== confirmPassword) {
-            error = 'Las contraseñas no coinciden.';
+        if (password.length < 8) {
+            error = 'La contraseña debe tener al menos 8 caracteres.';
             return;
         }
         isLoading = true;
         try {
             const res = await fetch(`${import.meta.env.VITE_API_URL}/escort/reset-password`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type':'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ pass: pass })
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ token, newPassword: password })
             });
             if (res.ok) {
-                success = 'Contraseña actualizada! Redirigiendo al login...';
+                success = 'Contraseña actualizada. Serás redirigido al login.';
+                trackUserResetPassword({ success: true, userType: 'Escort', method: 'token' });
                 setTimeout(() => goto('/dashboard/login'), 2000);
             } else {
                 const data = await res.json();
-                error = data.message || 'Error al resetear contraseña.';
+                error = data.message || 'Error al restablecer la contraseña.';
+                trackUserResetPassword({ success: false, userType: 'Escort', method: 'token', error: data.message });
             }
         } catch (err) {
             error = 'Error de red.';
+            trackUserResetPassword({ success: false, userType: 'Escort', method: 'token', error: 'Network Error' });
         } finally {
             isLoading = false;
         }

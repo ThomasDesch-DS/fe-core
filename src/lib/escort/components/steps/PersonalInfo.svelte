@@ -5,6 +5,22 @@
     import SelectInput from '../SelectInput.svelte';
     import { genderOptions } from '../../store/formStore';
     import { focusNextOnEnter } from '../../utils/formUtils';
+    import { onMount } from 'svelte';
+    import {
+        trackRegisterStepPersonalInfo,
+        trackRegisterStepPersonalInfoName,
+        trackRegisterStepPersonalInfoSurname,
+        trackRegisterStepPersonalInfoDisplayName,
+        trackRegisterStepPersonalInfoEmail,
+        trackRegisterStepPersonalInfoVerifyCode,
+        trackRegisterStepPersonalInfoAge,
+        trackRegisterStepPersonalInfoGender,
+        trackRegisterStepPersonalInfoPrivatePhone,
+        trackRegisterStepPersonalInfoPublicPhone,
+        trackRegisterStepPersonalInfoIdNumber,
+        trackRegisterStepPersonalInfoPassword,
+        trackRegisterStepPersonalInfoDocumentation
+    } from '../../../analytics/analytics';
     
     export let formData;
     
@@ -102,6 +118,51 @@
     function handleDocumentation() { 
         if (!formData.documentation.trim()) return; 
         stepStore.set(12); 
+    }
+
+    onMount(() => {
+        trackRegisterStepPersonalInfo({ userType: 'Escort' });
+    });
+
+    $: {
+        switch ($stepStore) {
+            case 1:
+                trackRegisterStepPersonalInfoName({ userType: 'Escort' });
+                break;
+            case 2:
+                trackRegisterStepPersonalInfoSurname({ userType: 'Escort' });
+                break;
+            case 3:
+                trackRegisterStepPersonalInfoDisplayName({ userType: 'Escort' });
+                break;
+            case 4:
+                trackRegisterStepPersonalInfoEmail({ userType: 'Escort' });
+                break;
+            case 5:
+                trackRegisterStepPersonalInfoVerifyCode({ userType: 'Escort' });
+                break;
+            case 6:
+                trackRegisterStepPersonalInfoAge({ userType: 'Escort' });
+                break;
+            case 7:
+                trackRegisterStepPersonalInfoGender({ userType: 'Escort' });
+                break;
+            case 8:
+                trackRegisterStepPersonalInfoPrivatePhone({ userType: 'Escort' });
+                break;
+            case 9:
+                trackRegisterStepPersonalInfoPublicPhone({ userType: 'Escort' });
+                break;
+            case 10:
+                trackRegisterStepPersonalInfoIdNumber({ userType: 'Escort' });
+                break;
+            case 11:
+                trackRegisterStepPersonalInfoPassword({ userType: 'Escort' });
+                break;
+            case 11.5:
+                trackRegisterStepPersonalInfoDocumentation({ userType: 'Escort' });
+                break;
+        }
     }
 </script>
 

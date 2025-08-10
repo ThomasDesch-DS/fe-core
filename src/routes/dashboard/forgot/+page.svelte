@@ -1,6 +1,7 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
     import LoadingAnimation from "$lib/common/LoadingAnimation.svelte";
+    import { trackUserForgotPassword } from "$lib/analytics/analytics";
     let email = '';
     let error = '';
     let success = '';
@@ -27,13 +28,16 @@
             });
             if (res.ok) {
                 success = 'Si existe una cuenta asociada, chequeá tu casilla.';
+                trackUserForgotPassword({ success: true, userType: 'Escort', email });
                 setTimeout(() => goto('/dashboard/login'), 1000);
             } else {
                 const data = await res.json();
                 error = data.message || 'Error al solicitar restablecer contraseña.';
+                trackUserForgotPassword({ success: false, userType: 'Escort', email, error: data.message });
             }
         } catch (err) {
             error = 'Error de red.';
+            trackUserForgotPassword({ success: false, userType: 'Escort', email, error: 'Network Error' });
         } finally {
             isLoading = false;
         }

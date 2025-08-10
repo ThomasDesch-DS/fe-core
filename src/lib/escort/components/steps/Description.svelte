@@ -3,6 +3,12 @@
     import Button from '../Button.svelte';
     import TextInput from '../TextInput.svelte';
     import { contactTypes } from '../../store/formStore';
+    import { onMount } from 'svelte';
+    import {
+        trackRegisterStepDescription,
+        trackRegisterStepDescriptionDescription,
+        trackRegisterStepDescriptionContactMethods
+    } from '../../../analytics/analytics';
     
     export let formData;
     
@@ -21,6 +27,21 @@
     
     function handleContacts() { 
         stepStore.set(37); 
+    }
+
+    onMount(() => {
+        trackRegisterStepDescription({ userType: 'Escort' });
+    });
+
+    $: {
+        switch ($stepStore) {
+            case 35:
+                trackRegisterStepDescriptionDescription({ userType: 'Escort' });
+                break;
+            case 36:
+                trackRegisterStepDescriptionContactMethods({ userType: 'Escort' });
+                break;
+        }
     }
 </script>
 

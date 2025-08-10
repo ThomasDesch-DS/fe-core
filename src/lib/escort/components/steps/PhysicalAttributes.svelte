@@ -14,6 +14,24 @@
         penisSizeOptions,
         countriesList
     } from '../../store/formStore';
+    import { onMount } from 'svelte';
+    import {
+        trackRegisterStepPhysicalAttributes,
+        trackRegisterStepPhysicalAttributesHeight,
+        trackRegisterStepPhysicalAttributesWeight,
+        trackRegisterStepPhysicalAttributesNationality,
+        trackRegisterStepPhysicalAttributesHairColor,
+        trackRegisterStepPhysicalAttributesEyeColor,
+        trackRegisterStepPhysicalAttributesSkinColor,
+        trackRegisterStepPhysicalAttributesEthnicity,
+        trackRegisterStepPhysicalAttributesBust,
+        trackRegisterStepPhysicalAttributesWaist,
+        trackRegisterStepPhysicalAttributesHips,
+        trackRegisterStepPhysicalAttributesButtSize,
+        trackRegisterStepPhysicalAttributesBreastSize,
+        trackRegisterStepPhysicalAttributesWaxingLevel,
+        trackRegisterStepPhysicalAttributesPenisSize
+    } from '../../../analytics/analytics';
     
     export let formData;
     
@@ -91,6 +109,57 @@
     function handlePenisSize() { 
         if(!formData.penisSize) return; 
         stepStore.set(26); 
+    }
+
+    onMount(() => {
+        trackRegisterStepPhysicalAttributes({ userType: 'Escort' });
+    });
+
+    $: {
+        switch ($stepStore) {
+            case 12:
+                trackRegisterStepPhysicalAttributesHeight({ userType: 'Escort' });
+                break;
+            case 13:
+                trackRegisterStepPhysicalAttributesWeight({ userType: 'Escort' });
+                break;
+            case 14:
+                trackRegisterStepPhysicalAttributesNationality({ userType: 'Escort' });
+                break;
+            case 15:
+                trackRegisterStepPhysicalAttributesHairColor({ userType: 'Escort' });
+                break;
+            case 16:
+                trackRegisterStepPhysicalAttributesEyeColor({ userType: 'Escort' });
+                break;
+            case 17:
+                trackRegisterStepPhysicalAttributesSkinColor({ userType: 'Escort' });
+                break;
+            case 18:
+                trackRegisterStepPhysicalAttributesEthnicity({ userType: 'Escort' });
+                break;
+            case 19:
+                trackRegisterStepPhysicalAttributesBust({ userType: 'Escort' });
+                break;
+            case 20:
+                trackRegisterStepPhysicalAttributesWaist({ userType: 'Escort' });
+                break;
+            case 21:
+                trackRegisterStepPhysicalAttributesHips({ userType: 'Escort' });
+                break;
+            case 22:
+                trackRegisterStepPhysicalAttributesButtSize({ userType: 'Escort' });
+                break;
+            case 23:
+                trackRegisterStepPhysicalAttributesBreastSize({ userType: 'Escort' });
+                break;
+            case 24:
+                trackRegisterStepPhysicalAttributesWaxingLevel({ userType: 'Escort' });
+                break;
+            case 25:
+                trackRegisterStepPhysicalAttributesPenisSize({ userType: 'Escort' });
+                break;
+        }
     }
 </script>
 
