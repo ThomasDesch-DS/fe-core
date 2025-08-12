@@ -49,6 +49,9 @@
     };
     
     dispatch('submit', reviewData);
+    
+    content = '';
+    rating = null;
   }
 
   function handleCancel() {
