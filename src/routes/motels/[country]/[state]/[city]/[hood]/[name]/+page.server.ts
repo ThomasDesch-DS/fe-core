@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { PUBLIC_API_URL } from '$env/static/public';
+import { VITE_API_URL } from '$env/static/private';
 import type { MotelDetailDto, MotelReview } from '$lib/types/motel';
 
 export const prerender = false;
@@ -25,7 +25,7 @@ function normalizeMotel(m: any): MotelDetailDto {
 export async function load({ params, fetch, url }) {
 	try {
 		const { country, state, city, hood, name } = params;
-		const apiUrl = PUBLIC_API_URL || 'http://localhost:8080';
+		const apiUrl = VITE_API_URL || 'https://prod-be-core.fly.dev';
 		const motelUrl = `${apiUrl}/motels/${country}/${state}/${city}/${hood}/${name}`;
 
 		const response = await fetch(motelUrl);
