@@ -4,7 +4,6 @@
     import { api } from '$lib/escort/api/apiClient';
     import { page } from '$app/stores';
     import { toast } from 'svelte-sonner';
-    import { getMediaUrl } from "../../../util/MediaUtils";
     import IconWhatsapp from "~icons/fa6-brands/whatsapp";
     import SocialIcon from "$lib/common/SocialIcon.svelte";
     import { catlist } from "$lib/escort/store/catlistStore";
@@ -13,6 +12,7 @@
     import PriceChart from "$lib/charts/PriceChart.svelte";
     import { trackPageOpen, trackEscortContact, trackEscortGallery, trackEscortCatlist, trackEscortShare, trackEscortAudio, trackEscortDetailView } from "$lib/analytics/analytics";
     import posthog from 'posthog-js';
+    import {getMediaUrl} from "../../../../util/MediaUtils";
 
     // ---- CONFIGURACIÓN ----
     const ESCORT_CACHE_KEY = 'escortDetailCache';
