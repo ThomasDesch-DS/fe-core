@@ -7,7 +7,9 @@ import { tokenStore } from '$lib/store/tokenStore';
  * Login user with email and password
  * The JWT cookie is automatically stored by the browser
  */
-export async function login(email: string, password: string): Promise<boolean> {
+import type { Escort } from '../store/escortAuthStore'; // Import the Escort type
+
+export async function login(email: string, password: string): Promise<Escort> {
     try {
         const response = await api.post('/login', { 
             email, 
@@ -17,13 +19,13 @@ export async function login(email: string, password: string): Promise<boolean> {
         // The response contains the entire escort profile data
         // Update auth store with escort data
         if (response && response.id) {
-            // Store the entire escort data in the auth store
-            escortAuthStore.login({
+            const escortUser: Escort = { // Define escortUser here
                 id: response.id,
                 email: response.email,
                 displayName: response.basicInfo?.displayName || "Escort",
                 profile: response // Store the full profile for later use
-            });
+            };
+            escortAuthStore.login(escortUser); // Pass the constructed escortUser
 
             // Save catList to catlistStore if present in the response
             if (response.catList) {
@@ -38,7 +40,7 @@ export async function login(email: string, password: string): Promise<boolean> {
             
             // Set up auto refresh timer
             setupTokenRefresh();
-            return true;
+            return escortUser; // Return the constructed escortUser
         } else {
             throw new Error('Invalid response from server');
         }

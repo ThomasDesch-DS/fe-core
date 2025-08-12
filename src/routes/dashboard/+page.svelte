@@ -792,6 +792,16 @@
 </script>
 
 <style>
+    .stat-card {
+        @apply bg-neutral-900 rounded-lg p-6 flex flex-col items-center justify-center border border-neutral-800 hover:border-neutral-600 transition;
+        background: linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0));
+    }
+    .stat-number {
+        @apply text-3xl font-bold text-white;
+    }
+    .stat-label {
+        @apply text-gray-400 text-sm mt-1;
+    }
     /* Vercel-like theme */
     .tab-btn {
         @apply py-2 px-4 font-medium transition;
@@ -927,6 +937,19 @@
                 </button>
             </div>
         </header>
+
+        <!-- Stats section -->
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+            <div class="stat-card">
+                <div class="stat-number">{escort.pageViews || 0}</div>
+                <p class="stat-label">Vistas de página</p>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{escort.contactClicks || 0}</div>
+                <p class="stat-label">Clics en contacto</p>
+            </div>
+        </section>
+
         <nav class="overflow-x-auto scrolling-touch whitespace-nowrap -mx-6 px-6 border-b border-gray-700 mb-8">
             <div class="inline-flex space-x-6">
                 {#each tabs as tab}

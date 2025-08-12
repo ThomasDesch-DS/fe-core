@@ -40,8 +40,7 @@
         try {
             // call your API
             const escortUser = await escortLogin(email, password);
-            // store in your Svelte store
-            escortAuthStore.login(escortUser);
+            // escortAuthStore.login(escortUser); // This call is now handled internally by escortLogin
 
             // --- identify the user in PostHog ---
             posthog.identify(escortUser.id, {
