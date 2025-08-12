@@ -9,4 +9,16 @@ export function getMediaUrl(
     return import.meta.env.VITE_MEDIA_CDN + `/escorts/${escortId}/${type}/${fileName}`;
 }
 
+export function getAbsoluteMediaUrl(
+    escortId: string,
+    fileName: string,
+    type: 'profile' | 'pics' | 'videos' | 'audio'| 'swap' | 'motel',
+    mediaCdnUrl = 'https://nexus.daisyssecrets.com'
+): string {
+    if (fileName?.startsWith('http')) return fileName;
+    if (type=='swap') return mediaCdnUrl + `/${type}/${fileName}`;
+    if (type=='motel') return mediaCdnUrl + `/motels/${escortId}/images/${fileName}`;
+    return mediaCdnUrl + `/escorts/${escortId}/${type}/${fileName}`;
+}
+
 
