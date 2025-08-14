@@ -4,6 +4,25 @@ import { stepStore } from '../store/formStore';
 const BASE_URL = import.meta.env.VITE_API_URL + '/escort';
 
 /**
+ * Pre-register a user with partial data.
+ */
+export async function preRegister(data: { name?: string; surname?: string; email?: string; phoneNumber?: string }): Promise<boolean> {
+    try {
+        const response = await fetch(`${BASE_URL}/pre-register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        return response.ok;
+    } catch (error) {
+        console.error('Pre-registration error:', error);
+        // We don't throw an error here as this is a background task
+        return false;
+    }
+}
+
+/**
  * Validate email and send verification code
  */
 export async function validateEmail(email: string): Promise<boolean> {

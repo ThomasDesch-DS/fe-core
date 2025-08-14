@@ -209,6 +209,14 @@ export function trackRegisterStepPersonalInfoDocumentation(props: Record<string,
     posthog.capture('register_step_personal_info_documentation', enrichProps(props));
 }
 
+export function trackPreRegisterPhone(props: Record<string, any> = {}) {
+    posthog.capture('pre_register_phone', enrichProps(props));
+}
+
+export function trackPreRegisterEmail(props: Record<string, any> = {}) {
+    posthog.capture('pre_register_email', enrichProps(props));
+}
+
 export function trackRegisterStepPhysicalAttributes(props: Record<string, any> = {}) {
     posthog.capture('register_step_physical_attributes', enrichProps(props));
 }

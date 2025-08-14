@@ -7,6 +7,8 @@
     import { focusNextOnEnter } from '../../utils/formUtils';
     import { onMount } from 'svelte';
     import {
+        trackPreRegisterEmail,
+        trackPreRegisterPhone,
         trackRegisterStepPersonalInfo,
         trackRegisterStepPersonalInfoName,
         trackRegisterStepPersonalInfoSurname,
@@ -21,41 +23,37 @@
         trackRegisterStepPersonalInfoPassword,
         trackRegisterStepPersonalInfoDocumentation
     } from '../../../analytics/analytics';
-    
+    import { preRegister, validateEmail, verifyEmailCode } from '../../api/registerApi';
+
     export let formData;
-    
+
     // Step handlers
-    function handleName() { 
-        if (!formData.name.trim()) return; 
-        stepStore.set(2); 
+    async function handlePrivatePhone() {
+        if (!formData.privatePhoneNumber.trim()) return;
+        await preRegister({ phoneNumber: formData.privatePhoneNumber });
+        trackPreRegisterPhone({ phoneNumber: formData.privatePhoneNumber });
+        stepStore.set(2);
     }
-    
-    function handleSurname() { 
-        if (!formData.surname.trim()) return; 
-        stepStore.set(3); 
+
+    function handleName() {
+        if (!formData.name.trim()) return;
+        stepStore.set(3);
     }
-    
-    function handleDisplayName() { 
-        if (!formData.displayName.trim()) return; 
-        stepStore.set(4); 
-    }
-    
-    import { validateEmail, verifyEmailCode } from '../../api/registerApi';
-    
+
     let emailError = '';
     let codeError = '';
     let loading = false;
-    
-    async function handleEmail() { 
+
+    async function handleEmail() {
         if (!formData.email.trim()) return;
-        
+
         loading = true;
         emailError = '';
-        
+
         try {
             const success = await validateEmail(formData.email);
             if (success) {
-                stepStore.set(5);
+                stepStore.set(4);
             }
         } catch (error) {
             emailError = error.message || 'Error validando email. Intentá nuevamente.';
@@ -64,17 +62,25 @@
             loading = false;
         }
     }
-    
-    async function handleCode() { 
+
+    async function handleCode() {
         if (!formData.code.trim()) return;
-        
+
         loading = true;
         codeError = '';
-        
+
         try {
             const success = await verifyEmailCode(formData.email, formData.code);
             if (success) {
-                stepStore.set(6);
+                const data = {
+                    name: formData.name,
+                    surname: formData.surname,
+                    email: formData.email,
+                    phoneNumber: formData.privatePhoneNumber
+                };
+                await preRegister(data);
+                trackPreRegisterEmail(data);
+                stepStore.set(5);
             }
         } catch (error) {
             codeError = error.message || 'Código inválido. Intentá nuevamente.';
@@ -83,41 +89,46 @@
             loading = false;
         }
     }
-    
-    function handleAge() { 
-        const a = parseInt(formData.age); 
-        if (!a || a < 18) return; 
-        stepStore.set(7); 
+
+    function handleSurname() {
+        if (!formData.surname.trim()) return;
+        stepStore.set(6);
     }
-    
-    function handleGender() { 
-        if (!formData.gender) return; 
-        stepStore.set(8); 
+
+    function handleDisplayName() {
+        if (!formData.displayName.trim()) return;
+        stepStore.set(7);
     }
-    
-    function handlePrivatePhone() { 
-        if (!formData.privatePhoneNumber.trim()) return; 
-        stepStore.set(9); 
+
+    function handleAge() {
+        const a = parseInt(formData.age);
+        if (!a || a < 18) return;
+        stepStore.set(8);
     }
-    
-    function handlePublicPhone() { 
-        if (!formData.publicPhoneNumber.trim()) return; 
-        stepStore.set(10); 
+
+    function handleGender() {
+        if (!formData.gender) return;
+        stepStore.set(9);
     }
-    
-    function handleIDNumber() { 
-        if (!formData.idNumber.trim()) return; 
-        stepStore.set(11); 
+
+    function handlePublicPhone() {
+        if (!formData.publicPhoneNumber.trim()) return;
+        stepStore.set(10);
     }
-    
-    function handlePassword() { 
-        if (!formData.password.trim() || formData.password !== formData.confirmPassword) return; 
-        stepStore.set(11.5); 
+
+    function handleIDNumber() {
+        if (!formData.idNumber.trim()) return;
+        stepStore.set(11);
     }
-    
-    function handleDocumentation() { 
-        if (!formData.documentation.trim()) return; 
-        stepStore.set(12); 
+
+    function handlePassword() {
+        if (!formData.password.trim() || formData.password !== formData.confirmPassword) return;
+        stepStore.set(11.5);
+    }
+
+    function handleDocumentation() {
+        if (!formData.documentation.trim()) return;
+        stepStore.set(12);
     }
 
     onMount(() => {
@@ -127,28 +138,28 @@
     $: {
         switch ($stepStore) {
             case 1:
-                trackRegisterStepPersonalInfoName({ userType: 'Escort' });
+                trackRegisterStepPersonalInfoPrivatePhone({ userType: 'Escort' });
                 break;
             case 2:
-                trackRegisterStepPersonalInfoSurname({ userType: 'Escort' });
+                trackRegisterStepPersonalInfoName({ userType: 'Escort' });
                 break;
             case 3:
-                trackRegisterStepPersonalInfoDisplayName({ userType: 'Escort' });
-                break;
-            case 4:
                 trackRegisterStepPersonalInfoEmail({ userType: 'Escort' });
                 break;
-            case 5:
+            case 4:
                 trackRegisterStepPersonalInfoVerifyCode({ userType: 'Escort' });
                 break;
+            case 5:
+                trackRegisterStepPersonalInfoSurname({ userType: 'Escort' });
+                break;
             case 6:
-                trackRegisterStepPersonalInfoAge({ userType: 'Escort' });
+                trackRegisterStepPersonalInfoDisplayName({ userType: 'Escort' });
                 break;
             case 7:
-                trackRegisterStepPersonalInfoGender({ userType: 'Escort' });
+                trackRegisterStepPersonalInfoAge({ userType: 'Escort' });
                 break;
             case 8:
-                trackRegisterStepPersonalInfoPrivatePhone({ userType: 'Escort' });
+                trackRegisterStepPersonalInfoGender({ userType: 'Escort' });
                 break;
             case 9:
                 trackRegisterStepPersonalInfoPublicPhone({ userType: 'Escort' });
@@ -166,13 +177,14 @@
     }
 </script>
 
-<!-- Paso 1: Nombre -->
+<!-- Paso 1: Número privado -->
 {#if $stepStore === 1}
-    <form on:submit|preventDefault={handleName}>
-        <h2 class="text-3xl font-bold text-white mb-6">Che, ¿cómo te llamás?</h2>
-        <TextInput bind:value={formData.name} placeholder="Ej: Juan, María" autofocus />
+    <form on:submit|preventDefault={handlePrivatePhone}>
+        <h2 class="text-3xl font-bold text-white mb-6">Empecemos con tu número privado</h2>
+        <p class="text-gray-400 mb-4">Solo nosotros lo veremos. No te preocupes, no lo compartiremos.</p>
+        <TextInput type="tel" bind:value={formData.privatePhoneNumber} placeholder="Ej: +54 9 11 1234-5678" autofocus />
         <Button type="submit">
-            { formData.name.trim() ? `¡Dale, ${formData.name}!` : 'Siguiente' }
+            { formData.privatePhoneNumber.trim() ? '¡Listo!' : 'Siguiente' }
         </Button>
     </form>
 
@@ -188,33 +200,21 @@
     </div>
 {/if}
 
-<!-- Paso 2: Apellido -->
+<!-- Paso 2: Nombre -->
 {#if $stepStore === 2}
-    <form on:submit|preventDefault={handleSurname}>
-        <h2 class="text-3xl font-bold text-white mb-6">Buenísimo, {formData.name}. ¿Y tu apellido?</h2>
-        <TextInput bind:value={formData.surname} placeholder="Ej: Pérez, García" autofocus />
+    <form on:submit|preventDefault={handleName}>
+        <h2 class="text-3xl font-bold text-white mb-6">Che, ¿cómo te llamás?</h2>
+        <TextInput bind:value={formData.name} placeholder="Ej: Juan, María" autofocus />
         <Button type="submit">
-            { formData.surname.trim() ? `¡Buenísimo, ${formData.surname}!` : 'Siguiente' }
+            { formData.name.trim() ? `¡Dale, ${formData.name}!` : 'Siguiente' }
         </Button>
     </form>
 {/if}
 
-<!-- Paso 3: Display Name -->
+<!-- Paso 3: Email -->
 {#if $stepStore === 3}
-    <form on:submit|preventDefault={handleDisplayName}>
-        <h2 class="text-3xl font-bold text-white mb-6">Elegí un nombre público</h2>
-        <p class="text-gray-400 mb-4">Para mantener tu anonimato, no pongas tu nombre real.</p>
-        <TextInput bind:value={formData.displayName} placeholder="Ej: LunaSensual, MisterX" autofocus />
-        <Button type="submit">
-            { formData.displayName.trim() ? `¡Genial, ${formData.displayName}!` : 'Siguiente' }
-        </Button>
-    </form>
-{/if}
-
-<!-- Paso 4: Email -->
-{#if $stepStore === 4}
     <form on:submit|preventDefault={handleEmail}>
-        <h2 class="text-3xl font-bold text-white mb-6">Perfecto, {formData.displayName}. ¿Cuál es tu mail?</h2>
+        <h2 class="text-3xl font-bold text-white mb-6">Perfecto, {formData.name}. ¿Cuál es tu mail?</h2>
         <TextInput type="email" bind:value={formData.email} placeholder="Ej: ejemplo@correo.com" error={emailError} autofocus />
         {#if emailError}
             <p class="text-red-500 text-sm mt-1 mb-3">{emailError}</p>
@@ -229,8 +229,8 @@
     </form>
 {/if}
 
-<!-- Paso 5: Verificar código -->
-{#if $stepStore === 5}
+<!-- Paso 4: Verificar código -->
+{#if $stepStore === 4}
     <form on:submit|preventDefault={handleCode}>
         <h2 class="text-3xl font-bold text-white mb-6">¡Te mandamos un código a {formData.email}!</h2>
         <TextInput bind:value={formData.code} placeholder="Ej: 123456" error={codeError} autofocus />
@@ -247,8 +247,31 @@
     </form>
 {/if}
 
-<!-- Paso 6: Edad -->
+<!-- Paso 5: Apellido -->
+{#if $stepStore === 5}
+    <form on:submit|preventDefault={handleSurname}>
+        <h2 class="text-3xl font-bold text-white mb-6">Buenísimo, {formData.name}. ¿Y tu apellido?</h2>
+        <TextInput bind:value={formData.surname} placeholder="Ej: Pérez, García" autofocus />
+        <Button type="submit">
+            { formData.surname.trim() ? `¡Buenísimo, ${formData.surname}!` : 'Siguiente' }
+        </Button>
+    </form>
+{/if}
+
+<!-- Paso 6: Display Name -->
 {#if $stepStore === 6}
+    <form on:submit|preventDefault={handleDisplayName}>
+        <h2 class="text-3xl font-bold text-white mb-6">Elegí un nombre público</h2>
+        <p class="text-gray-400 mb-4">Para mantener tu anonimato, no pongas tu nombre real.</p>
+        <TextInput bind:value={formData.displayName} placeholder="Ej: LunaSensual, MisterX" autofocus />
+        <Button type="submit">
+            { formData.displayName.trim() ? `¡Genial, ${formData.displayName}!` : 'Siguiente' }
+        </Button>
+    </form>
+{/if}
+
+<!-- Paso 7: Edad -->
+{#if $stepStore === 7}
     <form on:submit|preventDefault={handleAge}>
         <h2 class="text-3xl font-bold text-white mb-6">Che, ¿cuántos años tenés?</h2>
         <TextInput type="number" bind:value={formData.age} min="18" placeholder="Ej: 25" autofocus />
@@ -258,8 +281,8 @@
     </form>
 {/if}
 
-<!-- Paso 7: Género -->
-{#if $stepStore === 7}
+<!-- Paso 8: Género -->
+{#if $stepStore === 8}
     <form on:submit|preventDefault={handleGender}>
         <h2 class="text-3xl font-bold text-white mb-6">Contame tu género</h2>
         <SelectInput 
@@ -270,18 +293,6 @@
         />
         <Button type="submit">
             { formData.gender ? '¡Perfecto!' : 'Siguiente' }
-        </Button>
-    </form>
-{/if}
-
-<!-- Paso 8: Número privado -->
-{#if $stepStore === 8}
-    <form on:submit|preventDefault={handlePrivatePhone}>
-        <h2 class="text-3xl font-bold text-white mb-6">Dale, {formData.displayName}. Poné tu número privado</h2>
-        <p class="text-gray-400 mb-4">Solo nosotros lo veremos; puede coincidir con el público, pero es mejor que no.</p>
-        <TextInput type="tel" bind:value={formData.privatePhoneNumber} placeholder="Ej: +54 9 11 1234-5678" autofocus />
-        <Button type="submit">
-            { formData.privatePhoneNumber.trim() ? '¡Listo!' : 'Siguiente' }
         </Button>
     </form>
 {/if}
