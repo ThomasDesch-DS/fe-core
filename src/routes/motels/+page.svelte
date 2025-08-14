@@ -3,6 +3,7 @@
   import LocationSelector from "$lib/components/LocationSelector.svelte";
   import { onMount } from 'svelte';
   import { slugify } from '$lib/utils/slugify';
+  import {getMediaUrl} from "../../util/MediaUtils";
 
   // ---------- CONFIG ----------
   const CACHE_KEY = 'motelsListCache';
@@ -505,7 +506,7 @@
         >
           <div class="relative overflow-hidden">
             <img
-              src={motel.imageUrl}
+              src={getMediaUrl("", motel.imageUrl, "motel")}
               alt={`Foto de ${motel.name}`}
               class="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
