@@ -30,7 +30,7 @@ jobs:
         run: bunx playwright test
 
       - name: 🔨 Build project
-        run: bun run build
+        run: bunx --bun vite build
 
       - name: 📤 Deploy to Vercel
         uses: amondnet/vercel-action@v20
