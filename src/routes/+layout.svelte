@@ -17,7 +17,6 @@
     { id: 'escorts',   label: 'Escorts',     icon: 'users',    href: '/' },
     { id: 'telos',     label: 'Telos',       icon: 'building', href: '/motels' },
     { id: 'faceswap',  label: 'Face Swap',   icon: 'sparkles', href: '/faceswap' },
-    // NEW: BDSM Test entry (with subtle badge)
     { id: 'bdsm',      label: 'Test BDSM',   icon: 'kink',     href: '/bdsm-test', badge: 'Nuevo' },
     { id: 'perfil',    label: 'Mi Perfil',   icon: 'user',     href: '/users/profile' }
   ];
