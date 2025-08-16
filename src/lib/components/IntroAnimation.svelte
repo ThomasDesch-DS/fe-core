@@ -7,7 +7,7 @@
   let audioElement: HTMLAudioElement;
 
   const phrases = [
-    "No contamos,",
+    "No contamos",
     "No juzgamos",
     "Es un secreto"
   ];

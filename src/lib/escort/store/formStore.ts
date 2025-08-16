@@ -115,7 +115,7 @@ export const penisSizeOptions = [
     {value:'UNDISCLOSED',label:'Undisclosed'}
 ];
 
-export const countriesList = [{ value: 'ARGENTINA', label: 'Argentina' }];
+export const countriesList = [{ value: 'AR', label: 'Argentina' }];
 
 export const daysMap = { 
     LUN:'MONDAY', 
