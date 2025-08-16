@@ -1,3 +1,4 @@
+<!-- src/routes/+layout.svelte -->
 <script lang="ts">
   import '../app.css';
   import Header from "$lib/common/Header.svelte";
@@ -13,16 +14,21 @@
   import { trackPageOpen } from "$lib/analytics/analytics";
 
   const leftNav = [
-    { id: 'escorts',   label: 'Escorts',   icon: 'users',     href: '/' },
-    { id: 'telos',     label: 'Telos',     icon: 'building',  href: '/motels' },
-    { id: 'faceswap',  label: 'Face Swap', icon: 'sparkles',  href: '/faceswap' },
-    { id: 'perfil',    label: 'Mi Perfil', icon: 'user',      href: '/users/profile' }
+    { id: 'escorts',   label: 'Escorts',     icon: 'users',    href: '/' },
+    { id: 'telos',     label: 'Telos',       icon: 'building', href: '/motels' },
+    { id: 'faceswap',  label: 'Face Swap',   icon: 'sparkles', href: '/faceswap' },
+    // NEW: BDSM Test entry (with subtle badge)
+    { id: 'bdsm',      label: 'Test BDSM',   icon: 'kink',     href: '/bdsm-test', badge: 'Nuevo' },
+    { id: 'perfil',    label: 'Mi Perfil',   icon: 'user',     href: '/users/profile' }
   ];
+
   const paths: Record<string, string> = {
     users: 'M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8 2a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21c0-3.314 2.686-6 6-6s6 2.686 6 6H2Zm8 0c0-3.314 2.686-6 6-6s6 2.686 6 6H10Z',
     building: 'M4 3h16v18H4V3Zm4 3h4v4H8V6Zm0 6h4v4H8v-4Zm6-6h4v4h-4V6Zm0 6h4v4h-4v-4Z',
     sparkles: 'M5 3l2 4 4 2-4 2-2 4-2-4-4-2 4-2 2-4Zm10 2l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2Zm2 8l1.5 3 3 1.5-3 1.5L17 21l-1.5-3-3-1.5 3-1.5 1.5-3Z',
-    user: 'M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10ZM4 21a8 8 0 1 1 16 0H4Z'
+    user: 'M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10ZM4 21a8 8 0 1 1 16 0H4Z',
+    // NEW: simple “kink” glyph (handcuff/loop vibe)
+    kink: 'M7 11a4 4 0 1 1 2.83-6.83l1.41 1.41L10.66 6A2 2 0 0 0 7 9a2 2 0 0 0 2 2h1v2H9a4 4 0 0 1-2-7.5A4 4 0 0 1 7 11Zm10-8a4 4 0 0 1 2 7.5 4 4 0 0 1-6.24.59l-1.41-1.41L12.34 9A2 2 0 0 0 17 9a2 2 0 0 0-2-2h-1V5h1a4 4 0 0 1 2-2Z'
   };
 
   if (browser) {
@@ -58,29 +64,34 @@
   <div class="min-h-screen bg-black text-white flex flex-col">
     <Header/>
 
-    <!-- FULL-BLEED WRAPPER (sin container) -->
+    <!-- FULL-BLEED WRAPPER -->
     <div class="flex-grow py-8">
-      <!-- Grid ocupa todo el ancho; la sidebar arranca al borde -->
       <div class="grid grid-cols-1 md:grid-cols-[260px_minmax(0,1fr)] gap-4">
-        <!-- Sidebar solo desktop -->
+        <!-- Sidebar (desktop) -->
         <aside class="hidden md:block pl-3 sm:pl-4 lg:pl-6">
-        <nav class="sticky top-16 space-y-1">
+          <nav class="sticky top-16 space-y-1">
             {#each leftNav as item}
               <a
                       href={item.href}
-                      class="flex items-center gap-3 px-3 h-11 rounded-md text-neutral-200 hover:bg-neutral-900 border border-transparent hover:border-neutral-800"
+                      class="group flex items-center gap-3 px-3 h-11 rounded-md text-neutral-200 hover:bg-neutral-900 border border-transparent hover:border-neutral-800"
                       aria-label={item.label}
               >
                 <svg viewBox="0 0 24 24" class="size-5 stroke-neutral-300">
                   <path d={paths[item.icon]} stroke-width="1.5" fill="none" stroke-linecap="round"/>
                 </svg>
                 <span class="text-[15px]">{item.label}</span>
+
+                {#if item.badge}
+                  <span class="ml-auto text-[10px] leading-none px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-100 border border-neutral-700">
+                    {item.badge}
+                  </span>
+                {/if}
               </a>
             {/each}
           </nav>
         </aside>
 
-        <!-- Main sí queda centrado con container -->
+        <!-- Main -->
         <main id="main" class="min-w-0">
           <div class="container mx-auto px-4">
             <slot />
