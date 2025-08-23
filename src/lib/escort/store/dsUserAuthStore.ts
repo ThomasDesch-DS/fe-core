@@ -1,18 +1,22 @@
-import { writable } from 'svelte/store';
+import { writable, derived } from 'svelte/store';
 import { browser } from '$app/environment';
 import { tokenStore } from '$lib/store/tokenStore';
+import type { Gender } from '$lib/escort/types/gender';
 
 // Extended user interface with profile data
 interface DSUser {
     username: string;
     id?: string;
     profilePic?: string; // Full escort profile data
+    gender?: Gender;
 }
 
 interface DSUserAuthState {
     isAuthenticated: boolean;
     user: DSUser | null;
     isLoading: boolean;
+    gender?: Gender;
+    profilePic?: string;
 }
 
 // Check for stored auth data in localStorage
@@ -21,13 +25,18 @@ const getDSUserStoredAuth = (): DSUserAuthState => {
         const storedAuth = localStorage.getItem('ds_user_auth');
         if (storedAuth) {
             try {
-                return JSON.parse(storedAuth);
+                const auth = JSON.parse(storedAuth) as DSUserAuthState;
+                if (auth.user && (auth.gender === undefined || auth.profilePic === undefined)) {
+                    auth.gender = auth.user.gender;
+                    auth.profilePic = auth.user.profilePic;
+                }
+                return auth;
             } catch (e) {
                 console.error('Failed to parse stored ds user auth data', e);
             }
         }
     }
-    
+
     // Default initial state if nothing stored
     return {
         isAuthenticated: false,
@@ -80,7 +89,7 @@ function createDSUserAuthStore() {
     const startJwtRefresh = () => {
         if (browser && jwtRefreshInterval === null) {
             // Refresh immediately on start, then every 5 minutes
-            refreshJwt(); 
+            refreshJwt();
             jwtRefreshInterval = window.setInterval(refreshJwt, 5 * 60 * 1000); // 5 minutes
             console.log('JWT refresh interval started.');
         }
@@ -103,7 +112,9 @@ function createDSUserAuthStore() {
                 ...state,
                 isAuthenticated: true,
                 user,
-                isLoading: false
+                isLoading: false,
+                gender: user.gender,
+                profilePic: user.profilePic
             }));
         },
         logout: () => {
@@ -125,26 +136,30 @@ function createDSUserAuthStore() {
             }));
         },
         updateUser: (user: Partial<DSUser>) => {
-            update(state => persistState({
-                ...state,
-                user: state.user ? { ...state.user, ...user } : null
-            }));
-        },
-        updateProfile: (profileData: any) => {
             update(state => {
-                if (!state.user) return state;
-                
-                const updatedUser = {
-                    ...state.user,
-                    profile: {
-                        ...state.user.profilePic,
-                        ...profileData
-                    }
-                };
-                
+                const updatedUser = state.user ? { ...state.user, ...user } : null;
                 return persistState({
                     ...state,
-                    user: updatedUser
+                    user: updatedUser,
+                    gender: updatedUser?.gender,
+                    profilePic: updatedUser?.profilePic
+                });
+            });
+        },
+        updateProfile: (profileData: Partial<DSUser>) => {
+            update(state => {
+                if (!state.user) return state;
+
+                const updatedUser = {
+                    ...state.user,
+                    ...profileData
+                };
+
+                return persistState({
+                    ...state,
+                    user: updatedUser,
+                    gender: updatedUser.gender,
+                    profilePic: updatedUser.profilePic
                 });
             });
         },
@@ -172,3 +187,8 @@ dSuserAuthStore.subscribe(state => {
 if (browser && dSUserInitialState.isAuthenticated) {
     dSuserAuthStore.startJwtRefresh();
 }
+
+export const gender = derived(
+    dSuserAuthStore,
+    $dSuserAuthStore => $dSuserAuthStore.gender
+);

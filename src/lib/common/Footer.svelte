@@ -3,6 +3,7 @@
     import RedditIcon from '~icons/fa6-brands/reddit-alien';
     import XIcon from '~icons/fa6-brands/x-twitter';
     import TelegramIcon from '~icons/fa6-brands/telegram';
+    import WhatsappIcon from '~icons/fa6-brands/whatsapp'; // 👈 added
     import FlaskIcon from '~icons/fa6-solid/flask';
     import { trackFooterContactClick, trackFooterTelegramClick } from "$lib/analytics/analytics";
     export let year = new Date().getFullYear();
@@ -86,6 +87,12 @@
                class="icon-btn">
                 <XIcon />
             </a>
+            <a aria-label="WhatsApp"
+               href="https://wa.me/5491138764039"
+               target="_blank" rel="noopener noreferrer"
+               class="icon-btn">
+                <WhatsappIcon />
+            </a>
 
             <!-- Telegram: bigger hit area + hover intent + click toggle -->
             <div id="telegram-wrapper"
@@ -147,7 +154,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 0.5rem;            /* bigger than just the glyph */
+        padding: 0.5rem;
         border-radius: 0.5rem;
         transition: transform 0.12s ease, background-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
         outline: none;
@@ -160,10 +167,9 @@
         transform: translateY(0) scale(0.98);
     }
     .icon-btn:focus-visible {
-        box-shadow: 0 0 0 3px rgba(59,130,246,0.6); /* focus ring */
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.6);
     }
 
-    /* Scale SVGs on hover for anchors using icon-btn */
     .icon-btn > :global(svg) {
         transition: transform 0.18s ease;
     }
@@ -171,7 +177,6 @@
         transform: scale(1.08);
     }
 
-    /* Popover menu items */
     .menu-item {
         display: block;
         width: 100%;
@@ -188,15 +193,9 @@
         background-color: rgba(255,255,255,0.08);
     }
 
-    /* Extra styling for the fantasy lab btn */
-    .bg-pink-600 {
-        background-color: #ec4899; /* Tailwind's pink-600 */
-    }
-    .hover\:bg-pink-700:hover {
-        background-color: #db2777; /* Tailwind's pink-700 */
-    }
+    .bg-pink-600 { background-color: #ec4899; }
+    .hover\:bg-pink-700:hover { background-color: #db2777; }
 
-    /* Simple appear animation (no external libs needed) */
     @keyframes fade-in {
         from { opacity: 0; }
         to { opacity: 1; }
@@ -209,7 +208,6 @@
     .fade-in-0 { animation-name: fade-in; }
     .zoom-in-95 { animation-name: zoom-in, fade-in; }
 
-    /* Preserve your original svg scale on a:hover for legacy anchors */
     a > :global(svg) {
         transition: transform 0.2s ease;
     }

@@ -66,7 +66,7 @@
         isLoading = true;
         try {
             const userData = await userApi.post('/login', body);
-            dSuserAuthStore.login({ username: userData.username });
+            dSuserAuthStore.login({ username: userData.username, gender: userData.gender});
 
             // Analytics: identify + capture login
             posthog.identify(userData.username, { userType: 'DSUser' });
@@ -114,7 +114,7 @@
             passphrase = response.passphrase;
             otpUrl = response.otpUrl;
             registerStep = 'otp';
-            dSuserAuthStore.login({ username: shared.username });
+            dSuserAuthStore.login({ username: shared.username, gender: register.gender });
 
             // Analytics: identify + capture register
             posthog.identify(shared.username, { userType: 'DSUser' });
