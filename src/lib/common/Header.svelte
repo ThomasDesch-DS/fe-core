@@ -111,6 +111,11 @@
 				<path d={paths.menu} stroke-width="1.5" stroke-linecap="round" />
 			</svg>
 		</button>
+		<!-- Brand logo / Home link -->
+		<a href="/" class="flex items-center gap-2 text-white font-semibold text-lg hover:opacity-80 transition-opacity">
+			Daisy’s Secrets
+		</a>
+
 
 		<!-- Right side -->
 		<div class="ml-auto flex items-center gap-2">
