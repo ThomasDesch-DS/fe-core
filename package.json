@@ -37,6 +37,7 @@
     "apexcharts": "^5.3.1",
     "chart.js": "^4.5.0",
     "heroicons-svelte": "^2.0.2",
+    "html-to-image": "^1.11.13",
     "jwt-decode": "^4.0.0",
     "leaflet": "^1.9.4",
     "lightweight-charts": "^5.0.8",

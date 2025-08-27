@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, tick } from 'svelte';
     import { getMediaUrl } from "../../util/MediaUtils";
     import { dSuserAuthStore } from "$lib/escort/store/dsUserAuthStore";
     import { escortAuthStore } from "$lib/escort/store/escortAuthStore";
@@ -20,10 +20,15 @@
     let resultUrl = '';
     let errorMessage = '';
     let isLoggedIn: boolean;
+    let imageLoading = false;
+    let imageError = false;
     $: isLoggedIn = $dSuserAuthStore.isAuthenticated || get(escortAuthStore).isAuthenticated;
 
     let captchaToken = '';
     let captchaValid = false;
+
+    // ref to the result <img>
+    let resultImgEl: HTMLImageElement | null = null;
 
     const tips = [
         'Mientras esperás, hacé un mate y relajate.',
@@ -31,7 +36,7 @@
         'Tip pro: guardá tu cara favorita antes de que se vaya.',
     ];
     let currentTip = tips[0];
-    let tipInterval: number;
+    let tipInterval: number | undefined;
 
     function startTips() {
         let idx = 0;
@@ -39,10 +44,11 @@
         tipInterval = setInterval(() => {
             idx = (idx + 1) % tips.length;
             currentTip = tips[idx];
-        }, 5000);
+        }, 5000) as unknown as number; // satisfy TS in Svelte env
     }
     function stopTips() {
-        clearInterval(tipInterval);
+        if (tipInterval) clearInterval(tipInterval);
+        tipInterval = undefined;
     }
     onDestroy(() => stopTips());
 
@@ -91,12 +97,12 @@
             return;
         }
 
-        trackFaceSwap({
-            captchaUsed: !!captchaToken,
-        });
+        trackFaceSwap({ captchaUsed: !!captchaToken });
 
         isLoading = true;
         resultUrl = '';
+        imageLoading = false;
+        imageError = false;
         startTips();
         errorMessage = '';
         const startTime = Date.now();
@@ -114,7 +120,25 @@
 
             if (!resp.ok) throw new Error('Status ' + resp.status);
             const data = await resp.json();
-            resultUrl = getMediaUrl("null", data.result, "swap");
+
+            // If backend returns a data URL, use it directly; otherwise build CDN URL correctly.
+            if (typeof data.result === 'string' && data.result.startsWith('data:')) {
+                resultUrl = data.result;
+            } else {
+                // Add cache-busting parameter to force image reload
+                const baseUrl = getMediaUrl(null, data.result, "swap");
+                resultUrl = `${baseUrl}?t=${Date.now()}`;
+                console.log('Generated URL:', resultUrl);
+            }
+
+            // Reset image states
+            imageLoading = true;
+            imageError = false;
+
+            // wait for DOM to render the <img>, then scroll it into view so the browser definitely fetches it
+            await tick();
+            resultImgEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
             tokenStore.setTokens(data.newTokens);
             captchaValid = false;
 
@@ -126,10 +150,9 @@
         } catch (err) {
             console.error(err);
             errorMessage = 'Ocurrió un error durante el swap. Intentá de nuevo.';
-
             trackFaceSwapResult({
                 result: "fail",
-                errorMessage: errorMessage
+                errorMessage
             });
         } finally {
             isLoading = false;
@@ -140,7 +163,9 @@
 
 <svelte:head>
     <title>Face Swap</title>
-    <link rel="preconnect" href={ import.meta.env.VITE_MEDIA_CDN} />
+    {#if import.meta.env.VITE_MEDIA_CDN}
+        <link rel="preconnect" href={ import.meta.env.VITE_MEDIA_CDN } />
+    {/if}
 </svelte:head>
 
 <style>
@@ -215,14 +240,26 @@
 
     {#if resultUrl}
         <div class="mt-8 flex flex-col items-center">
-            <img src="{resultUrl}" alt="Resultado Face-Swap"
-                 class="max-w-full sm:max-w-sm rounded border-2 border-white shadow-lg" />
-            <a href="{resultUrl}" download="face-swap.png"
-               class="mt-5 px-8 py-3 bg-white text-black font-semibold text-lg rounded-full shadow-lg hover:scale-105 transition">
+            <img
+            referrerpolicy="no-referrer"
+                    bind:this="{resultImgEl}"
+                    src="{resultUrl}"
+                    alt="Resultado Face-Swap"
+                    class="max-w-full sm:max-w-sm rounded border-2 border-white shadow-lg"
+                    loading="eager"
+                    decoding="async"
+                    on:load={() => console.log('swap img loaded', resultImgEl?.naturalWidth, resultImgEl?.naturalHeight)}
+                    on:error={(e) => console.error('swap img error', e)}
+            />
+            <a
+                    href="{resultUrl}"
+                    download="face-swap.png"
+                    class="mt-5 px-8 py-3 bg-white text-black font-semibold text-lg rounded-full shadow-lg hover:scale-105 transition">
                 Descargá la imagen
             </a>
         </div>
     {/if}
+
     <div class="mt-12 text-sm text-center text-zinc-400 max-w-md mx-auto px-4">
         ⚠️ <strong>Disclaimer:</strong> El Face Swap es solo para uso recreativo. No subas fotos sin consentimiento ni generes contenido ofensivo o ilegal. Las imágenes que generás <strong>no se guardan</strong> en nuestros servidores y desaparecen una vez descargadas. El uso de esta herramienta es bajo tu exclusiva responsabilidad.
     </div>
