@@ -3,7 +3,8 @@
     import { escortAuthStore } from '$lib/escort/store/escortAuthStore';
     import { Gender as DSUserGender } from '$lib/escort/types/gender';
     import { get } from 'svelte/store';
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, tick } from 'svelte';
+    import type * as HtmlToImageNS from 'html-to-image';
 
     // Test Kink — Conversacional, móvil, SSC/RACK. Guarda resultados en /users/bdsm-test
     const LS_KEY = 'kinkTestV5';
@@ -107,9 +108,9 @@
         primal_prey: {
             label: { neutral: 'Primal (Prey)', masc: 'Primal (Prey)', fem: 'Primal (Prey)' },
             info: {
-                neutral: 'Te gusta la persecución/lucha y ser sobrepasadx (siempre consensuado).',
-                masc:    'Te gusta la persecución/lucha y ser sobrepasado (siempre consensuado).',
-                fem:     'Te gusta la persecución/lucha y ser sobrepasada (siempre consensuado).'
+                neutral: 'Te gusta la persecución/lucha y ser sobrepasadx.',
+                masc:    'Te gusta la persecución/lucha y ser sobrepasado.',
+                fem:     'Te gusta la persecución/lucha y ser sobrepasada.'
             }
         },
         primal_hunter: {
@@ -163,9 +164,9 @@
         exhibitionist: {
             label: { neutral: 'Exhibicionista', masc: 'Exhibicionista', fem: 'Exhibicionista' },
             info: {
-                neutral: 'Te gusta ser vistx (siempre en contextos legales y consensuados).',
-                masc:    'Te gusta ser visto (siempre en contextos legales y consensuados).',
-                fem:     'Te gusta ser vista (siempre en contextos legales y consensuados).'
+                neutral: 'Te gusta ser vistx.',
+                masc:    'Te gusta ser visto.',
+                fem:     'Te gusta ser vista.'
             }
         },
         degrader: {
@@ -244,9 +245,9 @@
                 fem:     'Te gustaría tener sexo con varias personas a la vez.'
             }},
         { id: 8, text: {
-                neutral: 'Te gusta cuando te miran desnude o teniendo sexo (siempre consensuado y legal).',
-                masc:    'Te gusta cuando te miran desnudo o teniendo sexo (siempre consensuado y legal).',
-                fem:     'Te gusta cuando te miran desnuda o teniendo sexo (siempre consensuado y legal).'
+                neutral: 'Te gusta cuando te miran desnude o teniendo sexo.',
+                masc:    'Te gusta cuando te miran desnudo o teniendo sexo.',
+                fem:     'Te gusta cuando te miran desnuda o teniendo sexo.'
             }},
         { id: 9, text: {
                 neutral: 'Idealmente, te gustaría dar órdenes y que tu pareja obedezca como títere, haga lo que le digas.',
@@ -314,9 +315,9 @@
                 fem:     'Que te traten con poco o nada de respeto durante sexo/BDSM te excita.'
             }},
         { id: 22, text: {
-                neutral: 'No ves razón para que el sexo tenga que ser solo en espacios privados, aislados del mundo (siempre legal y consensuado).',
-                masc:    'No ves razón para que el sexo tenga que ser solo en espacios privados, aislados del mundo (siempre legal y consensuado).',
-                fem:     'No ves razón para que el sexo tenga que ser solo en espacios privados, aislados del mundo (siempre legal y consensuado).'
+                neutral: 'No ves razón para que el sexo tenga que ser solo en espacios privados, aislados del mundo.',
+                masc:    'No ves razón para que el sexo tenga que ser solo en espacios privados, aislados del mundo.',
+                fem:     'No ves razón para que el sexo tenga que ser solo en espacios privados, aislados del mundo.'
             }},
         { id: 23, text: {
                 neutral: 'En la cama a veces das pelea, pero eso no significa que quieras ganarla.',
@@ -681,9 +682,10 @@
     // Persistencia de respuestas (+ género)
     // ---------------------------
     function load() {
-        try { return JSON.parse(localStorage.getItem(LS_KEY) ?? '{}'); } catch { return {}; }
+        try { return JSON.parse(typeof window !== 'undefined' ? (localStorage.getItem(LS_KEY) ?? '{}') : '{}'); } catch { return {}; }
     }
     function save() {
+        if (typeof window === 'undefined') return;
         localStorage.setItem(LS_KEY, JSON.stringify({ answers, idx, gender, stage, submitted }));
     }
 
@@ -749,6 +751,9 @@
     if (gender === undefined) {
         genderAsked = true; // mostramos el picker
         // no seteamos default ni guardamos todavía
+    } else {
+        // ensure defined type
+        gender = gender ?? 'neutral';
     }
 
     // ---------------------------
@@ -885,7 +890,7 @@
 
     async function copyResults() {
         const res = score();
-        const lines = res.map(r => `${r.pct}%	${ROLES_G[r.role].label[gender]}	Más info`).join('\n');
+        const lines = res.map(r => `${r.pct}%\t${ROLES_G[r.role].label[gender]} \tMás info`).join('\n');
         await navigator.clipboard.writeText(`${lines}\n\nCopiá tus resultados a tu perfil.`);
         copied = true; setTimeout(() => copied = false, 1400);
     }
@@ -944,7 +949,7 @@
     // --- Atajos de teclado en QUIZ ---
     function handleKey(e: KeyboardEvent) {
         if (stage !== 'quiz') return;
-        if (/^[1-7]$/.test(e.key)) { setAnswer(parseInt(e.key, 10)); return; } // neutral por default
+        if (/^[1-7]$/.test(e.key)) { setAnswer(parseInt(e.key, 10)); return; }
         if (e.key === 'Enter') { setAnswer(4); return; }
         if (e.key === 'ArrowRight') { skip(); return; }
         if (e.key === 'ArrowLeft') { prev(); return; }
@@ -958,11 +963,100 @@
         if (stage === 'results' && !submitted) autoSubmitIfNeeded();
     });
     onDestroy(() => window.removeEventListener('keydown', handleKey));
+
+    // === EXPORT IMAGE ===
+    let htmlToImage: typeof HtmlToImageNS | null = null;
+    onMount(async () => {
+        htmlToImage = await import('html-to-image');
+    });
+
+    // ⬇️ binds to the card we will export
+    let exportNode: HTMLElement | null = null;
+
+    function topRoles(limit = 6) {
+        return score().slice(0, limit);
+    }
+
+    // Safari/Android-friendly: build the blob once and reuse
+    async function exportResultsBlob(): Promise<Blob | null> {
+      if (!htmlToImage) return null;
+
+      await tick(); // flush DOM
+      await new Promise((r) => setTimeout(r, 50)); // fonts/paint
+
+      if (!exportNode) {
+        console.error('exportNode is missing. Did you bind it?');
+        return null;
+      }
+      try {
+        const blob = await htmlToImage.toBlob(exportNode, {
+          pixelRatio: 2,
+          backgroundColor: '#000000',
+          cacheBust: true
+        });
+        if (!blob) throw new Error('toBlob returned null');
+        return blob;
+      } catch (err) {
+        console.error(err);
+        alert('No pude exportar la imagen. Probá otra vez o intentá en Chrome/Edge.');
+        return null;
+      }
+    }
+
+    function canWebShareFiles(file: File) {
+      // Web Share Level 2 support check
+      // iOS Safari 16+/Chrome Android ✅, desktop usually ❌
+      // @ts-ignore - canShare may not exist in TS lib
+      return typeof navigator !== 'undefined'
+        && 'share' in navigator
+        && 'canShare' in navigator
+        // @ts-ignore
+        && navigator.canShare?.({ files: [file] });
+    }
+
+    function downloadBlob(blob: Blob, filename: string) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a); // iOS quirk
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // NEW: Share on mobile if possible, else download (desktop)
+    async function shareOrDownloadResultsImage() {
+      const blob = await exportResultsBlob();
+      if (!blob) return;
+
+      const filename = 'bdsm-test-resultados.jpg';
+
+      try {
+        // Try share-first
+        const file = new File([blob], filename, { type: 'image/jpeg' });
+        if (canWebShareFiles(file)) {
+          // @ts-ignore
+          await navigator.share({
+            title: 'Mis resultados del Test BDSM',
+            text: 'Estos son mis resultados del Test BDSM de Daisy’s Secrets ',
+            files: [file]
+          });
+          return; // done
+        }
+      } catch (err) {
+        // If user cancels share, just stop silently
+        console.warn('Share aborted or failed, falling back to download…', err);
+      }
+
+      // Fallback: download
+      downloadBlob(blob, filename);
+    }
 </script>
 
 <svelte:head>
     <title>Test BDSM en Español 2025 | Descubrí tu perfil kinky</title>
-    <meta name="description" content="Tomá el test BDSM gratis en español (2025). Descubrí si sos dominante, sumisx, switch, experimentalista y más. SSC/RACK, seguro y consensuado.">
+    <meta name="description" content="Tomá el test BDSM gratis en español (2025). Descubrí si sos dominante, sumisx, switch, experimentalista y más. .">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
@@ -1091,27 +1185,44 @@
 
         <!-- RESULTS -->
         <main class="flex-1">
-            <h2 class="mt-4 text-[16px] font-semibold">Tu perfil</h2>
-            <p class="text-[12px] text-neutral-400">
-                Mayor % = mayor afinidad. Adultos, consensuado, negociado.
-            </p>
+            <!-- ⬇️ THIS is the area we capture in the JPG -->
+            <div class="export-card rounded-lg border border-neutral-800 p-4"
+                 bind:this={exportNode}>
+                <h2 class="mt-1 text-[16px] font-semibold">Tu perfil</h2>
+                <p class="text-[16px] text-pink-400 font-bold drop-shadow-[0_0_6px_#ec4899]">
+                    Daisy's Secrets | daisys.app
+                </p>
 
-            {#each score() as r}
-                <details class="mt-2 border border-neutral-800 rounded-lg">
-                    <summary class="flex items-center justify-between px-3 py-2 cursor-pointer">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 text-right tabular-nums">{r.pct}%</div>
-                            <div class="font-medium">{ROLES_G[r.role].label[gender]}</div>
-                        </div>
-                        <div class="text-[11px] text-neutral-500">Más info</div>
-                    </summary>
-                    <div class="px-3 pb-2 text-[13px] text-neutral-300">{ROLES_G[r.role].info[gender]}</div>
-                </details>
-            {/each}
+
+                {#each score() as r}
+                    <details class="mt-2 border border-neutral-800 rounded-lg">
+                        <summary class="flex items-center justify-between px-3 py-2 cursor-pointer">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 text-right tabular-nums">{r.pct}%</div>
+                                <div class="font-medium">{ROLES_G[r.role].label[gender]}</div>
+                            </div>
+                            <div class="text-[11px] text-neutral-500">Más info</div>
+                        </summary>
+                        <div class="px-3 pb-2 text-[13px] text-neutral-300">{ROLES_G[r.role].info[gender]}</div>
+                    </details>
+                {/each}
+            </div>
+
+            <section class="mt-6">
+                <h3 class="text-[13px] text-neutral-400 mb-2">Exportar/Compartir</h3>
+                <div class="mt-3 grid grid-cols-1 gap-2">
+                    <button
+                        class="w-full py-3 px-4 rounded-lg text-sm font-semibold bg-white text-black"
+                        on:click={shareOrDownloadResultsImage}
+                    >
+                        Compartir en móvil / Descargar en desktop
+                    </button>
+                </div>
+            </section>
 
             <!-- Sin mensajes de guardado -->
             <div class="mt-4 grid grid-cols-1 gap-2">
-                <button class="w-full py-3 px-4 rounded-lg text-sm font-semibold bg-white text-black" on:click={copyResults}>
+                <button class="w-full py-3 px-4 rounded-lg text-sm font-semibold bg-neutral-500 text-black" on:click={copyResults}>
                     {copied ? '¡Copiado!' : 'Copiar resultados'}
                 </button>
                 <button class="w-full py-3 px-4 rounded-lg text-sm border border-neutral-700" on:click={resetAll}>
@@ -1120,7 +1231,7 @@
             </div>
 
             <div class="mt-4 text-[11px] text-neutral-500 leading-relaxed">
-                Seguridad: Solo adultos. Negociá límites, palabras de seguridad y aftercare. Juego público solo donde sea legal y consensuado.
+                Seguridad: Solo adultos. Negociá límites, palabras de seguridad y aftercare.
             </div>
         </main>
     {/if}
@@ -1179,5 +1290,11 @@
         0% { transform: translate(-50%, -40px) rotate(0deg); opacity: 0; }
         20% { opacity: 1; }
         100% { transform: translate(-50%, 120px) rotate(360deg); opacity: 0; }
+    }
+
+    /* Export card keeps crisp lines on capture */
+    .export-card {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
     }
 </style>
