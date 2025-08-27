@@ -173,7 +173,7 @@
         placeholder="Ej: 170" 
     />
     <Button onClick={handleHeight}>
-        { formData.heightInCm.trim() ? `¡Height: ${formData.heightInCm}cm!` : 'Siguiente' }
+        { formData.heightInCm ? `¡Height: ${formData.heightInCm}cm!` : 'Siguiente' }
     </Button>
 {/if}
 
@@ -187,7 +187,7 @@
         placeholder="Ej: 65" 
     />
     <Button onClick={handleWeight}>
-        { formData.weightInKg.trim() ? `¡Peso: ${formData.weightInKg}kg!` : 'Siguiente' }
+        { formData.weightInKg ? `¡Peso: ${formData.weightInKg}kg!` : 'Siguiente' }
     </Button>
 {/if}
 
@@ -266,7 +266,7 @@
         placeholder="Ej: 90" 
     />
     <Button onClick={handleBust}>
-        { formData.bust.trim() ? `¡Busto: ${formData.bust}cm!` : 'Siguiente' }
+        { formData.bust ? `¡Busto: ${formData.bust}cm!` : 'Siguiente' }
     </Button>
 {/if}
 
@@ -280,7 +280,7 @@
         placeholder="Ej: 60" 
     />
     <Button onClick={handleWaist}>
-        { formData.waist.trim() ? `¡Cintura: ${formData.waist}cm!` : 'Siguiente' }
+        { formData.waist ? `¡Cintura: ${formData.waist}cm!` : 'Siguiente' }
     </Button>
 {/if}
 
@@ -294,7 +294,7 @@
         placeholder="Ej: 95" 
     />
     <Button onClick={handleHips}>
-        { formData.hips.trim() ? `¡Caderas: ${formData.hips}cm!` : 'Siguiente' }
+        { formData.hips ? `¡Caderas: ${formData.hips}cm!` : 'Siguiente' }
     </Button>
 {/if}
 

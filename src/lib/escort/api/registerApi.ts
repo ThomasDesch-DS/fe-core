@@ -54,7 +54,7 @@ export async function validateEmail(email: string): Promise<boolean> {
  */
 export async function verifyEmailCode(email: string, code: string): Promise<boolean> {
     try {
-        const response = await fetch(`${BASE_URL}/validate/code`, {
+        const response = await fetch(`${BASE_URL}/validate/email/code`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, code })
@@ -73,6 +73,59 @@ export async function verifyEmailCode(email: string, code: string): Promise<bool
         }
     } catch (error) {
         console.error('Code verification error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Validate phone and send verification code
+ */
+export async function validatePhone(phone: string): Promise<boolean> {
+    try {
+        const response = await fetch(`${BASE_URL}/validate/phone`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone })
+        });
+
+        if (response.ok) {
+            return true;
+        } else if (response.status === 409) {
+            // Skip validation and continue to next step
+            stepStore.set(10); // Skip to ID step
+            return true;
+        } else {
+            const data = await response.json();
+            throw new Error(data.message || 'Error validando teléfono');
+        }
+    } catch (error) {
+        console.error('Phone validation error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Verify phone code
+ */
+export async function verifyPhoneCode(phone: string, code: string): Promise<boolean> {
+    try {
+        const response = await fetch(`${BASE_URL}/validate/phone/code`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, code })
+        });
+
+        if (response.ok) {
+            return true;
+        } else if (response.status === 409) {
+            // Skip validation and continue to next step
+            return true;
+        } else {
+            const data = await response.json();
+            throw new Error(data.message || 'Código inválido');
+        }
+    } catch (error) {
+        console.error('Phone code verification error:', error);
         throw error;
     }
 }

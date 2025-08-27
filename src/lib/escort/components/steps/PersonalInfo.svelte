@@ -4,7 +4,7 @@
     import Button from '../Button.svelte';
     import SelectInput from '../SelectInput.svelte';
     import { genderOptions } from '../../store/formStore';
-    import { focusNextOnEnter } from '../../utils/formUtils';
+    import { focusNextOnEnter, formatToE164 } from '../../utils/formUtils';
     import { onMount } from 'svelte';
     import {
         trackPreRegisterEmail,
@@ -23,16 +23,53 @@
         trackRegisterStepPersonalInfoPassword,
         trackRegisterStepPersonalInfoDocumentation
     } from '../../../analytics/analytics';
-    import { preRegister, validateEmail, verifyEmailCode } from '../../api/registerApi';
+    import { preRegister, validateEmail, verifyEmailCode, validatePhone, verifyPhoneCode } from '../../api/registerApi';
 
     export let formData;
 
     // Step handlers
     async function handlePrivatePhone() {
         if (!formData.privatePhoneNumber.trim()) return;
-        await preRegister({ phoneNumber: formData.privatePhoneNumber });
-        trackPreRegisterPhone({ phoneNumber: formData.privatePhoneNumber });
-        stepStore.set(2);
+
+        // Format to E.164
+        const formattedPhone = formatToE164(formData.privatePhoneNumber);
+        formData.privatePhoneNumber = formattedPhone;
+
+        loading = true;
+        phoneError = '';
+
+        try {
+            const success = await validatePhone(formattedPhone);
+            if (success) {
+                await preRegister({ phoneNumber: formattedPhone });
+                trackPreRegisterPhone({ phoneNumber: formattedPhone });
+                stepStore.set(1.5); // New step for private phone code verification
+            }
+        } catch (error) {
+            phoneError = error.message || 'Error validando teléfono privado. Intentá nuevamente.';
+            console.error(error);
+        } finally {
+            loading = false;
+        }
+    }
+
+    async function handlePrivatePhoneCode() {
+        if (!formData.code.trim()) return;
+
+        loading = true;
+        phoneCodeError = '';
+
+        try {
+            const success = await verifyPhoneCode(formData.privatePhoneNumber, formData.code);
+            if (success) {
+                stepStore.set(2);
+            }
+        } catch (error) {
+            phoneCodeError = error.message || 'Código inválido. Intentá nuevamente.';
+            console.error(error);
+        } finally {
+            loading = false;
+        }
     }
 
     function handleName() {
@@ -42,6 +79,8 @@
 
     let emailError = '';
     let codeError = '';
+    let phoneError = '';
+    let phoneCodeError = '';
     let loading = false;
 
     async function handleEmail() {
@@ -111,9 +150,52 @@
         stepStore.set(9);
     }
 
-    function handlePublicPhone() {
+    async function handlePublicPhone() {
         if (!formData.publicPhoneNumber.trim()) return;
-        stepStore.set(10);
+
+        // Format to E.164
+        const formattedPhone = formatToE164(formData.publicPhoneNumber);
+        formData.publicPhoneNumber = formattedPhone;
+
+        // If public phone is same as private phone, skip validation
+        if (formattedPhone === formData.privatePhoneNumber) {
+            stepStore.set(10);
+            return;
+        }
+
+        loading = true;
+        phoneError = '';
+
+        try {
+            const success = await validatePhone(formattedPhone);
+            if (success) {
+                stepStore.set(9.5); // New step for phone code verification
+            }
+        } catch (error) {
+            phoneError = error.message || 'Error validando teléfono. Intentá nuevamente.';
+            console.error(error);
+        } finally {
+            loading = false;
+        }
+    }
+
+    async function handlePhoneCode() {
+        if (!formData.code.trim()) return;
+
+        loading = true;
+        phoneCodeError = '';
+
+        try {
+            const success = await verifyPhoneCode(formData.publicPhoneNumber, formData.code);
+            if (success) {
+                stepStore.set(10);
+            }
+        } catch (error) {
+            phoneCodeError = error.message || 'Código inválido. Intentá nuevamente.';
+            console.error(error);
+        } finally {
+            loading = false;
+        }
     }
 
     function handleIDNumber() {
@@ -140,6 +222,9 @@
             case 1:
                 trackRegisterStepPersonalInfoPrivatePhone({ userType: 'Escort' });
                 break;
+            case 1.5:
+                // Private phone code verification step
+                break;
             case 2:
                 trackRegisterStepPersonalInfoName({ userType: 'Escort' });
                 break;
@@ -164,6 +249,9 @@
             case 9:
                 trackRegisterStepPersonalInfoPublicPhone({ userType: 'Escort' });
                 break;
+            case 9.5:
+                // Phone code verification step
+                break;
             case 10:
                 trackRegisterStepPersonalInfoIdNumber({ userType: 'Escort' });
                 break;
@@ -182,9 +270,16 @@
     <form on:submit|preventDefault={handlePrivatePhone}>
         <h2 class="text-3xl font-bold text-white mb-6">Empecemos con tu número privado</h2>
         <p class="text-gray-400 mb-4">Solo nosotros lo veremos. No te preocupes, no lo compartiremos.</p>
-        <TextInput type="tel" bind:value={formData.privatePhoneNumber} placeholder="Ej: +54 9 11 1234-5678" autofocus />
-        <Button type="submit">
-            { formData.privatePhoneNumber.trim() ? '¡Listo!' : 'Siguiente' }
+        <TextInput type="tel" bind:value={formData.privatePhoneNumber} placeholder="Ej: +54 9 11 1234-5678" error={phoneError} autofocus />
+        {#if phoneError}
+            <p class="text-red-500 text-sm mt-1 mb-3">{phoneError}</p>
+        {/if}
+        <Button type="submit" disabled={loading}>
+            {#if loading}
+                Enviando...
+            {:else}
+                { formData.privatePhoneNumber.trim() ? 'Mandame el código' : 'Siguiente' }
+            {/if}
         </Button>
     </form>
 
@@ -198,6 +293,24 @@
             </a>
         </p>
     </div>
+{/if}
+
+<!-- Paso 1.5: Verificar código de teléfono privado -->
+{#if $stepStore === 1.5}
+    <form on:submit|preventDefault={handlePrivatePhoneCode}>
+        <h2 class="text-3xl font-bold text-white mb-6">¡Te mandamos un código a {formData.privatePhoneNumber}!</h2>
+        <TextInput bind:value={formData.code} placeholder="Ej: 123456" error={phoneCodeError} autofocus />
+        {#if phoneCodeError}
+            <p class="text-red-500 text-sm mt-1 mb-3">{phoneCodeError}</p>
+        {/if}
+        <Button type="submit" disabled={loading}>
+            {#if loading}
+                Verificando...
+            {:else}
+                { formData.code.trim() ? 'Verificar código' : 'Siguiente' }
+            {/if}
+        </Button>
+    </form>
 {/if}
 
 <!-- Paso 2: Nombre -->
@@ -302,9 +415,34 @@
     <form on:submit|preventDefault={handlePublicPhone}>
         <h2 class="text-3xl font-bold text-white mb-6">Ahora tu número público</h2>
         <p class="text-gray-400 mb-4">Este se mostrará en la web. Podés usar el mismo que el privado, pero mejor si no.</p>
-        <TextInput type="tel" bind:value={formData.publicPhoneNumber} placeholder="Ej: +54 9 11 8765-4321" autofocus />
-        <Button type="submit">
-            { formData.publicPhoneNumber.trim() ? '¡Genial!' : 'Siguiente' }
+        <TextInput type="tel" bind:value={formData.publicPhoneNumber} placeholder="Ej: +54 9 11 8765-4321" error={phoneError} autofocus />
+        {#if phoneError}
+            <p class="text-red-500 text-sm mt-1 mb-3">{phoneError}</p>
+        {/if}
+        <Button type="submit" disabled={loading}>
+            {#if loading}
+                Enviando...
+            {:else}
+                { formData.publicPhoneNumber.trim() ? '¡Genial!' : 'Siguiente' }
+            {/if}
+        </Button>
+    </form>
+{/if}
+
+<!-- Paso 9.5: Verificar código de teléfono -->
+{#if $stepStore === 9.5}
+    <form on:submit|preventDefault={handlePhoneCode}>
+        <h2 class="text-3xl font-bold text-white mb-6">¡Te mandamos un código a {formData.publicPhoneNumber}!</h2>
+        <TextInput bind:value={formData.code} placeholder="Ej: 123456" error={phoneCodeError} autofocus />
+        {#if phoneCodeError}
+            <p class="text-red-500 text-sm mt-1 mb-3">{phoneCodeError}</p>
+        {/if}
+        <Button type="submit" disabled={loading}>
+            {#if loading}
+                Verificando...
+            {:else}
+                { formData.code.trim() ? 'Verificar código' : 'Siguiente' }
+            {/if}
         </Button>
     </form>
 {/if}

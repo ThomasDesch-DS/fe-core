@@ -13,6 +13,7 @@
         "apexcharts": "^5.3.1",
         "chart.js": "^4.5.0",
         "heroicons-svelte": "^2.0.2",
+        "html-to-image": "^1.11.13",
         "jwt-decode": "^4.0.0",
         "leaflet": "^1.9.4",
         "lightweight-charts": "^5.0.8",
@@ -435,6 +436,8 @@
     "hasown": ["hasown@2.0.2", "", { "dependencies": { "function-bind": "^1.1.2" } }, "sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ=="],
 
     "heroicons-svelte": ["heroicons-svelte@2.0.2", "", { "peerDependencies": { "svelte": "^4.0.0 || ^5.0.0-next || ^5.0.0" } }, "sha512-F0eMj7qQbEAd9NsTf/q6Hgn89zBT7Apf1XDOQkSHApK2A35Q/46WDiTR9ofTECUvVfSqb+XzfLDKmXDllasJ9A=="],
+
+    "html-to-image": ["html-to-image@1.11.13", "", {}, "sha512-cuOPoI7WApyhBElTTb9oqsawRvZ0rHhaHwghRLlTuffoD1B2aDemlCruLeZrUIIdvG7gs9xeELEPm6PhuASqrg=="],
 
     "https-proxy-agent": ["https-proxy-agent@5.0.1", "", { "dependencies": { "agent-base": "6", "debug": "4" } }, "sha512-dFcAjpTQFgoLMzC2VwU+C/CbS7uRL0lWmxDITmqm7C+7F0Odmj6s9l6alZc6AELXhrnggM2CeWSXHGOdX2YtwA=="],
 

@@ -49,3 +49,33 @@ export function focusNextOnEnter(node: HTMLElement) {
         }
     };
 }
+
+export function formatToE164(phoneNumber: string): string {
+    // Remove all non-digits
+    const digitsOnly = phoneNumber.replace(/\D/g, '');
+    
+    // If it already starts with country code, return with +
+    if (digitsOnly.length >= 10) {
+        // If it starts with 54 (Argentina) or other common codes
+        if (digitsOnly.startsWith('54') && digitsOnly.length >= 12) {
+            return `+${digitsOnly}`;
+        }
+        // If it starts with 9 (mobile indicator for Argentina), add 54
+        if (digitsOnly.startsWith('9') && digitsOnly.length === 11) {
+            return `+54${digitsOnly}`;
+        }
+        // If it's 10 digits, assume it's missing country code and mobile indicator
+        if (digitsOnly.length === 10) {
+            return `+549${digitsOnly}`;
+        }
+        // If it's 11 digits and doesn't start with 9, add 54
+        if (digitsOnly.length === 11 && !digitsOnly.startsWith('9')) {
+            return `+54${digitsOnly}`;
+        }
+        // Default: add + if not present
+        return digitsOnly.startsWith('+') ? digitsOnly : `+${digitsOnly}`;
+    }
+    
+    // Return original if too short
+    return phoneNumber;
+}
