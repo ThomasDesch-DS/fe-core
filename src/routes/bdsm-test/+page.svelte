@@ -5,6 +5,7 @@
     import { get } from 'svelte/store';
     import { onMount, onDestroy, tick } from 'svelte';
     import type * as HtmlToImageNS from 'html-to-image';
+    import posthog from 'posthog-js';
 
     // Test Kink — Conversacional, móvil, SSC/RACK. Guarda resultados en /users/bdsm-test
     const LS_KEY = 'kinkTestV5';
@@ -791,6 +792,7 @@
         answers = next;
 
         if (unansweredCount() === 0) {
+            posthog.capture('bdsm_test_finished');
             stage = 'results';
             save();
             setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0);
@@ -815,11 +817,19 @@
         setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0);
     }
 
+    let testInitiated = false;
+    function trackTestInitiated() {
+        if (testInitiated || genderAsked) return;
+        posthog.capture('bdsm_test_initiated', { gender: gender });
+        testInitiated = true;
+    }
+
     // Selección de género
     function setGender(g: UiGender) {
         gender = g;
         genderAsked = false;
         save();
+        trackTestInitiated();
     }
 
     // ---------------------------
@@ -961,8 +971,17 @@
     onMount(() => {
         window.addEventListener('keydown', handleKey);
         if (stage === 'results' && !submitted) autoSubmitIfNeeded();
+        trackTestInitiated();
     });
-    onDestroy(() => window.removeEventListener('keydown', handleKey));
+    onDestroy(() => {
+        window.removeEventListener('keydown', handleKey);
+        if (stage === 'quiz' && answers.some(a => a !== 0)) {
+            posthog.capture('bdsm_test_abandoned', {
+                questions_answered: answers.filter(a => a !== 0).length,
+                progress_percentage: progressPct()
+            });
+        }
+    });
 
     // === EXPORT IMAGE ===
     let htmlToImage: typeof HtmlToImageNS | null = null;
