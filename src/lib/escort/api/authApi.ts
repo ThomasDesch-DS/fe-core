@@ -9,12 +9,37 @@ import { tokenStore } from '$lib/store/tokenStore';
  */
 import type { Escort } from '../store/escortAuthStore'; // Import the Escort type
 
-export async function login(email: string, password: string): Promise<Escort> {
+interface LoginData {
+    email?: string | null;
+    phone?: string | null;
+    pass: string;
+}
+
+interface PhoneDto {
+    phone: string;
+}
+
+interface ValidatePhoneRequestDto {
+    phone: string;
+    code: string;
+}
+
+export async function login(loginData: LoginData | string, password?: string): Promise<Escort> {
     try {
-        const response = await api.post('/login', { 
-            email, 
-            pass: password 
-        });
+        // Support both old (email, password) and new (loginData) signatures
+        let requestData: LoginData;
+        if (typeof loginData === 'string') {
+            // Old signature: login(email, password)
+            requestData = { 
+                email: loginData, 
+                pass: password!
+            };
+        } else {
+            // New signature: login(loginData)
+            requestData = loginData;
+        }
+        
+        const response = await api.post('/login', requestData);
         
         // The response contains the entire escort profile data
         // Update auth store with escort data
@@ -149,4 +174,62 @@ export function clearTokenRefresh(): void {
     
     // Mark as logged out
     isLoggedIn = false;
+}
+
+/**
+ * Request phone verification code for login
+ */
+export async function requestPhoneCode(phone: string): Promise<void> {
+    try {
+        await api.post('/login/phone/request', {
+            phone 
+        });
+    } catch (error) {
+        console.error('Phone code request error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Verify phone code and login
+ */
+export async function verifyPhoneCode(phone: string, code: string): Promise<Escort> {
+    try {
+        const response = await api.post('/login/phone/verify', {
+            phone, 
+            code 
+        });
+        
+        // The response contains the entire escort profile data
+        // Update auth store with escort data
+        if (response && response.id) {
+            const escortUser: Escort = {
+                id: response.id,
+                email: response.email,
+                displayName: response.basicInfo?.displayName || "Escort",
+                profile: response
+            };
+            escortAuthStore.login(escortUser);
+
+            // Save catList to catlistStore if present in the response
+            if (response.catList) {
+                console.log('Phone login response catList:', response.catList);
+                catlist.set(response.catList);
+            }
+            
+            // Handle tokens if present in response
+            if (response.tokens !== undefined) {
+                tokenStore.setTokens(response.tokens);
+            }
+            
+            // Set up auto refresh timer
+            setupTokenRefresh();
+            return escortUser;
+        } else {
+            throw new Error('Invalid response from server');
+        }
+    } catch (error) {
+        console.error('Phone code verification error:', error);
+        throw error;
+    }
 }

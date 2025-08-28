@@ -42,7 +42,7 @@
 	function loginAsEscort() {
 		posthog.capture('loginRoleChosen', { role: 'escort', location: 'header', ts: new Date().toISOString() });
 		loginChooserOpen = false;
-		goto('/escorts/login');
+		goto('/dashboard/login');
 	}
 	function loginAsUser() {
 		posthog.capture('loginRoleChosen', { role: 'user', location: 'header', ts: new Date().toISOString() });
