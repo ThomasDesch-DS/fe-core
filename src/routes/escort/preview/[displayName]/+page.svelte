@@ -1,6 +1,6 @@
-<!-- src/routes/escort/[displayName]/+page.svelte -->
+<!-- src/routes/escort/preview/[displayName]/+page.svelte -->
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, tick } from 'svelte';
     import { api } from '$lib/escort/api/apiClient';
     import { page } from '$app/stores';
     import { toast } from 'svelte-sonner';
@@ -10,13 +10,17 @@
     import { dSuserAuthStore } from "$lib/escort/store/dsUserAuthStore";
     import { goto } from "$app/navigation";
     import PriceChart from "$lib/charts/PriceChart.svelte";
-    import { trackPageOpen, trackEscortContact, trackEscortGallery, trackEscortCatlist, trackEscortShare, trackEscortAudio, trackEscortDetailView } from "$lib/analytics/analytics";
+    import { trackPageOpen, trackEscortContact, trackEscortGallery, trackEscortCatlist, trackEscortShare, trackEscortAudio, trackEscortDetailView, trackUserLogin } from "$lib/analytics/analytics";
     import posthog from 'posthog-js';
-    import {getMediaUrl} from "../../../../util/MediaUtils";
+    import { getMediaUrl } from "../../../../util/MediaUtils";
+    import { escortAuthStore } from '$lib/escort/store/escortAuthStore.js';
+    import { tokenStore } from '$lib/store/tokenStore';
+    import { setupTokenRefresh } from '$lib/escort/api/authApi';
 
-    // ---- CONFIGURACIÓN ----
+    // ---- CONFIG ----
     const ESCORT_CACHE_KEY = 'escortDetailCache';
     const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos
+    const CODE_LENGTH = 6;
 
     // ---- INTERFACES ----
     interface Escort {
@@ -175,6 +179,11 @@
         saveCache(cache);
     }
 
+    // ---- helper: slug del URL (displayName) ----
+    function getSlug() {
+        return $page.params.displayName;
+    }
+
     // ---- UX HANDLERS ----
     function openModal(i: number) {
         trackEscortGallery({
@@ -249,20 +258,19 @@
                 await navigator.clipboard.writeText(url);
                 toast.success('¡Link copiado!');
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('Error compartiendo:', err);
             trackEscortShare({
                 method: 'error',
                 escortId: escort?.id,
                 escortName: escort?.displayName,
-                error: err.message
+                error: err?.message
             });
         }
     }
 
     // ---- FETCH Y MOUNT ----
     onMount(async () => {
-        // PostHog initialized in +layout.ts
         trackPageOpen();
         window.addEventListener('keydown', handleKeydown);
         window.addEventListener('popstate', handlePopState);
@@ -287,24 +295,32 @@
                     age: escort.age,
                 });
             } else {
-                const data = await api.get<Escort>(`/preview/${displayName}`);
-                if (data.media.profilePicture) {
-                    data.media.profilePicture = getMediaUrl(
-                        data.id,
-                        data.media.profilePicture,
-                        'profile'
-                    );
+                try {
+                    const data = await api.get<Escort>(`/preview/${displayName}`);
+                    if (data.media.profilePicture) {
+                        data.media.profilePicture = getMediaUrl(
+                            data.id,
+                            data.media.profilePicture,
+                            'profile'
+                        );
+                    }
+                    escort = data;
+                    setToCache(displayName, data);
+                    trackEscortDetailView({
+                        escortId: escort.id,
+                        escortName: escort.displayName,
+                        location: escort.location,
+                        age: escort.age,
+                    });
+                } catch (redirectError: any) {
+                    if (redirectError.status === 300 || redirectError.message?.includes('redirect')) {
+                        goto(`/escort/${displayName}`);
+                        return;
+                    }
+                    throw redirectError;
                 }
-                escort = data;
-                setToCache(displayName, data);
-                trackEscortDetailView({
-                    escortId: escort.id,
-                    escortName: escort.displayName,
-                    location: escort.location,
-                    age: escort.age,
-                });
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
             error = err instanceof Error ? err.message : 'Error desconocido';
         } finally {
@@ -315,12 +331,13 @@
     onDestroy(() => {
         window.removeEventListener('keydown', handleKeydown);
         window.removeEventListener('popstate', handlePopState);
+        if (resendTicker) clearInterval(resendTicker);
     });
 
     // ---- TAGS ----
     $: primaryTags = escort
         ? [
-            'Disponible',
+            'Vista previa',
             escort.appearance.gender === 'Mujer' ? 'Mujer' : 'Hombre',
             escort.availability.onlyVirtual ? 'Solo virtual' : 'Presencial'
         ]
@@ -340,7 +357,7 @@
         : [];
 
     $: if (escort?.displayName) {
-        document.title = escort.displayName;
+        document.title = `${escort.displayName} — Vista previa`;
     }
 
     // ---- AUDIO HANDLERS ----
@@ -351,13 +368,203 @@
             escortName: escort?.displayName
         });
     }
-
     function handleAudioPause() {
         trackEscortAudio({
             action: 'pause',
             escortId: escort?.id,
             escortName: escort?.displayName
         });
+    }
+
+    // ─── RECLAMO DE PERFIL (CLAIM FLOW) ─────────────────────────────────────────
+    let claimOpen = false;
+    type ClaimStep = 'intro' | 'sending' | 'code' | 'verifying' | 'success';
+    let claimStep: ClaimStep = 'intro';
+    let phoneInput = '';
+    $: phoneEditable = !escort?.publicPhoneNumber;
+    $: phoneTarget = escort?.publicPhoneNumber || phoneInput;
+
+    let resendCooldown = 0;
+    let resendTicker: number | null = null;
+
+    let codeDigits: string[] = Array(CODE_LENGTH).fill('');
+    let codeRefs: (HTMLInputElement | null)[] = [];
+    $: code = codeDigits.join('');
+
+    // Confetti simple para éxito
+    const CONFETTI_COUNT = 24;
+    let confetti = Array.from({ length: CONFETTI_COUNT }, () => ({
+        left: Math.random() * 100,
+        delay: Math.random() * 0.3,
+        duration: 0.9 + Math.random() * 0.6,
+        size: 6 + Math.random() * 6,
+        rotate: Math.random() * 360,
+        color: ['#f472b6','#fb7185','#e879f9','#fca5a5','#f0abfc'][Math.floor(Math.random()*5)]
+    }));
+    let celebrating = false;
+
+    // Svelte action para refs de inputs
+    function codeRefAction(node: HTMLInputElement, index: number) {
+        codeRefs[index] = node;
+        return {
+            destroy() { codeRefs[index] = null; }
+        };
+    }
+
+    function normalizePhone(p: string) {
+        return (p || '').replace(/[^\d+]/g, '');
+    }
+    function maskPhone(p?: string) {
+        if (!p) return '';
+        const digits = p.replace(/\D/g, '');
+        const visible = digits.slice(-4);
+        return `•• •• •• ${visible}`;
+    }
+
+    function startResendCooldown(sec = 30) {
+        if (resendTicker) clearInterval(resendTicker);
+        resendCooldown = sec;
+        resendTicker = window.setInterval(() => {
+            resendCooldown = Math.max(0, resendCooldown - 1);
+            if (resendCooldown === 0 && resendTicker) {
+                clearInterval(resendTicker);
+                resendTicker = null;
+            }
+        }, 1000);
+    }
+
+    function resetCode() {
+        codeDigits = Array(CODE_LENGTH).fill('');
+    }
+
+    function onCodeInput(i: number, e: Event) {
+        const target = e.currentTarget as HTMLInputElement;
+        const v = target.value.replace(/\D/g, '');
+        codeDigits[i] = v.slice(-1) || '';
+        if (v && i < CODE_LENGTH - 1) codeRefs[i + 1]?.focus();
+    }
+    function onCodeKeydown(i: number, e: KeyboardEvent) {
+        if (e.key === 'Backspace' && !codeDigits[i] && i > 0) {
+            codeRefs[i - 1]?.focus();
+        }
+    }
+
+    function openClaim() {
+        claimOpen = true;
+        claimStep = 'intro';
+        posthog.capture('escortClaimOpen', {
+            escortId: escort?.id,
+            escortName: escort?.displayName
+        });
+    }
+
+    async function sendClaimCode() {
+        if (!escort) return;
+        // ahora solo slug
+        const slug = getSlug();
+        if (!slug) {
+            toast.error('No encontramos el perfil. Refrescá la página.');
+            return;
+        }
+        claimStep = 'sending';
+        posthog.capture('escortClaimStart', { escortId: escort.id, phoneHasValue: !!phoneTarget });
+        try {
+            await api.post('/claim/send-code', { slug });
+            toast.success('Listo. Te mandamos un código por WhatsApp/SMS 💬');
+            resetCode();
+            claimStep = 'code';
+            startResendCooldown(30);
+            await tick();
+            codeRefs[0]?.focus();
+        } catch (err: any) {
+            console.error(err);
+            posthog.capture('escortClaimFail', { escortId: escort.id, stage: 'send', error: err?.message });
+            claimStep = 'intro';
+            toast.error('No pudimos enviar el código ahora. Probá de nuevo en un toque.');
+        }
+    }
+
+    async function resendCode() {
+        if (resendCooldown > 0 || !escort) return;
+        const slug = getSlug();
+        if (!slug) return;
+        posthog.capture('escortClaimResend', { escortId: escort.id });
+        try {
+            await api.post('/claim/send-code', { slug });
+            toast.success('Código reenviado 🔁');
+            startResendCooldown(30);
+        } catch (err: any) {
+            console.error(err);
+            toast.error('No pudimos reenviar el código. Intentá más tarde.');
+        }
+    }
+
+    async function verifyClaimCode() {
+        if (!escort) return;
+        if (code.length !== CODE_LENGTH) {
+            toast.error(`El código debe tener ${CODE_LENGTH} dígitos`);
+            return;
+        }
+        const slug = getSlug();
+        if (!slug) {
+            toast.error('No encontramos el perfil. Refrescá la página.');
+            return;
+        }
+        claimStep = 'verifying';
+        posthog.capture('escortClaimVerify', { escortId: escort.id });
+        try {
+            // ahora { slug, code } a /claim/verify
+            const response = await api.post('/claim/verify', {
+                slug,
+                code,
+            });
+
+            const escortUser = {
+                id: response.id,
+                email: response.email,
+                displayName: response.basicInfo?.displayName || "Escort",
+                profile: response
+            };
+
+            escortAuthStore.login(escortUser);
+
+            // Save catList to catlistStore if present in the response
+            if (response.catList) {
+                console.log('Claim verify response catList:', response.catList);
+                catlist.set(response.catList);
+            }
+            
+            // Handle tokens if present in response
+            if (response.tokens !== undefined) {
+                tokenStore.setTokens(response.tokens);
+            }
+            
+            // Set up auto refresh timer
+            setupTokenRefresh();
+
+            posthog.identify(escortUser.id, {
+                userType: 'Escort',
+                email: escortUser.email,
+                displayName: escortUser.displayName
+            });
+
+            trackUserLogin({ success: true, userType: 'Escort' });
+
+            claimStep = 'success';
+            celebrating = true;
+            toast.success('¡Hecho! Sos la dueña del perfil ✅');
+            posthog.capture('escortClaimSuccess', { escortId: escort.id });
+            setTimeout(() => goto('/dashboard'), 1200);
+        } catch (err: any) {
+            console.error(err);
+            claimStep = 'code';
+            toast.error('Mmm, ese código no va. Revisá y probá de nuevo.');
+            posthog.capture('escortClaimFail', { escortId: escort.id, stage: 'verify', error: err?.message });
+            trackUserLogin({ success: false, userType: 'Escort', error: err.message });
+            resetCode();
+            await tick();
+            codeRefs[0]?.focus();
+        }
     }
 </script>
 
@@ -380,98 +587,112 @@
         @apply inline-block px-8 py-3 font-semibold uppercase rounded-full
         border border-white bg-transparent text-white transition-colors duration-200;
     }
-    .btn-vercel:hover {
-        @apply bg-white text-black;
-    }
-    .share-btn {
-        @apply p-2 rounded-full bg-white/10 text-white transition-colors duration-200;
-    }
-    .share-btn:hover {
-        @apply bg-white text-black;
-    }
-    .audio-card {
-        @apply max-w-xl mx-auto bg-white/10 rounded-lg p-6 flex items-center gap-4;
-    }
-    .audio-icon {
-        width: 2rem; height: 2rem; flex-shrink: 0;
-    }
+    .btn-vercel:hover { @apply bg-white text-black; }
+    .share-btn { @apply p-2 rounded-full bg-white/10 text-white transition-colors duration-200; }
+    .share-btn:hover { @apply bg-white text-black; }
+    .audio-card { @apply max-w-xl mx-auto bg-white/10 rounded-lg p-6 flex items-center gap-4; }
+    .audio-icon { width: 2rem; height: 2rem; flex-shrink: 0; }
     .audio-player { @apply w-full; }
     .group:hover .group-hover\:opacity-100 { opacity:1; }
     .transition-opacity { transition: opacity 0.2s ease-in-out; }
     .pointer-events-none { pointer-events:none; }
     .transform { transform: translateX(-50%); }
-    
-    .media-container {
-        position: relative;
-        overflow: hidden;
-        border-radius: 0.375rem;
-        cursor: pointer;
-    }
-    
-    .media-item {
-        width: 100%;
-        height: 16rem;
-        object-fit: cover;
-        transition: transform 0.3s ease-in-out;
-    }
-    
-    .media-container:hover .media-item {
-        transform: scale(1.1);
-    }
-    
-    .media-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.2);
-        opacity: 0;
-        transition: opacity 0.3s ease-in-out;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: 600;
-    }
-    
-    .media-container:hover .media-overlay {
-        opacity: 1;
-    }
-    
-    .video-container {
-        position: relative;
-        overflow: hidden;
-        border-radius: 0.375rem;
-    }
-    
-    .video-item {
-        width: 100%;
-        height: 16rem;
-        object-fit: cover;
-        transition: transform 0.3s ease-in-out;
-    }
-    
-    .video-container:hover .video-item {
-        transform: scale(1.05);
-    }
-    
+
+    .media-container { position: relative; overflow: hidden; border-radius: 0.375rem; cursor: pointer; }
+    .media-item { width: 100%; height: 16rem; object-fit: cover; transition: transform 0.3s ease-in-out; }
+    .media-container:hover .media-item { transform: scale(1.1); }
+    .media-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.2); opacity:0; transition: opacity .3s; display:flex; align-items:center; justify-content:center; color:white; font-weight:600; }
+    .media-container:hover .media-overlay { opacity:1; }
+    .video-container { position: relative; overflow: hidden; border-radius: 0.375rem; }
+    .video-item { width: 100%; height: 16rem; object-fit: cover; transition: transform .3s; }
+    .video-container:hover .video-item { transform: scale(1.05); }
     @media (max-width: 768px) {
-        .media-item {
-            height: 12rem;
-        }
-        .video-item {
-            height: 12rem;
-        }
-        .media-container:hover .media-item {
-            transform: scale(1.05);
-        }
+        .media-item { height: 12rem; }
+        .video-item { height: 12rem; }
+        .media-container:hover .media-item { transform: scale(1.05); }
+    }
+
+    /* Vista previa banner – ROSADO */
+    .banner {
+        @apply fixed top-0 left-0 right-0 z-40;
+        background: linear-gradient(90deg, #ec4899, #d946ef);
+        color: #111827;
+        box-shadow: 0 10px 30px rgba(236,72,153,.3);
+    }
+    .banner-content { @apply max-w-6xl mx-auto px-4 py-2 flex items-center justify-center gap-3 flex-wrap; }
+    .chip {
+        @apply inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide;
+        background: rgba(255,255,255,.85);
+        color: #be185d;
+    }
+
+    /* Claim Modal */
+    .modal-backdrop { @apply fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4; }
+    .modal-card {
+        @apply w-full max-w-md bg-neutral-900 border border-neutral-700 rounded-2xl p-6 shadow-xl text-white relative overflow-hidden;
+    }
+    .code-grid { @apply grid grid-cols-6 gap-2 mt-4; }
+    .code-input {
+        @apply w-10 h-12 text-center text-xl rounded-md bg-neutral-800 border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-white;
+    }
+
+    /* Éxito: confetti + check animado */
+    @keyframes confettiFall {
+        0% { transform: translateY(-120%) rotate(0deg); opacity: 0; }
+        10% { opacity: 1; }
+        100% { transform: translateY(120vh) rotate(720deg); opacity: 0; }
+    }
+    .confetti {
+        position: absolute;
+        top: -10%;
+        width: var(--size);
+        height: var(--size);
+        background: var(--color);
+        left: var(--left);
+        border-radius: 2px;
+        opacity: 0;
+        animation: confettiFall var(--duration) ease-in forwards;
+        animation-delay: var(--delay);
+        filter: drop-shadow(0 2px 2px rgba(0,0,0,.2));
+    }
+    @keyframes popIn {
+        0% { transform: scale(.8); opacity: 0; }
+        60% { transform: scale(1.05); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    .success-card {
+        @apply mt-2 p-4 rounded-lg border;
+        border-color: #10b981;
+        background: rgba(16,185,129,.15);
+        animation: popIn .35s ease-out both;
+    }
+    .pink-badge {
+        @apply px-3 py-1 rounded-full text-black text-xs font-bold uppercase;
+        background: linear-gradient(90deg, #f472b6, #e879f9);
     }
 </style>
 
 <main class="font-sans">
+    {#if !loading && !error && escort}
+        <div class="banner">
+            <div class="banner-content">
+                <span class="chip">Vista previa</span>
+                <span class="text-sm sm:text-base">
+                    Este perfil todavía <strong>no está publicado</strong>. Estamos validando que todo esté OK.
+                </span>
+                <button
+                        class="btn-vercel !py-2 !px-4"
+                        on:click={openClaim}
+                        aria-label="Reclamá tu perfil"
+                >
+                    ¿Sos {escort.displayName}? Reclamá tu perfil
+                </button>
+            </div>
+        </div>
+    {/if}
+
     {#if loading}
-        <div class="p-8 space-y-6">
+        <div class="p-8 space-y-6 mt-16">
             <div class="h-96 bg-gray-800 rounded animate-pulse"></div>
             <div class="h-8 bg-gray-800 rounded animate-pulse w-1/3"></div>
             <div class="h-6 bg-gray-800 rounded animate-pulse w-1/4"></div>
@@ -493,43 +714,31 @@
         </div>
     {:else if escort}
         <!-- HERO -->
-        <section class="relative h-screen flex items-center justify-center text-center">
+        <section class="relative h-screen flex items-center justify-center text-center mt-16">
             <img
                     src={escort.media.profilePicture}
                     alt="Imagen destacada"
                     class="absolute inset-0 object-cover w-full h-full filter brightness-50"
             />
+            <div class="absolute top-4 left-4 z-20">
+                <span class="pink-badge">Vista previa</span>
+            </div>
             <div class="absolute top-4 right-4 z-20">
                 <button
                         on:click={shareEscort}
                         class="share-btn"
                         aria-label="Compartir"
                 >
-                    <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-6 w-6"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            viewBox="0 0 24 24"
-                    >
-                        <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M4 12v1a2 2 0 002 2h4m4 0h4a2 2 0 002-2v-1m-5 1V8m0 0l-4 4m4-4l-4-4"
-                        />
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 12v1a2 2 0 002 2h4m4 0h4a2 2 0 002-2v-1m-5 1V8m0 0l-4 4m4-4l-4-4"/>
                     </svg>
                 </button>
             </div>
             <div class="relative z-10 space-y-4">
-                <h1 class="text-6xl font-extrabold">
-                    {escort.displayName}
-                </h1>
+                <h1 class="text-6xl font-extrabold">{escort.displayName}</h1>
                 <div class="flex justify-center gap-2 flex-wrap">
                     {#each primaryTags as t}
-                        <span class="px-4 py-1 rounded-full bg-white/20 backdrop-blur text-white">
-                            {t}
-                        </span>
+                        <span class="px-4 py-1 rounded-full bg-white/20 backdrop-blur text-white">{t}</span>
                     {/each}
                 </div>
                 <div class="flex justify-center gap-4">
@@ -538,31 +747,21 @@
                             target="_blank"
                             class="btn-vercel"
                             on:click={() => trackEscortContact({
-                                method: 'whatsapp',
-                                location: 'hero_cta',
-                                phoneNumber: escort.publicPhoneNumber,
-                                escortId: escort.id,
-                                escortName: escort.displayName
-                            })}
+                            method: 'whatsapp',
+                            location: 'hero_cta',
+                            phoneNumber: escort.publicPhoneNumber,
+                            escortId: escort.id,
+                            escortName: escort.displayName
+                        })}
                     >
                         Reservá ahora
                     </a>
 
-                    <!-- Botón con toggle Catlist -->
                     <div class="relative group inline-block">
-                        <button
-                                on:click={handleCatlistToggle}
-                                class="btn-vercel"
-                        >
-                            {#if isInCatlist}
-                                Quitar de Catlist
-                            {:else}
-                                Añadir a Catlist
-                            {/if}
+                        <button on:click={handleCatlistToggle} class="btn-vercel">
+                            {#if isInCatlist}Quitar de Catlist{:else}Añadir a Catlist{/if}
                         </button>
-                        <div
-                                class="absolute bottom-full left-1/2 mb-2 w-48 p-2 text-sm text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none transform -translate-x-1/2"
-                        >
+                        <div class="absolute bottom-full left-1/2 mb-2 w-48 p-2 text-sm text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none transform -translate-x-1/2">
                             Catlist es tu lista de “cats” que querés visitar. 🐱✨
                         </div>
                     </div>
@@ -574,26 +773,15 @@
         {#if audioClipURL}
             <section class="bg-black py-12 px-8 md:px-16">
                 <div class="audio-card">
-                    <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            stroke="currentColor"
-                            class="audio-icon text-white"
-                            viewBox="0 0 24 24"
-                    >
-                        <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2"
-                                d="M9 19V6l12-2v15M9 19l-5-5H5a2 2 0 01-2-2V8a2 2 0 012-2h1l5-5v18z"
-                        />
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" class="audio-icon text-white" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-2v15M9 19l-5-5H5a2 2 0 01-2-2V8a2 2 0 012-2h1l5-5v18z"/>
                     </svg>
-                    <audio 
-                        controls 
-                        src={audioClipURL} 
-                        class="audio-player"
-                        on:play={handleAudioPlay}
-                        on:pause={handleAudioPause}
+                    <audio
+                            controls
+                            src={audioClipURL}
+                            class="audio-player"
+                            on:play={handleAudioPlay}
+                            on:pause={handleAudioPause}
                     ></audio>
                 </div>
             </section>
@@ -609,12 +797,12 @@
                     href={`https://wa.me/${escort.publicPhoneNumber}`}
                     class="p-3 rounded-full border border-white hover:bg-white/10 transition"
                     on:click={() => trackEscortContact({
-                        method: 'whatsapp',
-                        location: 'sticky_cta',
-                        phoneNumber: escort.publicPhoneNumber,
-                        escortId: escort.id,
-                        escortName: escort.displayName
-                    })}
+                    method: 'whatsapp',
+                    location: 'sticky_cta',
+                    phoneNumber: escort.publicPhoneNumber,
+                    escortId: escort.id,
+                    escortName: escort.displayName
+                })}
             >
                 💬
             </a>
@@ -635,14 +823,14 @@
                                         ? 'border-white text-white font-semibold'
                                         : 'border-transparent text-gray-500 hover:text-white hover:border-gray-500'}"
                                     on:click={() => {
-                                        trackEscortGallery({
-                                            action: 'tab_switch',
-                                            fromTab: activeMediaTab,
-                                            toTab: key,
-                                            escortId: escort?.id
-                                        });
-                                        activeMediaTab = key;
-                                    }}
+                                    trackEscortGallery({
+                                        action: 'tab_switch',
+                                        fromTab: activeMediaTab,
+                                        toTab: key,
+                                        escortId: escort?.id
+                                    });
+                                    activeMediaTab = key;
+                                }}
                             >
                                 {label}
                             </button>
@@ -655,27 +843,14 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                     {#each sortedPics as pic, i}
                         <div class="media-container" on:click={() => openModal(i)}>
-                            <img
-                                    src={pic.media}
-                                    alt="imagen"
-                                    loading="lazy"
-                                    class="media-item"
-                            />
-                            <div class="media-overlay">
-                                <span class="text-sm">Ver imagen</span>
-                            </div>
-                            <span class="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded z-10">
-                                #{i + 1}
-                            </span>
+                            <img src={pic.media} alt="imagen" loading="lazy" class="media-item" />
+                            <div class="media-overlay"><span class="text-sm">Ver imagen</span></div>
+                            <span class="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded z-10">#{i + 1}</span>
                         </div>
                     {/each}
                     {#each sortedVideos as vid}
                         <div class="video-container">
-                            <video
-                                    controls
-                                    src={vid.media}
-                                    class="video-item"
-                            ></video>
+                            <video controls src={vid.media} class="video-item"></video>
                         </div>
                     {/each}
                 </div>
@@ -683,18 +858,9 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                     {#each sortedPics as pic, i}
                         <div class="media-container" on:click={() => openModal(i)}>
-                            <img
-                                    src={pic.media}
-                                    alt="imagen"
-                                    loading="lazy"
-                                    class="media-item"
-                            />
-                            <div class="media-overlay">
-                                <span class="text-sm">Ver imagen</span>
-                            </div>
-                            <span class="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded z-10">
-                                #{i + 1}
-                            </span>
+                            <img src={pic.media} alt="imagen" loading="lazy" class="media-item" />
+                            <div class="media-overlay"><span class="text-sm">Ver imagen</span></div>
+                            <span class="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded z-10">#{i + 1}</span>
                         </div>
                     {/each}
                 </div>
@@ -702,11 +868,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-8">
                     {#each sortedVideos as vid}
                         <div class="video-container">
-                            <video
-                                    controls
-                                    src={vid.media}
-                                    class="video-item"
-                            ></video>
+                            <video controls src={vid.media} class="video-item"></video>
                         </div>
                     {/each}
                 </div>
@@ -720,20 +882,14 @@
                     on:touchstart={handleTouchStart}
                     on:touchend={handleTouchEnd}
             >
-                <button on:click={closeModal} class="absolute top-4 right-4 text-white text-3xl">
-                    &times;
-                </button>
-                <button on:click={prevImage} class="absolute left-4 text-white text-3xl">
-                    &lt;
-                </button>
+                <button on:click={closeModal} class="absolute top-4 right-4 text-white text-3xl">&times;</button>
+                <button on:click={prevImage} class="absolute left-4 text-white text-3xl">&lt;</button>
                 <img
                         src={sortedPics[modalIndex].media}
                         alt="Imagen completa"
                         class="max-h-full max-w-full object-contain"
                 />
-                <button on:click={nextImage} class="absolute right-4 text-white text-3xl">
-                    &gt;
-                </button>
+                <button on:click={nextImage} class="absolute right-4 text-white text-3xl">&gt;</button>
             </div>
         {/if}
 
@@ -752,16 +908,15 @@
                                         ? 'border-white text-white font-semibold'
                                         : 'border-transparent text-gray-500 hover:text-white hover:border-gray-500'}"
                                     on:click={() => {
-                                        // Track service tab switching
-                                        posthog.capture('escortServiceTab', {
-                                            action: 'tab_switch',
-                                            fromTab: activeServiceTab,
-                                            toTab: key,
-                                            escortId: escort?.id,
-                                            escortName: escort?.displayName
-                                        });
-                                        activeServiceTab = key;
-                                    }}
+                                    posthog.capture('escortServiceTab', {
+                                        action: 'tab_switch',
+                                        fromTab: activeServiceTab,
+                                        toTab: key,
+                                        escortId: escort?.id,
+                                        escortName: escort?.displayName
+                                    });
+                                    activeServiceTab = key;
+                                }}
                             >
                                 {label}
                             </button>
@@ -773,25 +928,19 @@
             {#if activeServiceTab === 'in_person'}
                 <div class="flex flex-wrap gap-2 sm:gap-3">
                     {#each escort.servicesInfo.escortServices as s}
-                        <span class="px-3 py-2 sm:px-4 bg-gray-800 text-gray-200 rounded-full text-sm sm:text-base">
-                            {s}
-                        </span>
+                        <span class="px-3 py-2 sm:px-4 bg-gray-800 text-gray-200 rounded-full text-sm sm:text-base">{s}</span>
                     {/each}
                 </div>
             {:else if activeServiceTab === 'fantasies'}
                 <div class="flex flex-wrap gap-2 sm:gap-3">
                     {#each escort.servicesInfo.escortFantasies as f}
-                        <span class="px-3 py-2 sm:px-4 bg-gray-800 text-gray-200 rounded-full text-sm sm:text-base">
-                            {f}
-                        </span>
+                        <span class="px-3 py-2 sm:px-4 bg-gray-800 text-gray-200 rounded-full text-sm sm:text-base">{f}</span>
                     {/each}
                 </div>
             {:else}
                 <div class="flex flex-wrap gap-2 sm:gap-3">
                     {#each escort.servicesInfo.virtualServices as v}
-                        <span class="px-3 py-2 sm:px-4 bg-gray-800 text-gray-200 rounded-full text-sm sm:text-base">
-                            {v}
-                        </span>
+                        <span class="px-3 py-2 sm:px-4 bg-gray-800 text-gray-200 rounded-full text-sm sm:text-base">{v}</span>
                     {/each}
                 </div>
             {/if}
@@ -881,6 +1030,8 @@
                 <p class="uppercase font-medium">TIEMPO COMPLETO</p>
             {/if}
         </section>
+
+        <!-- PRICE CHART -->
         <section class="bg-black py-16 px-4 sm:px-8 md:px-16">
             <h2 class="text-3xl font-semibold mb-4 text-white text-center md:text-left">
                 Rango de Precios
@@ -888,10 +1039,8 @@
             <p class="text-gray-400 mb-6 text-center md:text-left">
                 “Barato” a la izquierda — “Caro” a la derecha
             </p>
-            <!-- Contenedor responsivo con scroll horizontal en mobile -->
             <div class="overflow-x-auto">
                 <div class="flex justify-center min-w-[320px]">
-                    <!-- Ajustamos ancho y alto fijos para mobile y escalamos en pantallas grandes -->
                     <div class="w-[300px] h-48 sm:w-[500px] sm:h-60 md:w-full md:h-64">
                         <PriceChart class="w-full h-full" currentEscortPrice={escort.servicesInfo.hourPrice.amount} />
                     </div>
@@ -902,18 +1051,22 @@
         <!-- CONTACTO -->
         <section class="bg-black py-16 px-8 md:px-16 text-white">
             <h2 class="text-4xl font-semibold mb-6">Contacto</h2>
-            <div class="flex flex-wrap gap-8">
+            <p class="text-pink-400 mb-4">
+                Nota: este es un perfil en <strong>vista previa</strong>. Para publicar y aparecer en los listados,
+                reclamá tu perfil y completá la verificación.
+            </p>
+            <div class="flex flex-wrap gap-8 items-center">
                 {#if escort.publicPhoneNumber}
                     <a
                             href={`https://wa.me/${escort.publicPhoneNumber}`}
                             class="flex items-center gap-2 border border-gray-700 px-3 py-1 rounded text-lg hover:text-white hover:border-white transition"
                             on:click={() => trackEscortContact({
-                                method: 'whatsapp',
-                                location: 'contact_section',
-                                phoneNumber: escort.publicPhoneNumber,
-                                escortId: escort.id,
-                                escortName: escort.displayName
-                            })}
+                            method: 'whatsapp',
+                            location: 'contact_section',
+                            phoneNumber: escort.publicPhoneNumber,
+                            escortId: escort.id,
+                            escortName: escort.displayName
+                        })}
                     >
                         <IconWhatsapp class="text-green-500 w-5 h-5" />
                         {escort.publicPhoneNumber}
@@ -921,10 +1074,10 @@
                 {/if}
 
                 {#each escort.contactMethod as cm}
-                    <SocialIcon 
-                        type={cm.type} 
-                        value={cm.value} 
-                        onClick={() => trackEscortContact({
+                    <SocialIcon
+                            type={cm.type}
+                            value={cm.value}
+                            onClick={() => trackEscortContact({
                             method: cm.type.toLowerCase(),
                             location: 'contact_section',
                             contactValue: cm.value,
@@ -933,8 +1086,132 @@
                         })}
                     />
                 {/each}
+
+                <button class="btn-vercel" on:click={openClaim}>
+                    Reclamá tu perfil
+                </button>
             </div>
         </section>
+    {/if}
 
+    <!-- MODAL: RECLAMAR PERFIL -->
+    {#if claimOpen}
+        <div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Reclamar perfil">
+            <div class="modal-card">
+                {#if celebrating}
+                    {#each confetti as c, i}
+                        <span
+                                class="confetti"
+                                style="--left:{c.left}%;
+                                   --size:{c.size}px;
+                                   --duration:{c.duration}s;
+                                   --delay:{c.delay}s;
+                                   --color:{c.color};
+                                   transform: rotate({c.rotate}deg);"
+                        />
+                    {/each}
+                {/if}
+
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-2xl font-semibold">¿Sos {escort?.displayName}?</h3>
+                        <p class="text-sm text-neutral-300 mt-1">
+                            Reclamá tu perfil para poder editarlo y publicarlo. Es gratis y tarda menos de 1 minuto.
+                        </p>
+                    </div>
+                    <button class="text-2xl leading-none" on:click={() => (claimOpen = false)} aria-label="Cerrar modal">&times;</button>
+                </div>
+
+                {#if claimStep === 'intro' || claimStep === 'sending'}
+                    <div class="mt-6 space-y-4">
+                        {#if escort?.publicPhoneNumber}
+                            <div class="text-sm text-neutral-300">
+                                Te enviamos un código al número del perfil: <strong class="text-white">{maskPhone(escort.publicPhoneNumber)}</strong>
+                                <div class="text-xs mt-1">Por WhatsApp o SMS (lo que llegue mejor).</div>
+                            </div>
+                        {:else}
+                            <div>
+                                <label class="block text-sm mb-1">Tu número de WhatsApp (con +54)</label>
+                                <input
+                                        class="w-full px-3 py-2 rounded-md bg-neutral-800 border border-neutral-700 focus:outline-none focus:ring-2 focus:ring-white"
+                                        placeholder="+54 9 11 1234 5678"
+                                        bind:value={phoneInput}
+                                        inputmode="tel"
+                                />
+                                <p class="text-xs text-neutral-400 mt-1">Solo para verificar que sos la dueña del perfil.</p>
+                            </div>
+                        {/if}
+
+                        <button
+                                class="btn-vercel w-full"
+                                on:click={sendClaimCode}
+                                disabled={claimStep === 'sending'}
+                        >
+                            {claimStep === 'sending' ? 'Enviando código…' : 'Enviar código'}
+                        </button>
+                        <p class="text-xs text-neutral-500">
+                            Tip: fijate si tenés señal/Internet. Si no llega, pedilo de nuevo en un toque.
+                        </p>
+                    </div>
+                {/if}
+
+                {#if claimStep === 'code' || claimStep === 'verifying' || claimStep === 'success'}
+                    <div class="mt-6">
+                        {#if claimStep !== 'success'}
+                            <p class="text-sm text-neutral-300">
+                                Ingresá el código de {CODE_LENGTH} dígitos
+                                {#if escort?.publicPhoneNumber} enviado al {maskPhone(escort.publicPhoneNumber)}{/if}.
+                            </p>
+                            <div class="code-grid">
+                                {#each Array(CODE_LENGTH).fill(0) as _, i}
+                                    <input
+                                            class="code-input"
+                                            maxlength="1"
+                                            use:codeRefAction={i}
+                                            value={codeDigits[i]}
+                                            on:input={(e) => onCodeInput(i, e)}
+                                            on:keydown={(e) => onCodeKeydown(i, e)}
+                                            inputmode="numeric"
+                                            pattern="[0-9]*"
+                                    />
+                                {/each}
+                            </div>
+
+                            <div class="mt-4 flex items-center justify-between">
+                                <button
+                                        class="btn-vercel !px-4"
+                                        on:click={verifyClaimCode}
+                                        disabled={claimStep === 'verifying' || code.length !== CODE_LENGTH}
+                                >
+                                    {claimStep === 'verifying' ? 'Verificando…' : 'Verificar y reclamar'}
+                                </button>
+
+                                <button
+                                        class="text-sm underline disabled:no-underline disabled:text-neutral-600"
+                                        on:click={resendCode}
+                                        disabled={resendCooldown > 0}
+                                >
+                                    {#if resendCooldown > 0}
+                                        Reenviar en {resendCooldown}s
+                                    {:else}
+                                        Reenviar código
+                                    {/if}
+                                </button>
+                            </div>
+                        {:else}
+                            <div class="success-card">
+                                <p class="font-semibold text-emerald-300">¡Perfil reclamado con éxito!</p>
+                                <p class="text-sm text-neutral-200 mt-1">
+                                    Te llevamos a tu panel para que lo publiques y brilles ✨
+                                </p>
+                            </div>
+                        {/if}
+                        <p class="text-xs text-neutral-500 mt-6">
+                            ¿No sos esta persona? Cerrá este modal. Solo funciona si tenés acceso al número del perfil.
+                        </p>
+                    </div>
+                {/if}
+            </div>
+        </div>
     {/if}
 </main>
