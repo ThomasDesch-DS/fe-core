@@ -8,13 +8,21 @@
         add: `${API_BASE}/escorts/blacklist`,
         searchPhone: (user: string) => `${API_BASE}/escorts/blacklist/search/phone?user=${encodeURIComponent(user)}`,
         searchTelegram: (user: string) => `${API_BASE}/escorts/blacklist/search/telegram?user=${encodeURIComponent(user)}`,
-        // latest feed is paginated by page + limit
-        latest: (limit = 25, page = 1) =>
-            `${API_BASE}/escorts/blacklist/latest?limit=${limit}&page=${page}`
+        latest: (limit = 25, page = 1) => `${API_BASE}/escorts/blacklist/latest?limit=${limit}&page=${page}`
     };
 
     // ===== UI state =====
-    let mode: 'add' | 'feed' = 'feed'; // start on Reports
+    let mode: 'add' | 'feed' = 'feed';
+
+    // ---- Global success flash (persists when switching to Feed)
+    let globalFlash = '';
+    let globalFlashTimer: number | undefined;
+    function showFlash(msg: string, ms = 2600) {
+        globalFlash = msg;
+        clearTimeout(globalFlashTimer as any);
+        // @ts-ignore
+        globalFlashTimer = setTimeout(() => (globalFlash = ''), ms);
+    }
 
     // ---- Add fields
     let wa = '';
@@ -22,10 +30,18 @@
     let reason = '';
     let description = '';
     let isSubmitting = false;
-    let addMessage = '';
+    let addMessage = '';   // kept for inline feedback (very brief)
     let addError = '';
 
-    // Live validation: need phone||tg AND reason
+    // ---- Evidence (images only)
+    const MAX_FILES = 8;
+    const MAX_MB_PER_FILE = 6;
+    type EvidItem = { name: string; size: number; type: string; dataURL: string };
+    let evidences: EvidItem[] = [];
+    let evidenceError = '';
+    let fileInputEl: HTMLInputElement | null = null;
+
+    // Live validation
     $: canSubmit = (wa.trim() || tg.trim()) && reason.trim();
 
     // ---- Search (inside Reports)
@@ -50,7 +66,7 @@
         reason: string;
         description: string | null;
         evidenceUrls: string[];
-        createdAt: string | null; // ISO if your backend adds it
+        createdAt: string | null;
         reportsCount: number;
     };
 
@@ -58,11 +74,12 @@
     let latestLoading = false;
     let latestError = '';
     let latestHasMore = true;
-    let latestPage = 0; // we will load page 1 first
+    let latestPage = 0;
     let latestTotalPages = 1;
-
-    // prevent infinite auto-retries on first render
     let latestFirstLoadAttempted = false;
+
+    // highlight newly-added item in feed
+    let highlightId: string | null = null;
 
     // ===== Helpers =====
     const isTelegram = (q: string) => q.trim().startsWith('@') || /^[a-zA-Z0-9_]{5,}$/.test(q.trim());
@@ -98,31 +115,21 @@
             const data = await res.clone().json().catch(() => null);
             if (data?.message) return String(data.message);
             if (data?.error) return String(data.error);
-        } catch { /* ignore */ }
+        } catch {}
         try {
             const text = await res.clone().text();
             if (text) return text;
-        } catch { /* ignore */ }
+        } catch {}
         return `HTTP ${res.status}`;
     }
 
     async function handleResponse(res: Response): Promise<Response> {
         if (res.ok) return res;
-
         const msg = await extractMessage(res);
-
-        if (res.status === 400 || res.status === 422) {
-            throw new Error(msg || 'Solicitud inválida.');
-        }
-        if (res.status === 401) {
-            throw new Error('No autorizado. Iniciá sesión primero.');
-        }
-        if (res.status === 403) {
-            throw new Error('Acceso prohibido.');
-        }
-        if (res.status === 404) {
-            throw new Error('No se encontró el recurso.');
-        }
+        if (res.status === 400 || res.status === 422) throw new Error(msg || 'Solicitud inválida.');
+        if (res.status === 401) throw new Error('No autorizado. Iniciá sesión primero.');
+        if (res.status === 403) throw new Error('Acceso prohibido.');
+        if (res.status === 404) throw new Error('No se encontró el recurso.');
         throw new Error(msg || 'Error desconocido.');
     }
 
@@ -138,7 +145,6 @@
             try {
                 const res = await fetch(input, { ...(init ?? {}), signal: opts.signal ?? init?.signal });
                 if (!retryOn(res)) return res;
-                // 429: honor Retry-After if present
                 if (res.status === 429) {
                     const ra = Number(res.headers.get('Retry-After'));
                     const wait = Number.isFinite(ra) ? ra * 1000 : backoff(base, i);
@@ -149,7 +155,7 @@
                     await sleep(backoff(base, i));
                     continue;
                 }
-                return res; // let caller decide final non-ok
+                return res;
             } catch (err: any) {
                 lastErr = err;
                 if (err?.name === 'AbortError') throw err;
@@ -166,11 +172,52 @@
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const backoff = (base: number, i: number) => Math.min(3000, Math.round(base * Math.pow(1.8, i) + Math.random() * 120));
 
+    // ===== Evidence helpers (Add flow) =====
+    function isImageFile(f: File) { return f.type?.startsWith('image/'); }
+    function isValidSize(f: File) { return f.size <= MAX_MB_PER_FILE * 1024 * 1024; }
+    function readAsDataURL(f: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onerror = () => reject(new Error('No pude leer el archivo'));
+            fr.onload = () => resolve(String(fr.result));
+            fr.readAsDataURL(f);
+        });
+    }
+    async function addEvidenceFromFiles(files: FileList | File[]) {
+        evidenceError = '';
+        const arr = Array.from(files || []);
+        if (!arr.length) return;
+
+        const remaining = Math.max(0, MAX_FILES - evidences.length);
+        if (remaining <= 0) { evidenceError = `Máximo ${MAX_FILES} imágenes.`; return; }
+
+        const selected = arr.slice(0, remaining);
+        const rejects: string[] = [];
+        const tooBig: string[] = [];
+
+        for (const f of selected) {
+            if (!isImageFile(f)) { rejects.push(f.name || 'archivo'); continue; }
+            if (!isValidSize(f)) { tooBig.push(`${f.name} (${(f.size/1024/1024).toFixed(1)}MB)`); continue; }
+            try {
+                const dataURL = await readAsDataURL(f);
+                if (!dataURL.startsWith('data:image/')) { rejects.push(f.name); continue; }
+                evidences = [...evidences, { name: f.name, size: f.size, type: f.type, dataURL }];
+            } catch { rejects.push(f.name); }
+        }
+
+        if (rejects.length || tooBig.length) {
+            const parts: string[] = [];
+            if (rejects.length) parts.push(`No imagen: ${rejects.join(', ')}`);
+            if (tooBig.length) parts.push(`Muy grande (${MAX_MB_PER_FILE}MB máx): ${tooBig.join(', ')}`);
+            evidenceError = parts.join(' · ');
+        }
+    }
+    function removeEvidence(idx: number) { evidences = evidences.filter((_, i) => i !== idx); evidenceError = ''; }
+    function clearEvidence() { evidences = []; evidenceError=''; fileInputEl?.value && (fileInputEl.value=''); }
+
     // ===== Add flow =====
     async function handleAdd() {
-        addMessage = '';
-        addError = '';
-
+        addMessage = ''; addError = ''; evidenceError = '';
         if (!canSubmit || isSubmitting) return;
 
         isSubmitting = true;
@@ -180,7 +227,8 @@
                 telegram: tg.trim() ? normalizeHandle(tg) : null,
                 report: {
                     reason: reason.trim(),
-                    description: description.trim() ? description.trim() : null
+                    description: description.trim() ? description.trim() : null,
+                    evidence: evidences.map((e) => e.dataURL)
                 }
             };
 
@@ -189,77 +237,80 @@
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify(body)
-            }, {
-                attempts: 2,
-                retryOn: (r) => r.status >= 500 || r.status === 429
-            });
+            }, { attempts: 2, retryOn: (r) => r.status >= 500 || r.status === 429 });
 
             res = await handleResponse(res);
 
-            addMessage = '🔥 ¡Listo, ya está en la negra!';
-            wa = tg = reason = description = '';
+            // parse created info for highlighting
+            const created = await res.clone().json().catch(() => null) as any;
+            const createdId: string = String(created?.id ?? created?._id ?? '');
+            const createdPhone = body.phone;
+            const createdTelegram = body.telegram;
 
-            // optimistic refresh of latest feed
-            if (mode === 'feed') {
-                latest = [];
-                latestPage = 0;
-                latestTotalPages = 1;
-                latestHasMore = true;
-                latestError = '';
-                void loadLatest(true);
+            // local reset
+            addMessage = '🔥 ¡Listo, ya está en la negra!';   // inline ping for < 1s
+            wa = tg = reason = description = '';
+            clearEvidence();
+
+            // 1) surface a global flash
+            showFlash('🔥 ¡Listo, ya está en la negra!');
+            // 2) jump to feed and hard-refresh
+            mode = 'feed';
+            latest = [];
+            latestPage = 0;
+            latestTotalPages = 1;
+            latestHasMore = true;
+            latestError = '';
+
+            // await the fetch so we can highlight + scroll
+            await loadLatest(true);
+
+            // find the new item (by id fallback to phone/tg)
+            const found = latest.find(x =>
+                (!!createdId && x._id === createdId) ||
+                (!!createdPhone && x.phone === createdPhone) ||
+                (!!createdTelegram && x.telegram === createdTelegram)
+            );
+            if (found) {
+                highlightId = found._id;
+                // gentle scroll to it
+                setTimeout(() => {
+                    const el = document.getElementById(`report-${found._id}`);
+                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // un-highlight after a bit
+                    setTimeout(() => { if (highlightId === found._id) highlightId = null; }, 2800);
+                }, 50);
             }
         } catch (err: any) {
             addError = `⚠️ ${err?.message || 'Algo falló'}`;
-        } finally {
-            isSubmitting = false;
-        }
+        } finally { isSubmitting = false; }
     }
 
     // ===== Search flow =====
     let searchAbort: AbortController | null = null;
-
     async function handleSearch() {
-        searchError = '';
-        result = null;
-        notFound = false;
-
-        const raw = query.trim();
-        if (!raw) return;
+        searchError = ''; result = null; notFound = false;
+        const raw = query.trim(); if (!raw) return;
 
         let url: string | null = null;
-
         if (searchType === 'telegram') {
-            if (!isTelegram(raw)) {
-                searchError = 'Poné un usuario de Telegram válido (ej: @usuario).';
-                return;
-            }
+            if (!isTelegram(raw)) { searchError = 'Poné un usuario de Telegram válido (ej: @usuario).'; return; }
             url = endpoints.searchTelegram(normalizeHandle(raw));
         } else {
-            if (!isPhoneish(raw)) {
-                searchError = 'Poné un teléfono válido (ej: +54911...).';
-                return;
-            }
+            if (!isPhoneish(raw)) { searchError = 'Poné un teléfono válido (ej: +54911...).'; return; }
             url = endpoints.searchPhone(normalizePhone(raw));
         }
 
-        // Abort previous
         if (searchAbort) searchAbort.abort();
         searchAbort = new AbortController();
 
         isLoading = true;
         try {
             let res = await fetchWithRetry(url, { credentials: 'include', signal: searchAbort.signal }, {
-                attempts: 2,
-                signal: searchAbort.signal,
-                retryOn: (r) => r.status >= 500 || r.status === 429
+                attempts: 2, signal: searchAbort.signal, retryOn: (r) => r.status >= 500 || r.status === 429
             });
 
-            // Search-specific: treat 404 OR 400 as "not found"
-            if (res.status === 404 || res.status === 400) {
-                notFound = true;
-                return;
-            }
-
+            if (res.status === 404 || res.status === 400) { notFound = true; return; }
             res = await handleResponse(res);
 
             const data = await res.json();
@@ -271,50 +322,31 @@
                 reports: Array.isArray(data.reports) ? data.reports : []
             };
         } catch (err: any) {
-            if (err?.name !== 'AbortError') {
-                searchError = err?.message ?? 'No pude buscar ahora mismo.';
-            }
-        } finally {
-            isLoading = false;
-        }
+            if (err?.name !== 'AbortError') searchError = err?.message ?? 'No pude buscar ahora mismo.';
+        } finally { isLoading = false; }
     }
 
-    // ===== Latest feed loader (page-based, finite retries) =====
+    // ===== Latest feed loader =====
     async function loadLatest(initial = false) {
         if (latestLoading) return;
         if (!initial && !latestHasMore) return;
 
-        latestLoading = true;
-        latestError = '';
-
+        latestLoading = true; latestError = '';
         try {
             const nextPage = initial ? 1 : latestPage + 1;
 
-            let res = await fetchWithRetry(
-                endpoints.latest(25, nextPage),
-                { credentials: 'include' },
-                {
-                    attempts: 3,
-                    retryOn: (r) => r.status >= 500 || r.status === 429
-                }
-            );
+            let res = await fetchWithRetry(endpoints.latest(25, nextPage), { credentials: 'include' }, {
+                attempts: 3, retryOn: (r) => r.status >= 500 || r.status === 429
+            });
 
             if (res.status === 404) {
-                latestHasMore = false;
-                latest = [];
-                latestError = 'Tu backend no expone /escorts/blacklist/latest todavía.';
-                return;
+                latestHasMore = false; latest = [];
+                latestError = 'Tu backend no expone /escorts/blacklist/latest todavía.'; return;
             }
 
             res = await handleResponse(res);
             const data = await res.json();
 
-            // backend shape:
-            // {
-            //   content: [ { id, phone, telegram, reason, reports: [ { _id, reason, description, evidenceUrls } ] } ],
-            //   page: 1,
-            //   totalPages: 1
-            // }
             const items: any[] =
                 Array.isArray(data?.content) ? data.content
                     : Array.isArray(data?.items) ? data.items
@@ -337,45 +369,146 @@
             });
 
             latest = initial ? mapped : [...latest, ...mapped];
-
             latestPage = Number(data?.page ?? nextPage) || nextPage;
             latestTotalPages = Number(data?.totalPages ?? latestTotalPages) || latestTotalPages;
             latestHasMore = latestPage < latestTotalPages;
         } catch (err: any) {
             latestError = err?.message || 'No pude cargar los reportes.';
-        } finally {
-            latestLoading = false;
-        }
+        } finally { latestLoading = false; }
     }
 
     function cryptoRandom() {
-        try {
-            // @ts-ignore
-            const a = crypto.getRandomValues(new Uint32Array(2));
-            return Array.from(a).map((n) => n.toString(16)).join('');
-        } catch {
-            return Math.random().toString(16).slice(2);
+        try { const a = crypto.getRandomValues(new Uint32Array(2)); return Array.from(a).map((n) => n.toString(16)).join(''); }
+        catch { return Math.random().toString(16).slice(2); }
+    }
+
+    // ===== Thumb Loading Map (per-image blur skeleton) =====
+    let thumbLoading: Record<string, boolean> = {};
+    function setThumbLoading(key: string, v: boolean) { thumbLoading = { ...thumbLoading, [key]: v }; }
+    const thumbKey = (ctxId: string, i: number, url: string) => `${ctxId}-${i}-${(url || '').slice(-12)}`;
+
+    // ===== Lightbox (mobile + desktop) =====
+    let lightboxOpen = false;
+    let lightboxImages: string[] = [];
+    let lightboxIndex = 0;
+    let lightboxLoading = true;
+
+    // Zoom/Pan state
+    let scale = 1;
+    let tx = 0, ty = 0;
+    let startX = 0, startY = 0;
+    let startTx = 0, startTy = 0;
+    let panning = false;
+    let lastTap = 0;
+
+    function resetZoom() { scale = 1; tx = 0; ty = 0; panning = false; }
+
+    function openLightbox(imgs: string[], start = 0) {
+        lightboxImages = (imgs || []).filter(Boolean);
+        if (!lightboxImages.length) return;
+        lightboxIndex = Math.min(Math.max(0, start), lightboxImages.length - 1);
+        lightboxOpen = true;
+        lightboxLoading = true;
+        resetZoom();
+        try { document.documentElement.style.overflow = 'hidden'; } catch {}
+        preloadNeighbors();
+    }
+    function closeLightbox() {
+        lightboxOpen = false;
+        resetZoom();
+        try { document.documentElement.style.overflow = ''; } catch {}
+    }
+    function prevLightbox() {
+        if (!lightboxImages.length) return;
+        lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
+        lightboxLoading = true; resetZoom(); preloadNeighbors();
+    }
+    function nextLightbox() {
+        if (!lightboxImages.length) return;
+        lightboxIndex = (lightboxIndex + 1) % lightboxImages.length;
+        lightboxLoading = true; resetZoom(); preloadNeighbors();
+    }
+    function preloadNeighbors() {
+        if (!lightboxImages.length) return;
+        const n1 = (lightboxIndex + 1) % lightboxImages.length;
+        const p1 = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
+        [n1, p1].forEach(i => { const img = new Image(); img.src = lightboxImages[i]; });
+    }
+
+    // Swipe gestures + swipe down to close
+    let touchStartX = 0, touchStartY = 0, touchActive = false;
+    function onTouchStart(e: TouchEvent) {
+        if (!lightboxOpen) return;
+        touchActive = true;
+        const t = e.touches[0]; touchStartX = t.clientX; touchStartY = t.clientY;
+    }
+    function onTouchMove(_: TouchEvent) {}
+    function onTouchEnd(e: TouchEvent) {
+        if (!touchActive) return;
+        touchActive = false;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - touchStartX;
+        const dy = t.clientY - touchStartY;
+        const absX = Math.abs(dx), absY = Math.abs(dy);
+        const SWIPE = 50;
+        if (absX > absY && absX > SWIPE) { dx < 0 ? nextLightbox() : prevLightbox(); return; }
+        if (absY > absX && absY > SWIPE && dy > 0) { closeLightbox(); }
+    }
+
+    // Double-tap / wheel zoom
+    function onLightboxClick(_: MouseEvent) {
+        const now = Date.now();
+        if (now - lastTap < 300) {
+            scale = scale > 1 ? 1 : 2;
+            tx = ty = 0;
+            panning = false;
         }
+        lastTap = now;
+    }
+    function onWheel(e: WheelEvent) {
+        e.preventDefault();
+        const delta = Math.sign(e.deltaY);
+        const prev = scale;
+        scale = Math.min(3, Math.max(1, scale + (delta > 0 ? -0.2 : 0.2)));
+        if (prev === 1 && scale > 1) { tx = ty = 0; }
     }
 
-    // First visit: attempt once (no infinite loop if it fails)
-    $: if (mode === 'feed' && !latestFirstLoadAttempted) {
-        latestFirstLoadAttempted = true;
-        void loadLatest(true);
+    // Pan when zoomed
+    function onPointerDown(e: PointerEvent) {
+        if (scale === 1) return;
+        panning = true;
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        startX = e.clientX; startY = e.clientY;
+        startTx = tx; startTy = ty;
+    }
+    function onPointerMove(e: PointerEvent) {
+        if (!panning) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const MAX = 300;
+        tx = Math.max(-MAX, Math.min(MAX, startTx + dx));
+        ty = Math.max(-MAX, Math.min(MAX, startTy + dy));
+    }
+    function onPointerUp(e: PointerEvent) {
+        if (!panning) return;
+        panning = false;
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     }
 
-    // Keyboard shortcuts: "/" focuses search, Cmd/Ctrl+K toggles tabs
+    // First visit: load feed once
+    $: if (mode === 'feed' && !latestFirstLoadAttempted) { latestFirstLoadAttempted = true; void loadLatest(true); }
+
+    // Global keyboard
     let searchInputEl: HTMLInputElement | null = null;
     function onKey(e: KeyboardEvent) {
+        if (lightboxOpen) {
+            if (e.key === 'Escape') { e.preventDefault(); closeLightbox(); return; }
+            if (e.key === 'ArrowLeft') { e.preventDefault(); prevLightbox(); return; }
+            if (e.key === 'ArrowRight') { e.preventDefault(); nextLightbox(); return; }
+        }
         const isMac = navigator.platform.toUpperCase().includes('MAC');
-        if (e.key === '/' && mode === 'feed') {
-            e.preventDefault();
-            searchInputEl?.focus();
-        }
-        if ((isMac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === 'k') {
-            e.preventDefault();
-            mode = mode === 'add' ? 'feed' : 'add';
-        }
+        if (e.key === '/' && mode === 'feed') { e.preventDefault(); searchInputEl?.focus(); }
+        if ((isMac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); mode = mode === 'add' ? 'feed' : 'add'; }
     }
     onMount(() => {
         window.addEventListener('keydown', onKey);
@@ -400,17 +533,13 @@
                            focus:outline-none focus-visible:ring focus-visible:ring-neutral-600
                            {mode==='add' ? 'bg-neutral-700 text-white shadow' : 'text-neutral-300 hover:text-white hover:bg-neutral-800'}"
                         on:click={() => (mode = 'add')}
-                >
-                    Agregar
-                </button>
+                >Agregar</button>
                 <button
                         class="px-3 sm:px-4 py-1.5 text-sm rounded-lg font-medium transition
                            focus:outline-none focus-visible:ring focus-visible:ring-neutral-600
                            {mode==='feed' ? 'bg-neutral-700 text-white shadow' : 'text-neutral-300 hover:text-white hover:bg-neutral-800'}"
                         on:click={() => (mode = 'feed')}
-                >
-                    Reportes
-                </button>
+                >Reportes</button>
             </div>
         </div>
     </div>
@@ -419,50 +548,90 @@
 <main class="min-h-screen bg-black">
     <div class="mx-auto max-w-5xl p-4 sm:p-6 space-y-8">
 
+        <!-- Global success flash -->
+        {#if globalFlash}
+            <div class="relative overflow-hidden rounded-xl border border-emerald-700/40 bg-emerald-900/25 text-emerald-200 px-4 py-3">
+                <div class="absolute -inset-px opacity-50 pointer-events-none bg-gradient-to-r from-emerald-800/10 via-emerald-600/10 to-transparent"></div>
+                <div class="relative text-sm font-medium">{globalFlash}</div>
+            </div>
+        {/if}
+
         {#if mode==='add'}
+            <!-- ADD -->
             <section class="relative">
                 <div class="absolute -inset-px rounded-3xl bg-gradient-to-b from-neutral-800 to-transparent opacity-60"></div>
                 <div class="relative w-full sm:max-w-2xl mx-auto bg-neutral-900/60 rounded-3xl border border-neutral-800 shadow-xl p-6 sm:p-8 space-y-6">
                     <h2 class="text-2xl font-semibold text-white text-center">Meté tu WA o Telegram + motivo</h2>
 
-                    {#if addMessage}
-                        <p class="p-3 rounded-lg bg-emerald-900/40 text-emerald-200 text-sm text-center">{addMessage}</p>
-                    {/if}
-                    {#if addError}
-                        <p class="p-3 rounded-lg bg-red-900/40 text-red-200 text-sm text-center">{addError}</p>
-                    {/if}
+                    {#if addMessage}<p class="p-3 rounded-lg bg-emerald-900/40 text-emerald-200 text-sm text-center">{addMessage}</p>{/if}
+                    {#if addError}<p class="p-3 rounded-lg bg-red-900/40 text-red-200 text-sm text-center">{addError}</p>{/if}
+                    {#if evidenceError}<p class="p-3 rounded-lg bg-amber-900/40 text-amber-200 text-sm text-center">{evidenceError}</p>{/if}
 
                     <form on:submit|preventDefault={handleAdd} class="space-y-5">
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-neutral-300 mb-1">WhatsApp</label>
-                                <input
-                                        type="text" bind:value={wa} placeholder="+54911..."
-                                        class="w-full px-4 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-500"
-                                />
+                                <input type="text" bind:value={wa} placeholder="+54911..."
+                                       class="w-full px-4 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-500" />
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-neutral-300 mb-1">Telegram</label>
-                                <input
-                                        type="text" bind:value={tg} placeholder="@usuario"
-                                        class="w-full px-4 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-500"
-                                />
+                                <input type="text" bind:value={tg} placeholder="@usuario"
+                                       class="w-full px-4 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-500" />
                             </div>
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-neutral-300 mb-1">Motivo</label>
-                            <input
-                                    type="text" bind:value={reason} placeholder="Spam, Fake profile, No pago..."
-                                    class="w-full px-4 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-500"
-                            />
+                            <input type="text" bind:value={reason} placeholder="Spam, Fake profile, No pago..."
+                                   class="w-full px-4 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-500" />
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-neutral-300 mb-1">Detalle (opcional)</label>
-                            <textarea
-                                    bind:value={description} rows="3" placeholder="Algo más que agregar..."
-                                    class="w-full px-4 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-500 resize-none"
-                            />
+                            <textarea bind:value={description} rows="3" placeholder="Algo más que agregar..."
+                                      class="w-full px-4 py-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-500 resize-none" />
+                        </div>
+
+                        <!-- Evidence uploader -->
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-sm font-medium text-neutral-300">Evidencia (imágenes, opcional)</label>
+                                <span class="text-xs text-neutral-500">{evidences.length}/{MAX_FILES} • &lt;= {MAX_MB_PER_FILE}MB c/u</span>
+                            </div>
+
+                            <div class="rounded-xl border border-dashed border-neutral-700 bg-neutral-950/60 p-4 focus-within:ring-2 focus-within:ring-neutral-600">
+                                <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                                    <input bind:this={fileInputEl} type="file" accept="image/*" multiple
+                                           class="block w-full text-sm text-neutral-300 file:mr-3 file:rounded-lg file:border file:border-neutral-700 file:bg-neutral-900 file:text-neutral-200 file:px-3 file:py-2 hover:file:bg-neutral-800 focus:outline-none"
+                                           on:change={(e: Event) => { const t = e.currentTarget as HTMLInputElement; if (t?.files?.length) addEvidenceFromFiles(t.files); }} />
+                                    <button type="button"
+                                            class="self-start sm:self-auto inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 text-neutral-200"
+                                            on:click={() => fileInputEl?.click()}>Cargar imágenes</button>
+                                </div>
+
+                                {#if evidences.length}
+                                    <ul class="mt-3 grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                        {#each evidences as ev, i}
+                                            <li class="group relative rounded-lg overflow-hidden border border-neutral-800 bg-neutral-900">
+                                                <div class="aspect-[4/3] w-full">
+                                                    <img src={ev.dataURL} alt={ev.name} class="w-full h-full object-cover pointer-events-none select-none" />
+                                                </div>
+                                                <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1">
+                                                    <p class="truncate text-[11px] text-neutral-200" title={ev.name}>{ev.name}</p>
+                                                </div>
+                                                <button type="button"
+                                                        class="absolute top-1 right-1 text-[11px] px-1.5 py-0.5 rounded-md bg-neutral-950/80 border border-neutral-800 text-neutral-200 opacity-90 group-hover:opacity-100"
+                                                        aria-label="Quitar imagen" on:click={() => removeEvidence(i)}>Quitar</button>
+                                            </li>
+                                        {/each}
+                                    </ul>
+                                    <div class="mt-3">
+                                        <button type="button"
+                                                class="text-xs px-2 py-1.5 rounded-lg border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 text-neutral-300"
+                                                on:click={clearEvidence}>Limpiar evidencias</button>
+                                    </div>
+                                {/if}
+                            </div>
                         </div>
 
                         <div class="flex items-center justify-between">
@@ -472,13 +641,11 @@
                                 <span class="text-sm text-neutral-500">Todo listo.</span>
                             {/if}
 
-                            <button
-                                    type="submit"
+                            <button type="submit"
                                     class="inline-flex items-center gap-2 px-5 py-2.5 font-medium text-white rounded-xl
-                                       bg-gradient-to-r from-neutral-700 to-neutral-600 hover:from-neutral-600 hover:to-neutral-500
-                                       focus:outline-none focus-visible:ring focus-visible:ring-neutral-600 transition disabled:opacity-50"
-                                    disabled={!canSubmit || isSubmitting}
-                            >
+                                           bg-gradient-to-r from-neutral-700 to-neutral-600 hover:from-neutral-600 hover:to-neutral-500
+                                           focus:outline-none focus-visible:ring focus-visible:ring-neutral-600 transition disabled:opacity-50"
+                                    disabled={!canSubmit || isSubmitting}>
                                 {#if isSubmitting}
                                     <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"></circle><path class="opacity-75" d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-linecap="round"></path></svg>
                                     Guardando...
@@ -494,7 +661,7 @@
         {:else}
             <!-- FEED + CTA + SEARCH -->
             <section class="space-y-6">
-                <!-- CTA: encourage adding a report -->
+                <!-- CTA -->
                 <div class="relative overflow-hidden rounded-2xl border border-neutral-800 bg-gradient-to-br from-neutral-900 via-neutral-900 to-black">
                     <div class="pointer-events-none absolute -inset-1 opacity-60 [mask-image:radial-gradient(black,transparent_60%)]">
                         <div class="absolute -top-32 -right-24 h-64 w-64 rounded-full bg-gradient-to-tr from-neutral-700/30 to-transparent blur-2xl"></div>
@@ -523,15 +690,13 @@
                 <div class="w-full mx-auto bg-neutral-900/60 rounded-2xl border border-neutral-800 shadow-xl p-4 sm:p-5">
                     <div class="flex flex-col sm:flex-row sm:items-center sm:gap-3">
                         <div class="inline-flex rounded-lg overflow-hidden border border-neutral-800 mb-3 sm:mb-0">
-                            <button
-                                    type="button"
+                            <button type="button"
                                     class="px-3 py-1.5 text-xs sm:text-sm font-medium
                                        {searchType==='phone' ? 'bg-neutral-700 text-white' : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-800'}"
                                     on:click={() => { searchType = 'phone'; query = ''; searchError=''; notFound=false; }}>
                                 Teléfono
                             </button>
-                            <button
-                                    type="button"
+                            <button type="button"
                                     class="px-3 py-1.5 text-xs sm:text-sm font-medium border-l border-neutral-800
                                        {searchType==='telegram' ? 'bg-neutral-700 text-white' : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-800'}"
                                     on:click={() => { searchType = 'telegram'; query = ''; searchError=''; notFound=false; }}>
@@ -541,40 +706,30 @@
 
                         <div class="flex flex-1 items-center">
                             <div class="relative flex-1">
-                                <input
-                                        bind:this={searchInputEl}
-                                        type="text"
-                                        bind:value={query}
-                                        placeholder={searchType==='phone' ? 'Buscar WA (+549...)' : 'Buscar @usuario de Telegram'}
-                                        on:keydown={(e)=>e.key==='Enter'&&handleSearch()}
-                                        class="w-full px-4 py-2.5 pl-10 bg-neutral-900 border border-neutral-800 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-500"
-                                />
+                                <input bind:this={searchInputEl} type="text" bind:value={query}
+                                       placeholder={searchType==='phone' ? 'Buscar WA (+549...)' : 'Buscar @usuario de Telegram'}
+                                       on:keydown={(e)=>e.key==='Enter'&&handleSearch()}
+                                       class="w-full px-4 py-2.5 pl-10 bg-neutral-900 border border-neutral-800 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-500" />
                                 <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" viewBox="0 0 24 24" fill="none">
                                     <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"></circle>
                                     <path d="M20 20l-3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
                                 </svg>
                                 <span class="hidden sm:block absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-neutral-500 border border-neutral-700 rounded px-1.5 py-0.5">/</span>
                             </div>
-                            <button
-                                    on:click={handleSearch}
+                            <button on:click={handleSearch}
                                     class="ml-2 inline-flex items-center gap-2 px-4 py-2.5 font-medium text-white rounded-xl
-                                       bg-gradient-to-r from-neutral-700 to-neutral-600 hover:from-neutral-600 hover:to-neutral-500
-                                       focus:outline-none focus-visible:ring focus-visible:ring-neutral-600 transition disabled:opacity-50"
-                                    disabled={isLoading}
-                            >
+                                           bg-gradient-to-r from-neutral-700 to-neutral-600 hover:from-neutral-600 hover:to-neutral-500
+                                           focus:outline-none focus-visible:ring focus-visible:ring-neutral-600 transition disabled:opacity-50"
+                                    disabled={isLoading}>
                                 {#if isLoading}
                                     <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"></circle><path class="opacity-75" d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-linecap="round"></path></svg>
                                     Buscando...
-                                {:else}
-                                    Buscar
-                                {/if}
+                                {:else} Buscar {/if}
                             </button>
                         </div>
                     </div>
 
-                    {#if searchError}
-                        <p class="mt-3 p-3 rounded-lg bg-red-900/40 text-red-200 text-sm text-center">{searchError}</p>
-                    {/if}
+                    {#if searchError}<p class="mt-3 p-3 rounded-lg bg-red-900/40 text-red-200 text-sm text-center">{searchError}</p>{/if}
 
                     {#if isLoading}
                         <div class="mt-4 animate-pulse space-y-3">
@@ -614,20 +769,44 @@
                                 {#if result.reports.length}
                                     <ul class="mt-4 divide-y divide-neutral-800">
                                         {#each result.reports as r}
-                                            <li class="py-3">
+                                            <li class="py-3 space-y-2">
                                                 <p class="text-white text-sm font-medium">{r.reason}</p>
-                                                {#if r.description}
-                                                    <p class="text-neutral-300 text-sm">{r.description}</p>
-                                                {/if}
+                                                {#if r.description}<p class="text-neutral-300 text-sm">{r.description}</p>{/if}
                                                 {#if r.evidenceUrls?.length}
-                                                    <div class="mt-2">
-                                                        <p class="text-neutral-400 text-xs mb-1">Evidencia:</p>
-                                                        <div class="flex flex-wrap gap-2">
-                                                            {#each r.evidenceUrls as url}
-                                                                <a class="text-xs underline text-neutral-200 hover:text-white break-all"
-                                                                   href={url} target="_blank" rel="noreferrer">Ver</a>
+                                                    <div class="pt-1">
+                                                        <p class="text-neutral-400 text-xs mb-2">Evidencia:</p>
+                                                        <ul class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                                                            {#each r.evidenceUrls as url, i}
+                                                                {#key url}
+                                                                    <li>
+                                                                        <button type="button"
+                                                                                class="group relative block overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 hover:bg-neutral-900 focus:outline-none focus-visible:ring focus-visible:ring-neutral-600"
+                                                                                title="Ver imagen" on:click={() => openLightbox(r.evidenceUrls, i)}>
+                                                                            <div class="aspect-[4/3] w-full">
+                                                                                <img
+                                                                                        src={url}
+                                                                                        alt="Evidencia"
+                                                                                        referrerpolicy="no-referrer"
+                                                                                        loading="lazy"
+                                                                                        decoding="async"
+                                                                                        draggable="false"
+                                                                                        sizes="(min-width:1024px) 220px, (min-width:640px) 160px, 33vw"
+                                                                                        class="thumb-img w-full h-full object-cover opacity-0 transition-opacity duration-300"
+                                                                                        aria-busy={thumbLoading[thumbKey(r._id, i, url)] ? 'true' : 'false'}
+                                                                                        on:load={() => setThumbLoading(thumbKey(r._id, i, url), false)}
+                                                                                        on:error={(e)=>{ (e.currentTarget as HTMLImageElement).style.opacity='0.4'; setThumbLoading(thumbKey(r._id, i, url), false); }}
+                                                                                />
+                                                                                {#if thumbLoading[thumbKey(r._id, i, url)] ?? true}
+                                                                                    <div class="absolute inset-0 rounded-lg bg-neutral-800/40 animate-pulse"></div>
+                                                                                {/if}
+                                                                            </div>
+                                                                            <div class="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/10"></div>
+                                                                            <div class="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-white/5"></div>
+                                                                        </button>
+                                                                    </li>
+                                                                {/key}
                                                             {/each}
-                                                        </div>
+                                                        </ul>
                                                     </div>
                                                 {/if}
                                             </li>
@@ -646,18 +825,9 @@
                     <div class="flex items-center justify-between">
                         <h3 class="text-lg font-semibold text-white">Últimos reportes</h3>
                         <div class="flex items-center gap-2">
-                            <button
-                                    class="text-sm px-3 py-1.5 rounded-lg border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 text-neutral-200"
-                                    on:click={() => {
-                                    latest = [];
-                                    latestPage = 0;
-                                    latestTotalPages = 1;
-                                    latestHasMore = true;
-                                    latestError = '';
-                                    void loadLatest(true);
-                                }}
-                                    disabled={latestLoading}
-                            >
+                            <button class="text-sm px-3 py-1.5 rounded-lg border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 text-neutral-200"
+                                    on:click={() => { latest = []; latestPage = 0; latestTotalPages = 1; latestHasMore = true; latestError = ''; void loadLatest(true); }}
+                                    disabled={latestLoading}>
                                 {latestLoading ? 'Actualizando...' : 'Actualizar'}
                             </button>
                         </div>
@@ -667,19 +837,14 @@
                         <div class="p-4 rounded-xl border border-red-900/40 bg-red-900/20">
                             <p class="text-red-200 text-sm text-center">{latestError}</p>
                             <div class="mt-3 flex justify-center">
-                                <button
-                                        class="text-sm px-3 py-1.5 rounded-lg border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 text-neutral-200"
+                                <button class="text-sm px-3 py-1.5 rounded-lg border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 text-neutral-200"
                                         on:click={() => { latestError=''; void loadLatest(true); }}
-                                        disabled={latestLoading}
-                                >
-                                    Reintentar
-                                </button>
+                                        disabled={latestLoading}>Reintentar</button>
                             </div>
                         </div>
                     {/if}
 
                     {#if latestLoading && latest.length === 0 && !latestError}
-                        <!-- skeletons -->
                         <div class="space-y-3">
                             {#each Array(5) as _}
                                 <div class="p-4 rounded-xl border border-neutral-800 bg-neutral-900/60 animate-pulse">
@@ -699,7 +864,9 @@
 
                     <ul class="space-y-3">
                         {#each latest as item}
-                            <li class="p-4 bg-neutral-900/60 rounded-xl border border-neutral-800 hover:border-neutral-700 transition">
+                            <li id={"report-" + item._id}
+                                class="p-4 bg-neutral-900/60 rounded-xl border transition
+                                       {highlightId===item._id ? 'border-emerald-500/60 ring-2 ring-emerald-400/60 ring-offset-2 ring-offset-neutral-900 animate-[pulse_1.6s_ease-in-out_2]' : 'border-neutral-800 hover:border-neutral-700'}">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0">
                                         <div class="flex flex-wrap items-center gap-2 text-sm">
@@ -710,10 +877,10 @@
                                                 </span>
                                             {/if}
                                             {#if item.telegram}
-            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200">
-                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><path d="M21 3L9 14l-1 7 5-4 8-14z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-                {item.telegram}
-            </span>
+                                                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-neutral-950 border border-neutral-800 text-neutral-200">
+                                                    <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><path d="M21 3L9 14l-1 7 5-4 8-14z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                                                    {item.telegram}
+                                                </span>
                                             {/if}
                                             {#if item.reportsCount > 0}
                                                 <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-neutral-900 border border-neutral-800 text-neutral-300">
@@ -722,25 +889,47 @@
                                             {/if}
                                         </div>
                                         <p class="mt-2 text-sm text-white font-medium">{item.reason}</p>
-                                        {#if item.description}
-                                            <p class="mt-1 text-sm text-neutral-300">{item.description}</p>
-                                        {/if}
+                                        {#if item.description}<p class="mt-1 text-sm text-neutral-300">{item.description}</p>{/if}
                                         {#if item.evidenceUrls?.length}
                                             <div class="mt-2">
-                                                <p class="text-neutral-400 text-xs mb-1">Evidencia:</p>
-                                                <div class="flex flex-wrap gap-2">
-                                                    {#each item.evidenceUrls as url}
-                                                        <a class="text-xs underline text-neutral-200 hover:text-white break-all"
-                                                           href={url} target="_blank" rel="noreferrer">Ver</a>
+                                                <p class="text-neutral-400 text-xs mb-2">Evidencia:</p>
+                                                <ul class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                                                    {#each item.evidenceUrls as url, i}
+                                                        {#key url}
+                                                            <li>
+                                                                <button type="button"
+                                                                        class="group relative block overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 hover:bg-neutral-900 focus:outline-none focus-visible:ring focus-visible:ring-neutral-600"
+                                                                        title="Ver imagen" on:click={() => openLightbox(item.evidenceUrls, i)}>
+                                                                    <div class="aspect-[4/3] w-full">
+                                                                        <img
+                                                                                src={url}
+                                                                                alt="Evidencia"
+                                                                                referrerpolicy="no-referrer"
+                                                                                loading="lazy"
+                                                                                decoding="async"
+                                                                                draggable="false"
+                                                                                sizes="(min-width:1024px) 220px, (min-width:640px) 160px, 33vw"
+                                                                                class="thumb-img w-full h-full object-cover opacity-0 transition-opacity duration-300"
+                                                                                aria-busy={thumbLoading[thumbKey(item._id, i, url)] ? 'true' : 'false'}
+                                                                                on:load={() => setThumbLoading(thumbKey(item._id, i, url), false)}
+                                                                                on:error={(e)=>{ (e.currentTarget as HTMLImageElement).style.opacity='0.4'; setThumbLoading(thumbKey(item._id, i, url), false); }}
+                                                                        />
+                                                                        {#if thumbLoading[thumbKey(item._id, i, url)] ?? true}
+                                                                            <div class="absolute inset-0 rounded-lg bg-neutral-800/40 animate-pulse"></div>
+                                                                        {/if}
+                                                                    </div>
+                                                                    <div class="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/10"></div>
+                                                                    <div class="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-white/5"></div>
+                                                                </button>
+                                                            </li>
+                                                        {/key}
                                                     {/each}
-                                                </div>
+                                                </ul>
                                             </div>
                                         {/if}
                                     </div>
                                     <div class="flex flex-col items-end gap-2 shrink-0">
-                                        {#if item.createdAt}
-                                            <span class="text-xs text-neutral-500">{fmtDate(item.createdAt)}</span>
-                                        {/if}
+                                        {#if item.createdAt}<span class="text-xs text-neutral-500">{fmtDate(item.createdAt)}</span>{/if}
                                         <div class="flex items-center gap-2">
                                             {#if item.phone}
                                                 <button class="text-xs px-2 py-1.5 bg-neutral-950 rounded border border-neutral-800 hover:bg-neutral-800"
@@ -759,11 +948,8 @@
 
                     {#if latestHasMore}
                         <div class="pt-2">
-                            <button
-                                    class="w-full py-2.5 text-sm font-medium text-white rounded-xl border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 disabled:opacity-60"
-                                    on:click={() => loadLatest(false)}
-                                    disabled={latestLoading}
-                            >
+                            <button class="w-full py-2.5 text-sm font-medium text-white rounded-xl border border-neutral-800 bg-neutral-900 hover:bg-neutral-800 disabled:opacity-60"
+                                    on:click={() => loadLatest(false)} disabled={latestLoading}>
                                 {latestLoading ? 'Cargando...' : 'Cargar más'}
                             </button>
                         </div>
@@ -779,10 +965,76 @@
             </div>
         {/if}
     </div>
+
+    <!-- LIGHTBOX OVERLAY -->
+    {#if lightboxOpen}
+        <div
+                class="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
+                on:click={(e)=>{ if (e.target === e.currentTarget) closeLightbox(); }}
+                on:touchstart={onTouchStart}
+                on:touchmove={onTouchMove}
+                on:touchend={onTouchEnd}
+                on:wheel|passive={onWheel}
+        >
+            <!-- Close -->
+            <button aria-label="Cerrar"
+                    class="absolute top-3 right-3 md:top-4 md:right-4 inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-800 bg-neutral-900/80 text-neutral-200 hover:bg-neutral-800 focus:outline-none focus-visible:ring focus-visible:ring-neutral-600"
+                    on:click={closeLightbox}>
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+
+            <!-- Prev -->
+            {#if lightboxImages.length > 1}
+                <button aria-label="Anterior"
+                        class="absolute left-2 md:left-6 inline-flex items-center justify-center h-10 w-10 rounded-full border border-neutral-800 bg-neutral-900/80 text-neutral-200 hover:bg-neutral-800 focus:outline-none focus-visible:ring focus-visible:ring-neutral-600"
+                        on:click|stopPropagation={prevLightbox}>
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+            {/if}
+
+            <!-- Next -->
+            {#if lightboxImages.length > 1}
+                <button aria-label="Siguiente"
+                        class="absolute right-2 md:right-6 inline-flex items-center justify-center h-10 w-10 rounded-full border border-neutral-800 bg-neutral-900/80 text-neutral-200 hover:bg-neutral-800 focus:outline-none focus-visible:ring focus-visible:ring-neutral-600"
+                        on:click|stopPropagation={nextLightbox}>
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+            {/if}
+
+            <!-- Image -->
+            <div class="relative max-w-[96vw] max-h-[84vh] touch-pan-y">
+                {#if lightboxLoading}
+                    <div class="h-[60vh] w-[80vw] max-w-[1000px] rounded-2xl bg-neutral-800/40 animate-pulse"></div>
+                {/if}
+                <img
+                        src={lightboxImages[lightboxIndex]}
+                        alt={`Evidencia ${lightboxIndex+1}/${lightboxImages.length}`}
+                        class="select-none {lightboxLoading ? 'hidden' : ''} rounded-2xl border border-neutral-800 shadow-2xl"
+                        style="max-width:96vw; max-height:84vh; transform: translate3d({tx}px,{ty}px,0) scale({scale}); cursor: {scale>1 ? 'grab' : 'zoom-in'};"
+                        loading="eager"
+                        decoding="async"
+                        on:load={() => lightboxLoading = false}
+                        on:error={() => lightboxLoading = false}
+                        on:click|stopPropagation={onLightboxClick}
+                        on:pointerdown|stopPropagation={onPointerDown}
+                        on:pointermove|stopPropagation={onPointerMove}
+                        on:pointerup|stopPropagation={onPointerUp}
+                        on:pointercancel|stopPropagation={onPointerUp}
+                        draggable="false"
+                />
+                <div class="absolute bottom-3 left-1/2 -translate-x-1/2 text-[12px] text-neutral-300 bg-neutral-900/70 px-2 py-0.5 rounded-full border border-neutral-800">
+                    {lightboxIndex + 1} / {lightboxImages.length} {scale>1 ? '· Arrastrá para mover' : '· Doble-tap para zoom'}
+                </div>
+            </div>
+        </div>
+    {/if}
 </main>
 
 <style>
-    /* Small UX niceties */
+    html { scroll-behavior: smooth; }
     :global(input, textarea, button) { transition: all .15s ease; }
     :global(.shadow-inner) { box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.02); }
+    :global(img.thumb-img) { will-change: opacity; }
+    :global(img.thumb-img[aria-busy="false"]) { opacity: 1 !important; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
 </style>
