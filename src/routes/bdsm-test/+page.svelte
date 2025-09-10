@@ -764,12 +764,72 @@
         return item.text[gender];
     }
 
+    // Reactive progress + remaining + milestones
+    let lastProgress = 0;
+    let lastMilestone = 0;
+    let showMilestoneToast = false;
+    let milestoneMsg = '';
+
+    $: answeredCount = answers.filter(a => a !== 0).length;
+    $: progress = Math.round((answeredCount / ITEMS.length) * 100);
+    $: remaining = ITEMS.length - answeredCount;
+
+    // Milestones to nudge: 10, 25, 50, 75, 90
+    const MILES = [10, 25, 50, 75, 90];
+    $: {
+      const crossed = MILES.find(m => lastMilestone < m && progress >= m);
+      if (crossed && stage === 'quiz') {
+        lastMilestone = crossed;
+        milestoneMsg = crossed === 90
+          ? 'Último push, quedan poquitas '
+          : crossed === 75
+            ? '¡75%! ya casi, no aflojes '
+            : crossed === 50
+              ? 'Mitad del camino, crack '
+              : crossed === 25
+                ? '25% done — ritmo activado '
+                : 'Ya arrancaste, seguí así ';
+        showMilestoneToast = true;
+        setTimeout(() => showMilestoneToast = false, 1500);
+      }
+      lastProgress = progress;
+    }
+
+    // Quick-finish: fill remaining with Neutral (4) and push to results
+    function quickFinishNeutral() {
+      if (stage !== 'quiz') return;
+      const next = [...answers];
+      for (let i = 0; i < next.length; i++) if (next[i] === 0) next[i] = 4;
+      answers = next;
+      idx = ITEMS.length - 1;
+      save();
+      stage = 'results';
+      setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0);
+      showFinishFx = true;
+      setTimeout(() => showFinishFx = false, 1800);
+      autoSubmitIfNeeded();
+    }
+
+    // Inactivity nudge (soft)
+    let nudgeTimer: number | null = null;
+    function bumpNudgeTimer() {
+      if (nudgeTimer) clearTimeout(nudgeTimer);
+      // 22s without answering? whisper a nudge
+      nudgeTimer = setTimeout(() => {
+        if (stage === 'quiz' && remaining > 0) {
+          posthog.capture('bdsm_test_nudge_shown', { remaining, progress });
+          nudgeVisible = true;
+          setTimeout(() => nudgeVisible = false, 2500);
+        }
+      }, 22000) as unknown as number;
+    }
+    let nudgeVisible = false;
+
+    function onUserAction() { bumpNudgeTimer(); }
+
     // ---------------------------
     // Mensajes motivacionales (arg)
     // ---------------------------
-    function progressPct(): number {
-        return Math.round((answers.filter(a => a !== 0).length / ITEMS.length) * 100);
-    }
     function encouragement(p: number): string {
         if (p === 0) return 'Arrancamos tranqui. Elegí una opción y vamoʼs.';
         if (p < 10) return 'Bien ahí, ya prendió el motor 🔥';
@@ -787,6 +847,7 @@
     // ---------------------------
     function setAnswer(v: number) {
         if (stage !== 'quiz') return;
+        onUserAction();
         const next = [...answers];
         next[idx] = v;
         answers = next;
@@ -805,8 +866,14 @@
         if (idx < ITEMS.length - 1) idx = idx + 1;
         save();
     }
-    function prev() { if (stage === 'quiz' && idx > 0) { idx = idx - 1; save(); } }
-    function skip() { if (stage === 'quiz' && idx < ITEMS.length - 1) { idx = idx + 1; save(); } }
+    function prev() {
+        if (stage === 'quiz' && idx > 0) { idx = idx - 1; save(); }
+        onUserAction();
+    }
+    function skip() {
+        if (stage === 'quiz' && idx < ITEMS.length - 1) { idx = idx + 1; save(); }
+        onUserAction();
+    }
     function unansweredCount() { return answers.filter(a => a === 0).length; }
     function canViewResults() { return unansweredCount() === 0; }
     function jumpToFirstUnanswered() { if (stage !== 'quiz') return; const j = answers.findIndex(a => a === 0); if (j >= 0) { idx = j; save(); } }
@@ -972,13 +1039,14 @@
         window.addEventListener('keydown', handleKey);
         if (stage === 'results' && !submitted) autoSubmitIfNeeded();
         trackTestInitiated();
+        bumpNudgeTimer();
     });
     onDestroy(() => {
         window.removeEventListener('keydown', handleKey);
         if (stage === 'quiz' && answers.some(a => a !== 0)) {
             posthog.capture('bdsm_test_abandoned', {
                 questions_answered: answers.filter(a => a !== 0).length,
-                progress_percentage: progressPct()
+                progress_percentage: progress
             });
         }
     });
@@ -1112,6 +1180,20 @@
 </svelte:head>
 
 <div class="mx-auto max-w-[720px] min-h-[100svh] flex flex-col px-3 sm:px-4 pb-20">
+    <!-- Milestone Toast -->
+    {#if showMilestoneToast}
+      <div class="fixed top-14 left-1/2 -translate-x-1/2 z-20 text-[12px] px-3 py-1.5 rounded-lg bg-white text-black shadow">
+        {milestoneMsg}
+      </div>
+    {/if}
+
+    <!-- Inactivity Nudge -->
+    {#if nudgeVisible}
+      <div class="fixed bottom-14 left-1/2 -translate-x-1/2 z-20 text-[12px] px-3 py-2 rounded-lg border border-neutral-700 bg-black/85 backdrop-blur">
+        Falta {remaining} — dale que ya estás
+      </div>
+    {/if}
+
     <!-- HEADER (compact) -->
     <header class="pt-3 pb-2 sticky top-0 bg-black/70 backdrop-blur z-10 border-b border-neutral-900">
         <div class="flex items-center justify-between gap-3">
@@ -1128,17 +1210,17 @@
             </div>
         </div>
 
-        <!-- PROGRESS BAR: solo % -->
-        <div class="mt-2 h-[6px] w-full rounded bg-neutral-800 overflow-hidden">
-            <div class="h-full bg-white transition-all duration-300 ease-out" style:width="{progressPct()}%"></div>
+        <!-- PROGRESS BAR -->
+        <div class="mt-2 h-[6px] w-full rounded bg-neutral-800 overflow-hidden" aria-label="Progreso">
+          <div class="h-full bg-white transition-all duration-300 ease-out" style="width: {progress}%"></div>
         </div>
         <div class="mt-1 text-[11px] text-neutral-400">
-            {progressPct()}% completado
+          {progress}% completado · {answeredCount}/{ITEMS.length}
         </div>
 
         <!-- Encouragement -->
         <div class="mt-1 text-[11px] text-neutral-400 italic">
-            {encouragement(progressPct())}
+            {encouragement(progress)}
         </div>
     </header>
 
@@ -1180,9 +1262,17 @@
 
             <!-- QUICK NAV -->
             <div class="mt-3 flex items-center gap-2 text-[12px]">
-                <button class="underline text-neutral-400 disabled:opacity-40" on:click={prev} disabled={idx===0}>Atrás</button>
-                <span class="text-neutral-600">·</span>
-                <button class="underline text-neutral-400" on:click={jumpToFirstUnanswered}>Ir a la primera sin responder</button>
+              <button class="underline text-neutral-400 disabled:opacity-40" on:click={prev} disabled={idx===0}>Atrás</button>
+              <span class="text-neutral-600">·</span>
+              <button class="underline text-neutral-400" on:click={jumpToFirstUnanswered}>Ir a la primera sin responder</button>
+            </div>
+
+            <!-- Gentle nudge actions -->
+            <div class="mt-4 grid grid-cols-1 gap-2">
+              <button class="w-full py-2.5 px-3 border border-neutral-700 rounded-lg text-[13px] hover:bg-neutral-900 active:scale-[.99] transition"
+                      on:click={quickFinishNeutral}>
+                Terminar rápido con “Neutral” en las que faltan
+              </button>
             </div>
         </main>
 
