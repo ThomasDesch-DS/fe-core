@@ -55,7 +55,7 @@ if (browser) {
 
 async function loadMassageTypes() {
     try {
-        const response = await fetch(`${env.PUBLIC_API_URL || 'http://localhost:8080'}/escort/types/massage`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/escort/types/massage`);
         if (response.ok) {
             const massageTypesData: MassageType[] = await response.json();
             const formattedTypes = massageTypesData.map(type => ({
@@ -85,7 +85,7 @@ async function loadMassageTypes() {
 
 async function loadHairColors() {
     try {
-        const response = await fetch(`${env.PUBLIC_API_URL || 'http://localhost:8080'}/escort/types/hair-colors`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/escort/types/hair-colors`);
         if (response.ok) {
             const hairColorsData: MassageType[] = await response.json();
             const formattedTypes = hairColorsData.map(type => ({
@@ -121,7 +121,7 @@ async function loadHairColors() {
 
 async function loadEyeColors() {
     try {
-        const response = await fetch(`${env.PUBLIC_API_URL || 'http://localhost:8080'}/escort/types/eye-colors`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/escort/types/eye-colors`);
         if (response.ok) {
             const eyeColorsData: MassageType[] = await response.json();
             const formattedTypes = eyeColorsData.map(type => ({
@@ -155,7 +155,7 @@ async function loadEyeColors() {
 
 async function loadSkinTones() {
     try {
-        const response = await fetch(`${env.PUBLIC_API_URL || 'http://localhost:8080'}/escort/types/skin-tones`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/escort/types/skin-tones`);
         if (response.ok) {
             const skinTonesData: MassageType[] = await response.json();
             const formattedTypes = skinTonesData.map(type => ({
@@ -193,7 +193,7 @@ async function loadSkinTones() {
 
 async function loadEthnicities() {
     try {
-        const response = await fetch(`${env.PUBLIC_API_URL || 'http://localhost:8080'}/escort/types/ethnicities`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/escort/types/ethnicities`);
         if (response.ok) {
             const ethnicitiesData: MassageType[] = await response.json();
             const formattedTypes = ethnicitiesData.map(type => ({
@@ -227,7 +227,7 @@ async function loadEthnicities() {
 
 async function loadBreastSizes() {
     try {
-        const response = await fetch(`${env.PUBLIC_API_URL || 'http://localhost:8080'}/escort/types/breast-sizes`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/escort/types/breast-sizes`);
         if (response.ok) {
             const breastSizesData: MassageType[] = await response.json();
             const formattedTypes = breastSizesData.map(type => ({
@@ -261,7 +261,7 @@ async function loadBreastSizes() {
 
 async function loadButtSizes() {
     try {
-        const response = await fetch(`${env.PUBLIC_API_URL || 'http://localhost:8080'}/escort/types/butt-sizes`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/escort/types/butt-sizes`);
         if (response.ok) {
             const buttSizesData: MassageType[] = await response.json();
             const formattedTypes = buttSizesData.map(type => ({
@@ -297,7 +297,7 @@ async function loadButtSizes() {
 
 async function loadVirtualServiceTypes() {
     try {
-        const response = await fetch(`${env.PUBLIC_API_URL || 'http://localhost:8080'}/escort/types/virtual-service-types`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/escort/types/virtual-service-types`);
         if (response.ok) {
             const virtualServiceTypesData: MassageType[] = await response.json();
             const formattedTypes = virtualServiceTypesData.map(type => ({
@@ -327,7 +327,7 @@ async function loadVirtualServiceTypes() {
 
 async function loadWaxingLevels() {
     try {
-        const response = await fetch(`${env.PUBLIC_API_URL || 'http://localhost:8080'}/escort/types/waxing-levels`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/escort/types/waxing-levels`);
         if (response.ok) {
             const waxingLevelsData: MassageType[] = await response.json();
             const formattedTypes = waxingLevelsData.map(type => ({
@@ -359,7 +359,7 @@ async function loadWaxingLevels() {
 
 async function loadPenisSizes() {
     try {
-        const response = await fetch(`${env.PUBLIC_API_URL || 'http://localhost:8080'}/escort/types/penis-sizes`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/escort/types/penis-sizes`);
         if (response.ok) {
             const penisSizesData: MassageType[] = await response.json();
             const formattedTypes = penisSizesData.map(type => ({
@@ -397,7 +397,7 @@ async function loadPenisSizes() {
 
 async function loadEscortServices() {
     try {
-        const response = await fetch(`${env.PUBLIC_API_URL || 'http://localhost:8080'}/escort/types/services?lang=es_ar&activeOnly=true`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/escort/types/services?lang=es_ar&activeOnly=true`);
         if (response.ok) {
             const servicesData: MassageType[] = await response.json();
             const formattedTypes = servicesData.map(type => ({
@@ -427,7 +427,7 @@ async function loadEscortServices() {
 
 async function loadEscortFantasies() {
     try {
-        const response = await fetch(`${env.PUBLIC_API_URL || 'http://localhost:8080'}/escort/types/fantasy-types?lang=es_ar&activeOnly=true`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/escort/types/fantasy-types?lang=es_ar&activeOnly=true`);
         if (response.ok) {
             const fantasiesData: MassageType[] = await response.json();
             const formattedTypes = fantasiesData.map(type => ({
