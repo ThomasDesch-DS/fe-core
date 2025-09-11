@@ -192,6 +192,35 @@
     }
 
     let isLoggingOut = false;
+
+    let isToggling = false;
+
+    async function toggleActive() {
+        if (!escort) return;
+        isToggling = true;
+        try {
+            const newStatus = !escort.isActive;
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/escort/active/${newStatus}`, {
+                method: 'PATCH',
+                credentials: 'include'
+            });
+            if (res.ok) {
+                escortAuthStore.updateProfile({
+                    ...escort,
+                    isActive: newStatus
+                });
+                toast.success(`Perfil ${newStatus ? 'activado' : 'desactivado'} correctamente`);
+            } else {
+                toast.error('No se pudo actualizar el estado');
+            }
+        } catch (e) {
+            console.error('Toggle active failed:', e);
+            toast.error('Error al cambiar el estado');
+        } finally {
+            isToggling = false;
+        }
+    }
+
     const handleLogout = async () => {
         isLoggingOut = true;
         try {
@@ -792,6 +821,9 @@
 </script>
 
 <style>
+    .dot {
+        box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
     .stat-card {
         @apply bg-neutral-900 rounded-lg p-6 flex flex-col items-center justify-center border border-neutral-800 hover:border-neutral-600 transition;
         background: linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0));
@@ -920,6 +952,34 @@
             </div>
 
             <div class="flex gap-4 items-center">
+                <div class="flex items-center gap-2">
+                    <label class="flex items-center cursor-pointer select-none">
+                        <div class="relative">
+                            <!-- input -->
+                            <input
+                                type="checkbox"
+                                checked={escort.isActive}
+                                disabled={isToggling}
+                                on:change={toggleActive}
+                                class="sr-only"
+                            />
+                            <!-- track -->
+                            <div
+                                class="block w-12 h-6 rounded-full transition-colors duration-200"
+                                class:bg-green-600={escort.isActive}
+                                class:bg-gray-600={!escort.isActive}
+                            ></div>
+                            <!-- knob -->
+                            <div
+                                class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition transform duration-200"
+                                class:translate-x-6={escort.isActive}
+                            ></div>
+                        </div>
+                        <span class="ml-3 text-sm text-gray-300">
+                            {escort.isActive ? 'Activo' : 'Inactivo'}
+                        </span>
+                    </label>
+                </div>
                 <a
                         href="/escort/{escort.slug}"
                         target="_blank"
