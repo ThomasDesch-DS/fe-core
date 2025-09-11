@@ -211,7 +211,8 @@
     </header>
 
     <TextInput
-      type="number"
+      type="text"
+      inputmode="decimal"
       bind:value={formData.hourPriceAmount}
       min="0"
       placeholder="Precio (ej: 100)"
@@ -232,7 +233,7 @@
              focus:outline-none focus:ring-2 focus:ring-white/20 transition"
         on:click={handleHourPrice}
       >
-        {formData.hourPriceAmount.trim() ? '¡Genial!' : 'Siguiente'}
+        {formData.hourPriceAmount ? '¡Genial!' : 'Siguiente'}
       </button>
     </div>
   </section>
