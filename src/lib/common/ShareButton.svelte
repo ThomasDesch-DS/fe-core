@@ -13,7 +13,7 @@
             // First try to get shortened URL from backend
             let urlToShare = currentUrl;
             try {
-                const response = await fetch(`${import.meta.env.VITE_API_URL}/r/shorten`, {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/shorten`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

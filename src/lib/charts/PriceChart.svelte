@@ -48,9 +48,9 @@
                         callbacks: {
                             label: (ctx) => {
                                 const bin = bins[ctx.dataIndex];
-                                if (bin.isUserBin) return `Tu precio: $${currentEscortPrice}`;
+                                if (bin.isUserBin) return `Precio: $${currentEscortPrice}`;
                                 if (bin.isAverageBin) return `Promedio: $${promedio.toFixed(2)}`;
-                                return `${ctx.raw} competidores`;
+                                return `${ctx.raw} otros/as`;
                             }
                         }
                     },
@@ -77,7 +77,7 @@
                         ticks: { color: '#fff', beginAtZero: true },
                         title: {
                             display: true,
-                            text: 'Cantidad de competidores',
+                            text: 'Cantidad',
                             color: '#fff'
                         }
                     }
