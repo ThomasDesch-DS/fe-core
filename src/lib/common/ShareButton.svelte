@@ -16,11 +16,11 @@
                 const response = await fetch(`${import.meta.env.VITE_API_URL}/shorten`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: JSON.stringify({ url: currentUrl })
+                    body: new URLSearchParams({ url: currentUrl })
                 });
-                
+
                 if (response.ok) {
                     const data = await response.json();
                     urlToShare = data.shortUrl || currentUrl;
