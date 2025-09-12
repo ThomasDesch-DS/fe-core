@@ -12,6 +12,7 @@
     import { goto } from "$app/navigation";
     import PriceChart from "$lib/charts/PriceChart.svelte";
     import { trackPageOpen, trackEscortContact, trackEscortGallery, trackEscortCatlist, trackEscortShare, trackEscortAudio, trackEscortDetailView } from "$lib/analytics/analytics";
+    import ShareButton from "$lib/common/ShareButton.svelte";
     import posthog from 'posthog-js';
 
     // ---- CONFIGURACIÓN ----
@@ -230,35 +231,6 @@
             diff > 0 ? prevImage() : nextImage();
         }
     }
-    async function shareEscort() {
-        const url = window.location.href;
-        try {
-            if (navigator.share) {
-                trackEscortShare({
-                    method: 'native_share',
-                    escortId: escort?.id,
-                    escortName: escort?.displayName
-                });
-                await navigator.share({ title: escort?.displayName, url });
-            } else {
-                trackEscortShare({
-                    method: 'clipboard_copy',
-                    escortId: escort?.id,
-                    escortName: escort?.displayName
-                });
-                await navigator.clipboard.writeText(url);
-                toast.success('¡Link copiado!');
-            }
-        } catch (err) {
-            console.error('Error compartiendo:', err);
-            trackEscortShare({
-                method: 'error',
-                escortId: escort?.id,
-                escortName: escort?.displayName,
-                error: err.message
-            });
-        }
-    }
 
     // ---- FETCH Y MOUNT ----
     onMount(async () => {
@@ -383,12 +355,6 @@
     .btn-vercel:hover {
         @apply bg-white text-black;
     }
-    .share-btn {
-        @apply p-2 rounded-full bg-white/10 text-white transition-colors duration-200;
-    }
-    .share-btn:hover {
-        @apply bg-white text-black;
-    }
     .audio-card {
         @apply max-w-xl mx-auto bg-white/10 rounded-lg p-6 flex items-center gap-4;
     }
@@ -500,26 +466,10 @@
                     class="absolute inset-0 object-cover w-full h-full filter brightness-50"
             />
             <div class="absolute top-4 right-4 z-20">
-                <button
-                        on:click={shareEscort}
-                        class="share-btn"
-                        aria-label="Compartir"
-                >
-                    <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            class="h-6 w-6"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            viewBox="0 0 24 24"
-                    >
-                        <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                d="M4 12v1a2 2 0 002 2h4m4 0h4a2 2 0 002-2v-1m-5 1V8m0 0l-4 4m4-4l-4-4"
-                        />
-                    </svg>
-                </button>
+                <ShareButton 
+                    escortId={escort?.id} 
+                    escortName={escort?.displayName} 
+                />
             </div>
             <div class="relative z-10 space-y-4">
                 <h1 class="text-6xl font-extrabold">
