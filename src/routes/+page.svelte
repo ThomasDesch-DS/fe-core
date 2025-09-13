@@ -381,15 +381,21 @@
 </script>
 
 <svelte:head>
-  <link rel="preconnect" href={ import.meta.env.VITE_MEDIA_CDN} />
+  <title>Escorts en Argentina | Daisy’s Secrets</title>
+  <meta
+          name="description"
+          content="Explora los perfiles de escorts en Argentina. Filtra por ciudad, edad, servicios y más. Encuentra acompañantes reales con fotos verificadas en Daisy’s Secrets."
+  />
+  <link rel="preconnect" href={import.meta.env.VITE_MEDIA_CDN} />
   {#if escorts.length && escorts[0]?.media}
     <link
             rel="preload"
             as="image"
-            href={`https://nexus.daisyssecrets.com/escorts/${escorts[0].id}/profile/${escorts[0].media}`}
+            href={`${import.meta.env.VITE_MEDIA_CDN}/escorts/${escorts[0].id}/profile/${escorts[0].media}`}
     />
   {/if}
 </svelte:head>
+
 
 <main class="bg-black min-h-screen py-8 px-4">
 
