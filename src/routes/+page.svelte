@@ -7,6 +7,7 @@
   import { onMount } from 'svelte';
   import {getMediaUrl} from "../util/MediaUtils";
   import { trackEscortSearch, trackEscortSearchResultClick } from '$lib/analytics/analytics';
+  import { hiddenProfilesStore } from '$lib/store/hiddenProfilesStore';
 
   // ---------- CONFIG ----------
   const CACHE_KEY = 'escortsListCache';
@@ -146,7 +147,11 @@
 
     const cached = getFromCache({ page, size });
     if (cached) {
-      escorts = [...escorts, ...cached.escorts];
+      // Filter out hidden profiles from cached results
+      const filteredContent = cached.escorts.filter(escort => 
+        !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
+      );
+      escorts = [...escorts, ...filteredContent];
       totalPages = cached.totalPages;
       page += 1;
       loading = false;
@@ -158,7 +163,12 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: ApiResponse = await res.json();
 
-      escorts = [...escorts, ...data.content];
+      // Filter out hidden profiles
+      const filteredContent = data.content.filter(escort => 
+        !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
+      );
+      
+      escorts = [...escorts, ...filteredContent];
       totalPages = data.totalPages;
       setToCache({ page, size }, {
         escorts: data.content,
@@ -186,7 +196,11 @@
 
     const cached = getFromCache({ search: searchQuery, page: 0, size: 20 });
     if (cached) {
-      escorts = cached.escorts;
+      // Filter out hidden profiles from cached search results
+      const filteredContent = cached.escorts.filter(escort => 
+        !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
+      );
+      escorts = filteredContent;
       searchTotalPages = cached.totalPages;
       searchPage = 1;
       searchLoading = false;
@@ -198,7 +212,12 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: ApiResponse = await res.json();
 
-      escorts = data.content;
+      // Filter out hidden profiles from search results
+      const filteredContent = data.content.filter(escort => 
+        !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
+      );
+      
+      escorts = filteredContent;
       searchTotalPages = data.totalPages;
       setToCache({ search: searchQuery, page: 0, size: 20 }, {
         escorts: data.content,
@@ -221,7 +240,11 @@
 
     const cached = getFromCache({ search: searchQuery, page: searchPage, size: 20 });
     if (cached) {
-      escorts = [...escorts, ...cached.escorts];
+      // Filter out hidden profiles from cached search pagination
+      const filteredContent = cached.escorts.filter(escort => 
+        !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
+      );
+      escorts = [...escorts, ...filteredContent];
       searchPage += 1;
       searchLoading = false;
       return;
@@ -232,7 +255,12 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: ApiResponse = await res.json();
 
-      escorts = [...escorts, ...data.content];
+      // Filter out hidden profiles from search pagination
+      const filteredContent = data.content.filter(escort => 
+        !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
+      );
+      
+      escorts = [...escorts, ...filteredContent];
       setToCache({ search: searchQuery, page: searchPage, size: 20 }, {
         escorts: data.content,
         page: searchPage,
@@ -260,7 +288,11 @@
       hood: selectedHood 
     });
     if (cached) {
-      escorts = [...escorts, ...cached.escorts];
+      // Filter out hidden profiles from cached location results
+      const filteredContent = cached.escorts.filter(escort => 
+        !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
+      );
+      escorts = [...escorts, ...filteredContent];
       locationTotalPages = cached.totalPages;
       locationPage += 1;
       locationLoading = false;
@@ -276,7 +308,12 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: ApiResponse = await res.json();
 
-      escorts = [...escorts, ...data.content];
+      // Filter out hidden profiles from location results
+      const filteredContent = data.content.filter(escort => 
+        !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
+      );
+      
+      escorts = [...escorts, ...filteredContent];
       locationTotalPages = data.totalPages;
       setToCache({ 
         page: locationPage, 

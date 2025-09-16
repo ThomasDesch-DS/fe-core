@@ -17,6 +17,7 @@
     import { escortAuthStore } from '$lib/escort/store/escortAuthStore.js';
     import { tokenStore } from '$lib/store/tokenStore';
     import { setupTokenRefresh } from '$lib/escort/api/authApi';
+    import { hiddenProfilesStore } from '$lib/store/hiddenProfilesStore';
 
     // ---- CONFIG ----
     const ESCORT_CACHE_KEY = 'escortDetailCache';
@@ -260,6 +261,10 @@
                     );
                 }
                 escort = cachedEscort;
+                
+                // Hide this profile from main listings when user visits preview (cached version)
+                hiddenProfilesStore.hide(cachedEscort.id, displayName, cachedEscort.displayName);
+                
                 trackEscortDetailView({
                     escortId: escort.id,
                     escortName: escort.displayName,
@@ -278,6 +283,10 @@
                     }
                     escort = data;
                     setToCache(displayName, data);
+                    
+                    // Hide this profile from main listings when user visits preview
+                    hiddenProfilesStore.hide(data.id, displayName, data.displayName);
+                    
                     trackEscortDetailView({
                         escortId: escort.id,
                         escortName: escort.displayName,
@@ -526,6 +535,10 @@
             celebrating = true;
             toast.success('¡Hecho! Sos la dueña del perfil ✅');
             posthog.capture('escortClaimSuccess', { escortId: escort.id });
+            
+            // Show the profile again on main page after successful validation
+            hiddenProfilesStore.show(escort.id);
+            
             setTimeout(() => goto('/dashboard'), 1200);
         } catch (err: any) {
             console.error(err);
