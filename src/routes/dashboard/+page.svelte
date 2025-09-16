@@ -32,132 +32,35 @@
     let isSaving = false;
     let saveMessage = '';
 
-    // Service options
-    const serviceOptions = {
-        escortServices: [
-            { value: 'POSITION_69', label: '69 Position' },
-            { value: 'CLASSIC_VAGINAL_SEX', label: 'Classic Vaginal Sex' },
-            { value: 'CUM_ON_BODY', label: 'Cum on Body' },
-            { value: 'CUNNILINGUS', label: 'Cunnilingus' },
-            { value: 'DEEPTHROAT', label: 'Deepthroat' },
-            { value: 'DIRTY_TALK', label: 'Dirty Talk' },
-            { value: 'EROTIC_MASSAGE', label: 'Erotic Massage' },
-            { value: 'EXTRABALL', label: 'Extraball' },
-            { value: 'FACESITTING', label: 'Facesitting' },
-            { value: 'FINDOM', label: 'Findom' },
-            { value: 'FOOT_FETISH', label: 'Foot Fetish' },
-            { value: 'FRENCH_KISSING', label: 'French Kissing' },
-            { value: 'GFE', label: 'GFE' },
-            { value: 'HANDJOB', label: 'Handjob' },
-            { value: 'KAMASUTRA', label: 'Kamasutra' },
-            { value: 'MASTURBATION', label: 'Masturbation' },
-            { value: 'ORAL_WITHOUT_CONDOM', label: 'Oral Without Condom' },
-            { value: 'PORN_STAR_EXPERIENCE', label: 'Porn Star Experience' },
-            { value: 'RIMMING_PASSIVE', label: 'Rimming Passive' },
-            { value: 'RIMMING_ACTIVE', label: 'Rimming Active' },
-            { value: 'ROLE_PLAY', label: 'Role-play' },
-            { value: 'SEX_BETWEEN_BREASTS', label: 'Sex Between Breasts' },
-            { value: 'SEX_TOYS', label: 'Sex Toys' },
-            { value: 'STRAP_ON_SERVICE', label: 'Strapon Service' },
-            { value: 'STRIPTEASE', label: 'Striptease' },
-            { value: 'UNIFORMS', label: 'Uniforms' },
-            { value: 'BDSM_FEMDOM', label: 'BDSM - Femdom' },
-            { value: 'CASUAL_PHOTOS', label: 'Casual Photos' },
-            { value: 'DURING_MEETING', label: 'During the Meeting' },
-            { value: 'COUPLES', label: 'Couples' },
-            { value: 'CUM_IN_FACE', label: 'Cum in Face' },
-            { value: 'CUM_IN_MOUTH', label: 'Cum in Mouth' },
-            { value: 'DOMINATION', label: 'Domination' },
-            { value: 'DUO_WITH_GIRL', label: 'Duo with Girl' },
-            { value: 'EROTIC_PHOTOS', label: 'Erotic Photos' },
-            { value: 'FINGERING', label: 'Fingering' },
-            { value: 'GOLDEN_SHOWER_GIVE', label: 'Golden Shower (Give)' },
-            { value: 'GOLDEN_SHOWER_RECEIVE', label: 'Golden Shower (Receive)' },
-            { value: 'GROUP_SEX', label: 'Group Sex' },
-            { value: 'PROSTATE_MASSAGE', label: 'Prostate Massage' },
-            { value: 'SHOWER_TOGETHER', label: 'Shower Together' },
-            { value: 'SQUIRTING', label: 'Squirting' },
-            { value: 'SUBMISSIVE', label: 'Submissive' },
-            { value: 'SWALLOWING', label: 'Swallowing' },
-            { value: 'VIDEO_WITH_SEX', label: 'Video with Sex' },
-            { value: 'ANAL', label: 'Anal' },
-            { value: 'BONDAGE', label: 'Bondage' },
-            { value: 'WITH_TWO_MEN', label: 'With 2 Men' },
-            { value: 'CUSTOM', label: 'Custom' },
-            { value: 'OTHER', label: 'Other' }
-        ],
-        escortFantasies: [
-            { value: 'SEX_TOYS', label: 'Sex Devices / Toys' },
-            { value: 'EROTIC_DISCIPLINE', label: 'Erotic Discipline' },
-            { value: 'COSTUMES', label: 'Costumes' },
-            { value: 'SPECIAL_LINGERIE', label: 'Special Lingerie' },
-            { value: 'ROLEPLAY', label: 'Roleplay' },
-            { value: 'FOOT_FETISH', label: 'Foot Fetish' },
-            { value: 'CHOKING', label: 'Choking' },
-            { value: 'DOMINATION', label: 'Domination' },
-            { value: 'FEMDOM', label: 'Femdom' },
-            { value: 'FETISHISM', label: 'Fetishism' },
-            { value: 'HUMILIATION_GIVE', label: 'Humiliation (Give)' },
-            { value: 'HUMILIATION_RECEIVE', label: 'Humiliation (Receive)' },
-            { value: 'SUBMISSIVE', label: 'Submissive' },
-            { value: 'BDSM', label: 'BDSM' },
-            { value: 'FETISH', label: 'Fetish' },
-            { value: 'SHOWER', label: 'Shower Together' },
-            { value: 'DISCIPLINE', label: 'Discipline' },
-            { value: 'LOVE', label: 'Love' },
-            { value: 'DOMINATE', label: 'Dominate' },
-            { value: 'DOMINATRIX', label: 'Dominatrix' },
-            { value: 'SADO', label: 'Sado' },
-            { value: 'SADOMASOCHISM', label: 'Sadomasochism' },
-            { value: 'SODOMISATION', label: 'Sodomisation' },
-            { value: 'SUBMISSION', label: 'Submission' },
-            { value: 'TRANSFORMISM', label: 'Transformism' },
-            { value: 'GOLDEN_SHOWER_GIVE', label: 'Golden Shower (Give)' },
-            { value: 'GOLDEN_SHOWER_RECEIVE', label: 'Golden Shower (Receive)' },
-            { value: 'GOLDEN_SHOWER_SWALLOW', label: 'Golden Shower (Swallow)' },
-            { value: 'PAIN_GIVE', label: 'Pain (Give)' },
-            { value: 'PAIN_RECEIVE', label: 'Pain (Receive)' }
-        ],
-        massageType: [
-            { value: 'EROTIC', label: 'Erotic' },
-            { value: 'SENSUAL', label: 'Sensual' },
-            { value: 'PROSTATE', label: 'Prostate' },
-            { value: 'NURU', label: 'Nuru' },
-            { value: 'BODY_TO_BODY', label: 'Body to Body' },
-            { value: 'TANTRA', label: 'Tantra' },
-            { value: 'THAI', label: 'Thai' },
-            { value: 'RELAXING', label: 'Relaxing' },
-            { value: 'DEEP_TISSUE', label: 'Deep Tissue' },
-            { value: 'SWEDISH', label: 'Swedish' },
-            { value: 'OIL', label: 'Oil Massage' },
-            { value: 'FOUR_HANDS', label: 'Four Hands' },
-            { value: 'FOOT_MASSAGE', label: 'Foot Massage' },
-            { value: 'LINGAM', label: 'Lingam' },
-            { value: 'YONI', label: 'Yoni' },
-            { value: 'SPORTS', label: 'Sports Massage' },
-            { value: 'CUSTOM', label: 'Custom' },
-            { value: 'OTHER', label: 'Other' }
-        ],
-        virtualServices: [
-            { value: 'VIDEO_CALL', label: 'Video Call' },
-            { value: 'AUDIO_CALL', label: 'Audio Call' },
-            { value: 'CAM_SHOW', label: 'Cam Show' },
-            { value: 'JOI', label: 'JOI (Jerk Off Instruction)' },
-            { value: 'CEI', label: 'CEI (Cum Eating Instruction)' },
-            { value: 'DIRTY_TALK', label: 'Dirty Talk' },
-            { value: 'SEXTING', label: 'Sexting' },
-            { value: 'CUSTOM_VIDEO', label: 'Custom Video' },
-            { value: 'CUSTOM_PHOTOS', label: 'Custom Photos' },
-            { value: 'TEXT_CHAT', label: 'Text Chat' },
-            { value: 'ROLEPLAY_CHAT', label: 'Roleplay Chat' },
-            { value: 'VIRTUAL_DOMINATION', label: 'Virtual Domination' },
-            { value: 'FINANCIAL_DOMINATION', label: 'Financial Domination' },
-            { value: 'STRIPTEASE', label: 'Virtual Striptease' },
-            { value: 'LIVE_MASTURBATION', label: 'Live Masturbation' },
-            { value: 'ASMR', label: 'Erotic ASMR' },
-            { value: 'OTHER', label: 'Other' }
-        ]
+    // Service options - loaded dynamically from API
+    let serviceOptions = {
+        escortServices: [],
+        escortFantasies: [],
+        massageType: [],
+        virtualServices: []
     };
+
+    // Load service options from API
+    onMount(async () => {
+        try {
+            const [services, fantasies, massages, virtual] = await Promise.all([
+                fetch(`${import.meta.env.VITE_API_URL}/escort/types/services?lang=es_ar&activeOnly=true`).then(r => r.json()),
+                fetch(`${import.meta.env.VITE_API_URL}/escort/types/fantasy-types?lang=es_ar&activeOnly=true`).then(r => r.json()),
+                fetch(`${import.meta.env.VITE_API_URL}/escort/types/massage-types?lang=es_ar&activeOnly=true`).then(r => r.json()),
+                fetch(`${import.meta.env.VITE_API_URL}/escort/types/virtual-services?lang=es_ar&activeOnly=true`).then(r => r.json())
+            ]);
+
+            serviceOptions = {
+                escortServices: services || [],
+                escortFantasies: fantasies || [],
+                massageType: massages || [],
+                virtualServices: virtual || []
+            };
+        } catch (error) {
+            console.error('Failed to load service options:', error);
+            // Keep empty arrays as fallback
+        }
+    });
 
     const currencies = [
         { value: 'ARS', label: 'ARS' },
@@ -1595,10 +1498,10 @@
                                             <input
                                                 type="checkbox"
                                                 class="service-checkbox"
-                                                checked={editValues.escortServices.includes(service.value)}
-                                                on:change={() => toggleService('escortServices', service.value)}
+                                                checked={editValues.escortServices.includes(service.value || service.code)}
+                                                on:change={() => toggleService('escortServices', service.value || service.code)}
                                             />
-                                            {service.label}
+                                            {service.label || service.name}
                                         </label>
                                     {/each}
                                 </div>
@@ -1613,10 +1516,10 @@
                                             <input
                                                 type="checkbox"
                                                 class="service-checkbox"
-                                                checked={editValues.escortFantasies.includes(fantasy.value)}
-                                                on:change={() => toggleService('escortFantasies', fantasy.value)}
+                                                checked={editValues.escortFantasies.includes(fantasy.value || fantasy.code)}
+                                                on:change={() => toggleService('escortFantasies', fantasy.value || fantasy.code)}
                                             />
-                                            {fantasy.label}
+                                            {fantasy.label || fantasy.name}
                                         </label>
                                     {/each}
                                 </div>
@@ -1631,10 +1534,10 @@
                                             <input
                                                 type="checkbox"
                                                 class="service-checkbox"
-                                                checked={editValues.massageType.includes(massage.value)}
-                                                on:change={() => toggleService('massageType', massage.value)}
+                                                checked={editValues.massageType.includes(massage.value || massage.code)}
+                                                on:change={() => toggleService('massageType', massage.value || massage.code)}
                                             />
-                                            {massage.label}
+                                            {massage.label || massage.name}
                                         </label>
                                     {/each}
                                 </div>
@@ -1649,10 +1552,10 @@
                                             <input
                                                 type="checkbox"
                                                 class="service-checkbox"
-                                                checked={editValues.virtualServices.includes(virtual.value)}
-                                                on:change={() => toggleService('virtualServices', virtual.value)}
+                                                checked={editValues.virtualServices.includes(virtual.value || virtual.code)}
+                                                on:change={() => toggleService('virtualServices', virtual.value || virtual.code)}
                                             />
-                                            {virtual.label}
+                                            {virtual.label || virtual.name}
                                         </label>
                                     {/each}
                                 </div>
