@@ -768,8 +768,8 @@
                                 <tr>
                                     <td class="text-xs sm:text-sm">{cr.serviceName}</td>
                                     <td class="text-xs sm:text-sm">{cr.duration}</td>
-                                    <td class="text-xs sm:text-sm">${cr.incallPrice.toLocaleString('es-AR')}</td>
-                                    <td class="text-xs sm:text-sm">${cr.outcallPrice.toLocaleString('es-AR')}</td>
+                                    <td class="text-xs sm:text-sm">${cr.incallPrice ? cr.incallPrice.toLocaleString('es-AR') : '-'}</td>
+                                    <td class="text-xs sm:text-sm">${cr.outcallPrice ? cr.outcallPrice.toLocaleString('es-AR') : '-'}</td>
                                 </tr>
                             {/each}
                             </tbody>
