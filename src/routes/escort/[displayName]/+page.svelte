@@ -335,9 +335,37 @@
 
 <svelte:head>
     <link rel="preconnect" href={ import.meta.env.VITE_MEDIA_CDN} />
+    <title>{escort?.displayName
+        ? `${escort.displayName} — Escorts en ${escort.location.city}`
+        : 'Escort — Vista previa'}</title>
+    <meta name="description" content={escort
+        ? `Perfil de ${escort.displayName}, ${escort.age} años`
+        : 'Perfil en vista previa'} />
+
+    <!-- canonical always with slug or fallback -->
+    <link rel="canonical" href={`https://www.daisyssecrets.com/escort/${$page.params.displayName}`} />
+
+    <!-- media CDN preconnect -->
+    <link rel="preconnect" href={import.meta.env.VITE_MEDIA_CDN} />
+
+    <!-- preload profile picture if exists -->
     {#if escort?.media.profilePicture}
         <link rel="preload" as="image" href={escort.media.profilePicture} />
     {/if}
+
+    <!-- OpenGraph / Twitter cards -->
+    <meta property="og:type" content="profile" />
+    <meta property="og:title" content={escort?.displayName
+        ? `${escort.displayName} — Escorts en ${escort.location.city}`
+        : 'Escort — Vista previa'} />
+    <meta property="og:description" content={escort
+        ? `Perfil de ${escort.displayName}, ${escort.age} años en ${escort.location.city}`
+        : 'Perfil en vista previa'} />
+    {#if escort?.media.profilePicture}
+        <meta property="og:image" content={escort.media.profilePicture} />
+    {/if}
+
+    <meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 <style>
