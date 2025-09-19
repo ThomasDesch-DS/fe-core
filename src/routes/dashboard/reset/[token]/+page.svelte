@@ -10,25 +10,32 @@
     let success = '';
     let isLoading = false;
 
-    const { token } = $page.params;
+            const { token } = $page.params;
 
     const handleSubmit = async () => {
         error = '';
         success = '';
-        if (password !== confirmPassword) {
+                if (pass !== confirmPassword) {
             error = 'Las contraseñas no coinciden.';
             return;
         }
-        if (password.length < 8) {
+                if (pass.length < 8) {
             error = 'La contraseña debe tener al menos 8 caracteres.';
             return;
         }
         isLoading = true;
         try {
             const res = await fetch(`${import.meta.env.VITE_API_URL}/escort/reset-password`, {
-                method: 'POST',
-                headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({ token, newPassword: password })
+                                method: 'POST',
+                credentials: 'include',
+                                headers: {
+                    'Content-Type':'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ pass })
+
+
+
             });
             if (res.ok) {
                 success = 'Contraseña actualizada. Serás redirigido al login.';
