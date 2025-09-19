@@ -4,7 +4,7 @@
     import { logout } from '$lib/escort/api/authApi';
     import { updateInfo, updateAppearance, updateAvailability, updateMedia, updateServicesInfo, updateContactMethod, deleteMediaFile, deleteContactMethod, updateLocation, uploadMedia, type UpdateInfoRequest, type UpdateAppearanceRequest, type UpdateServicesInfoRequest, type ContactMethodRequest, type UpdateLocationRequest, type UploadMediaDTO, type MediaWithOrder, type EscortMedia } from '$lib/escort/api/profileApi';
     import { goto } from '$app/navigation';
-    import { onDestroy } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
     import {formatPrice} from "../../util/PriceUtils";
     import { toast } from 'svelte-sonner'
     import {getMediaUrl} from "../../util/MediaUtils";
@@ -46,7 +46,7 @@
             const [services, fantasies, massages, virtual] = await Promise.all([
                 fetch(`${import.meta.env.VITE_API_URL}/escort/types/services?lang=es_ar&activeOnly=true`).then(r => r.json()),
                 fetch(`${import.meta.env.VITE_API_URL}/escort/types/fantasy-types?lang=es_ar&activeOnly=true`).then(r => r.json()),
-                fetch(`${import.meta.env.VITE_API_URL}/escort/types/massage-types?lang=es_ar&activeOnly=true`).then(r => r.json()),
+                fetch(`${import.meta.env.VITE_API_URL}/escort/types/massage?lang=es_ar&activeOnly=true`).then(r => r.json()),
                 fetch(`${import.meta.env.VITE_API_URL}/escort/types/virtual-services?lang=es_ar&activeOnly=true`).then(r => r.json())
             ]);
 
@@ -81,10 +81,10 @@
             hips: escort.appearance.hips,
             hourPrice: escort.servicesInfo.hourPrice.amount,
             currency: escort.servicesInfo.hourPrice.currency,
-            escortServices: [...(escort.servicesInfo.escortServices || [])],
-            escortFantasies: [...(escort.servicesInfo.escortFantasies || [])],
-            massageType: [...(escort.servicesInfo.massageType || [])],
-            virtualServices: [...(escort.servicesInfo.virtualServices || [])],
+            escortServices: [...(escort.servicesInfo.escortServices?.map(s => typeof s === 'string' ? s : s.code || s) || [])],
+            escortFantasies: [...(escort.servicesInfo.escortFantasies?.map(s => typeof s === 'string' ? s : s.code || s) || [])],
+            massageType: [...(escort.servicesInfo.massageType?.map(s => typeof s === 'string' ? s : s.code || s) || [])],
+            virtualServices: [...(escort.servicesInfo.virtualServices?.map(s => typeof s === 'string' ? s : s.code || s) || [])],
             customRate: [...(escort.servicesInfo.customRate || [])],
             contactMethod: escort.contactMethod.map(c => ({ ...c })),
             country: escort.location.country,
@@ -586,10 +586,10 @@
                     hips: escort.appearance.hips,
                     hourPrice: escort.servicesInfo.hourPrice.amount,
                     currency: escort.servicesInfo.hourPrice.currency,
-                    escortServices: [...(escort.servicesInfo.escortServices || [])],
-                    escortFantasies: [...(escort.servicesInfo.escortFantasies || [])],
-                    massageType: [...(escort.servicesInfo.massageType || [])],
-                    virtualServices: [...(escort.servicesInfo.virtualServices || [])],
+                    escortServices: [...(escort.servicesInfo.escortServices?.map(s => typeof s === 'string' ? s : s.code || s) || [])],
+                    escortFantasies: [...(escort.servicesInfo.escortFantasies?.map(s => typeof s === 'string' ? s : s.code || s) || [])],
+                    massageType: [...(escort.servicesInfo.massageType?.map(s => typeof s === 'string' ? s : s.code || s) || [])],
+                    virtualServices: [...(escort.servicesInfo.virtualServices?.map(s => typeof s === 'string' ? s : s.code || s) || [])],
                     customRate: [...(escort.servicesInfo.customRate || [])],
                     contactMethod: escort.contactMethod.map(c => ({ ...c })),
                     country: escort.location.country,
@@ -1434,7 +1434,15 @@
                     {#if !editMode.services}
                         <div class="flex flex-wrap gap-2 mb-4">
                             {#each [...escort.servicesInfo.escortServices, ...escort.servicesInfo.escortFantasies, ...escort.servicesInfo.massageType, ...escort.servicesInfo.virtualServices] as service}
-                                <span class="badge">{service.replace(/_/g, ' ')}</span>
+                                <span class="badge">
+                                    {#if typeof service === 'string'}
+                                        {service.replace(/_/g, ' ')}
+                                    {:else if service && typeof service === 'object'}
+                                        {service.label || service.name || service.displayName || (service.code && service.code.replace(/_/g, ' ')) || JSON.stringify(service)}
+                                    {:else}
+                                        {String(service)}
+                                    {/if}
+                                </span>
                             {/each}
                         </div>
                         <p class="text-gray-400">

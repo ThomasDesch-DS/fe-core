@@ -498,7 +498,7 @@
              shadow-[0_0_0_1px_rgba(255,255,255,0.15)] hover:bg-white
              focus:outline-none focus:ring-2 focus:ring-white/20 transition"
         >
-          {formData.age.trim() ? `¡Listo, tenés ${formData.age}!` : 'Siguiente'}
+          {String(formData.age).trim() ? `¡Listo, tenés ${formData.age}!` : 'Siguiente'}
         </button>
       </div>
     </form>
