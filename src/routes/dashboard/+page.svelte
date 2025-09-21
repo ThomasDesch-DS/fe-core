@@ -1855,10 +1855,5 @@
             </section>
         {/if}
 
-        {#if saveMessage}
-            <div class="save-message" class:save-success={saveMessage.includes('success')} class:save-error={!saveMessage.includes('success')} transition:fade>
-                {saveMessage}
-            </div>
-        {/if}
-    </div>
+        </div>
 {/if}
