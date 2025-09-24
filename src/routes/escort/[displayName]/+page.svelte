@@ -294,7 +294,7 @@
         ? [
             'Disponible',
             escort.appearance.gender === 'Mujer' ? 'Mujer' : 'Hombre',
-            escort.availability.onlyVirtual ? 'Solo virtual' : 'Presencial'
+            //escort.availability.onlyVirtual ? 'Solo virtual' : 'Presencial'
         ]
         : [];
     $: secondaryTags = escort
@@ -310,6 +310,10 @@
             `PESO ${escort.appearance.weightInKg}kg`
         ]
         : [];
+
+    $: formattedDescription = escort?.description
+        ? escort.description.replace(/\n/g, '\n')
+        : '';
 
     $: if (escort?.displayName) {
         document.title = escort.displayName;
@@ -809,8 +813,8 @@
 
         <!-- SOBRE MÍ -->
         <section class="bg-black py-16 px-8 md:px-16">
-            <h2 class="text-3xl font-semibold mb-4">Sobre mí 🌹</h2>
-            <p class="leading-relaxed">{escort.description}</p>
+            <h2 class="text-3xl font-semibold mb-4">Sobre mí </h2>
+            <p class="leading-relaxed whitespace-pre-line">{formattedDescription}</p>
         </section>
 
         <!-- INFORMACIÓN BÁSICA & APARIENCIA -->

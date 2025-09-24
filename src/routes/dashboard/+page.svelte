@@ -626,7 +626,7 @@
                     }
                     updatedEscort = await updateInfo({
                         displayName: editValues.displayName,
-                        description: editValues.description,
+                        description: editValues.description.replace(/\n/g, '\\n').replace(/\t/g, '\\t'),
                         publicPhoneNumber: editValues.publicPhoneNumber
                     });
                     break;

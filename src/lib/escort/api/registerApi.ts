@@ -171,7 +171,7 @@ export async function submitRegistration(formData: FormData) {
             kyc: [formData.kycIdPhoto, formData.kycIdFront, formData.kycIdBack]
         },
         servicesInfo: {
-            description: formData.description,
+            description: formData.description.replace(/\n/g, '\\n').replace(/\t/g, '\\t'),
             services: {
                 basic: Array.from(formData.selectedServices),
                 extras: [],

@@ -8,6 +8,7 @@
   import {getMediaUrl} from "../util/MediaUtils";
   import { trackEscortSearch, trackEscortSearchResultClick } from '$lib/analytics/analytics';
   import { hiddenProfilesStore } from '$lib/store/hiddenProfilesStore';
+  import EscortGrid from '$lib/components/EscortGrid.svelte';
 
   // ---------- CONFIG ----------
   const CACHE_KEY = 'escortsListCache';
@@ -148,7 +149,7 @@
     const cached = getFromCache({ page, size });
     if (cached) {
       // Filter out hidden profiles from cached results
-      const filteredContent = cached.escorts.filter(escort => 
+      const filteredContent = cached.escorts.filter(escort =>
         !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
       );
       escorts = [...escorts, ...filteredContent];
@@ -164,10 +165,10 @@
       const data: ApiResponse = await res.json();
 
       // Filter out hidden profiles
-      const filteredContent = data.content.filter(escort => 
+      const filteredContent = data.content.filter(escort =>
         !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
       );
-      
+
       escorts = [...escorts, ...filteredContent];
       totalPages = data.totalPages;
       setToCache({ page, size }, {
@@ -197,7 +198,7 @@
     const cached = getFromCache({ search: searchQuery, page: 0, size: 20 });
     if (cached) {
       // Filter out hidden profiles from cached search results
-      const filteredContent = cached.escorts.filter(escort => 
+      const filteredContent = cached.escorts.filter(escort =>
         !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
       );
       escorts = filteredContent;
@@ -213,10 +214,10 @@
       const data: ApiResponse = await res.json();
 
       // Filter out hidden profiles from search results
-      const filteredContent = data.content.filter(escort => 
+      const filteredContent = data.content.filter(escort =>
         !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
       );
-      
+
       escorts = filteredContent;
       searchTotalPages = data.totalPages;
       setToCache({ search: searchQuery, page: 0, size: 20 }, {
@@ -241,7 +242,7 @@
     const cached = getFromCache({ search: searchQuery, page: searchPage, size: 20 });
     if (cached) {
       // Filter out hidden profiles from cached search pagination
-      const filteredContent = cached.escorts.filter(escort => 
+      const filteredContent = cached.escorts.filter(escort =>
         !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
       );
       escorts = [...escorts, ...filteredContent];
@@ -256,10 +257,10 @@
       const data: ApiResponse = await res.json();
 
       // Filter out hidden profiles from search pagination
-      const filteredContent = data.content.filter(escort => 
+      const filteredContent = data.content.filter(escort =>
         !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
       );
-      
+
       escorts = [...escorts, ...filteredContent];
       setToCache({ search: searchQuery, page: searchPage, size: 20 }, {
         escorts: data.content,
@@ -280,16 +281,16 @@
     if (locationLoading || locationPage >= locationTotalPages) return;
     locationLoading = true;
 
-    const cached = getFromCache({ 
-      page: locationPage, 
-      size, 
-      state: selectedState, 
-      city: selectedCity, 
-      hood: selectedHood 
+    const cached = getFromCache({
+      page: locationPage,
+      size,
+      state: selectedState,
+      city: selectedCity,
+      hood: selectedHood
     });
     if (cached) {
       // Filter out hidden profiles from cached location results
-      const filteredContent = cached.escorts.filter(escort => 
+      const filteredContent = cached.escorts.filter(escort =>
         !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
       );
       escorts = [...escorts, ...filteredContent];
@@ -303,24 +304,24 @@
       let url = `${import.meta.env.VITE_API_URL}/escort/location/${encodeURIComponent(selectedState)}?page=${locationPage}&size=${size}`;
       if (selectedCity) url += `&city=${encodeURIComponent(selectedCity)}`;
       if (selectedHood) url += `&hood=${encodeURIComponent(selectedHood)}`;
-      
+
       const res = await fetch(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: ApiResponse = await res.json();
 
       // Filter out hidden profiles from location results
-      const filteredContent = data.content.filter(escort => 
+      const filteredContent = data.content.filter(escort =>
         !hiddenProfilesStore.isHidden(escort.id, escort.slug, escort.displayName)
       );
-      
+
       escorts = [...escorts, ...filteredContent];
       locationTotalPages = data.totalPages;
-      setToCache({ 
-        page: locationPage, 
-        size, 
-        state: selectedState, 
-        city: selectedCity, 
-        hood: selectedHood 
+      setToCache({
+        page: locationPage,
+        size,
+        state: selectedState,
+        city: selectedCity,
+        hood: selectedHood
       }, {
         escorts: data.content,
         page: locationPage,
@@ -337,7 +338,7 @@
 
   async function handleLocationSearch() {
     if (!selectedState) return;
-    
+
     isLocationMode = true;
     isSearchMode = false;
     searchQuery = '';
@@ -352,7 +353,7 @@
     selectedState = state;
     selectedCity = city;
     selectedHood = hood;
-    
+
     if (state) {
       handleLocationSearch();
     } else {
@@ -527,7 +528,7 @@
 
   <!-- Location Selector -->
   <div class="max-w-4xl mx-auto mb-8">
-    <LocationSelector 
+    <LocationSelector
       bind:selectedState
       bind:selectedCity
       bind:selectedHood
@@ -579,37 +580,7 @@
   {/if}
 
 
-  <div class="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-8 place-items-center">
-    {#each escorts as escort (escort.id)}
-      <a
-              href={`/escort/${encodeURIComponent(escort.slug)}`}
-              on:mouseenter={() => prefetchDetail(escort.slug)}
-              on:click={() => trackEscortSearchResultClick({ query: searchQuery.trim(), clickedResult: escort.slug })}
-              class="relative bg-black rounded-lg overflow-hidden shadow-lg flex flex-col items-center hover:opacity-90 transition-opacity max-w-md"
-      >
-        <div class="relative bg-black rounded-lg overflow-hidden shadow-lg flex flex-col items-center">
-          {#if escort.onlyVirtual}
-            <span
-                    class="absolute top-3 left-1/2 transform -translate-x-1/2 inline-block px-2 py-1 text-xs font-semibold bg-white text-black rounded"
-            >
-              Solo virtual
-            </span>
-          {/if}
-
-          <img
-                  src={getMediaUrl(escort.id, escort.media, 'profile')}
-                  alt={`Foto de ${escort.displayName}`}
-                  class="w-full h-[28rem] object-cover transition-transform duration-300 ease-in-out hover:scale-105 active:scale-105"
-          />
-
-          <div class="p-6 text-white text-center">
-            <h2 class="text-xl font-semibold">{escort.displayName}, {escort.age}</h2>
-            <p class="text-sm opacity-80">{escort.location}</p>
-          </div>
-        </div>
-      </a>
-    {/each}
-  </div>
+  <EscortGrid {escorts} {prefetchDetail} {trackEscortSearchResultClick} {searchQuery} />
 
   <!-- Empty state for search -->
   {#if isSearchMode && escorts.length === 0 && !searchLoading}
