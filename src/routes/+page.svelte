@@ -437,11 +437,14 @@
 
 
 <main class="bg-black min-h-screen py-8 px-4">
-  <!-- Squirt Button -->
-  <div class="mb-7">
-    <SquirtButton/>
-  </div>
 
+  <!-- 🚀 Squirt Button (nuevo reemplazo del Laboratorio) -->
+  <div class="flex justify-center mb-7">
+    <SquirtButton
+            class="flex items-center gap-3 px-4 py-2 rounded-full bg-pink-600 hover:bg-pink-700 shadow-lg text-white font-semibold text-sm transition-all duration-200"
+            style="box-shadow: 0 4px 24px 0 rgb(236 72 153 / 30%);"
+    />
+  </div>
 
   <!-- NSFW Chatbot Button -->
   <div class="mb-7">

@@ -3,9 +3,11 @@
     import RedditIcon from '~icons/fa6-brands/reddit-alien';
     import XIcon from '~icons/fa6-brands/x-twitter';
     import TelegramIcon from '~icons/fa6-brands/telegram';
-    import WhatsappIcon from '~icons/fa6-brands/whatsapp'; // 👈 added
-    import FlaskIcon from '~icons/fa6-solid/flask';
+    import WhatsappIcon from '~icons/fa6-brands/whatsapp';
     import { trackFooterContactClick, trackFooterTelegramClick } from "$lib/analytics/analytics";
+    import { onDestroy } from 'svelte';
+    import SquirtButton from "$lib/components/SquirtButton.svelte"; // 👈 nuevo
+
     export let year = new Date().getFullYear();
 
     // --- UX: hover intent + touch toggle for Telegram ---
@@ -32,8 +34,6 @@
     if (typeof window !== 'undefined') {
         window.addEventListener('click', onDocClick);
     }
-    // Clean up on destroy
-    import { onDestroy } from 'svelte';
     onDestroy(() => window.removeEventListener('click', onDocClick));
 </script>
 
@@ -59,12 +59,9 @@
             <a href="/privacy" class="hover:underline transition">
                 Política de privacidad
             </a>
-            <!-- Laboratorio de Fantasías -->
-            <a href="/faceswap"
-               class="flex items-center gap-2 px-3 py-1 rounded-full bg-pink-600 hover:bg-pink-700 text-white font-semibold shadow transition duration-150">
-                <FlaskIcon class="text-lg" aria-hidden="true" />
-                Laboratorio de Fantasías
-            </a>
+
+            <!-- Squirt Button con estilos heredados -->
+            <SquirtButton class="flex items-center gap-2 px-3 py-1 rounded-full bg-pink-600 hover:bg-pink-700 text-white font-semibold shadow transition duration-150" />
         </nav>
 
         <!-- Redes sociales -->
@@ -99,7 +96,6 @@
                  class="relative"
                  on:mouseenter={() => openWithDelay()}
                  on:mouseleave={() => closeWithDelay()}>
-                <!-- Big comfy trigger button -->
                 <button
                         type="button"
                         class="icon-btn !p-2"
@@ -111,7 +107,6 @@
                     <TelegramIcon aria-hidden="true" />
                 </button>
 
-                <!-- Popover -->
                 {#if tgOpen}
                     <div id="telegram-menu"
                          role="menu"
@@ -119,7 +114,6 @@
                                 animate-in fade-in-0 zoom-in-95"
                          on:mouseenter={() => openNow()}
                          on:mouseleave={() => closeWithDelay()}>
-                        <!-- Hover buffer: keeps menu open while moving mouse from icon to menu -->
                         <div class="absolute -bottom-2 left-0 right-0 h-3"></div>
 
                         <a role="menuitem"
@@ -149,7 +143,7 @@
 </footer>
 
 <style>
-    /* Shared icon button: bigger hit area, keyboard focus, subtle hover */
+    /* estilos del icon-btn y menu se mantienen iguales */
     .icon-btn {
         display: inline-flex;
         align-items: center;
