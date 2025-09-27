@@ -1,42 +1,41 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import posthog from 'posthog-js';
+  import { toast } from 'svelte-sonner';
 
-  const FLAG_KEY = 'squirt_button_text_test';
+  const FLAG_KEY = 'squirt_btn';
 
-  interface SquirtButtonPayload {
-    key?: string;
-  }
-
-  let buttonText: string = 'Cargando...';
+  let buttonText = 'Cargando...';
   let variantKey: string | null = null;
-  let showButton = false;
   let isLoading = false;
+  let showButton = false;
   let showInput = false;
   let userInput = '';
   let isSubmitting = false;
 
   onMount(() => {
-    if (!posthog?.onFeatureFlags) return;
+    if (!posthog || !posthog.isFeatureEnabled) {
+      showButton = false;
+      return;
+    }
 
     try {
       posthog.onFeatureFlags(() => {
-        const value = posthog.getFeatureFlag(FLAG_KEY);
-        const payload = posthog.getFeatureFlagPayload(FLAG_KEY) as SquirtButtonPayload | null;
+        variantKey = posthog.getFeatureFlag(FLAG_KEY) as string | null;
+        const payload = posthog.getFeatureFlagPayload(FLAG_KEY) as { key?: string } | null;
 
-        variantKey = typeof value === 'string' ? value : null;
-        buttonText = payload?.key ?? (typeof value === 'string' ? value : 'Entrar');
-        showButton = value !== null && value !== false;
+        buttonText = payload?.key || variantKey || 'Entrar';
+        showButton = !!variantKey;
 
         if (showButton) {
           posthog.capture('squirt_button_viewed', {
-            variant: variantKey ?? 'on',
+            variant: variantKey,
             text: buttonText,
           });
         }
       });
-    } catch (err) {
-      console.warn('PostHog connection failed:', err);
+    } catch (error) {
+      console.warn('PostHog connection failed:', error);
       showButton = false;
     }
   });
@@ -45,7 +44,7 @@
     if (isLoading || !showButton) return;
 
     posthog.capture('squirt_button_clicked', {
-      variant: variantKey ?? 'on',
+      variant: variantKey,
       text: buttonText,
     });
 
@@ -57,17 +56,17 @@
     isSubmitting = true;
 
     try {
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 800));
 
       posthog.capture('squirt_waitlist_submitted', {
-        variant: variantKey ?? 'on',
+        variant: variantKey,
         text: buttonText,
         contact: userInput,
       });
 
       userInput = '';
       showInput = false;
-      alert('✅ ¡Gracias! Te avisamos pronto.');
+      toast('✅ ¡Gracias! Te avisamos pronto');
     } catch (err) {
       console.warn('PostHog tracking failed:', err);
     } finally {
@@ -86,7 +85,12 @@
             style="box-shadow: 0 4px 24px 0 rgb(236 72 153 / 30%);"
     >
       <span class="text-xl">💦</span>
-      <span>{buttonText}</span>
+      {#if isLoading}
+        <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+        <span>Cargando...</span>
+      {:else}
+        <span>{buttonText}</span>
+      {/if}
     </button>
 
     <!-- Input + submit -->
@@ -96,7 +100,7 @@
                 type="text"
                 bind:value={userInput}
                 placeholder="Dejanos tu mail, cel o @telegram"
-                class="px-4 py-2 rounded-md bg-zinc-900/80 text-white placeholder-zinc-400 border border-pink-500/60 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-400 w-full text-sm transition-all"
+                class="px-4 py-2 rounded-md bg-zinc-900/80 text-white placeholder-zinc-400 border border-pink-500/60 focus:outline-none focus:ring-2 focus:ring-pink-500 w-full text-sm"
                 disabled={isSubmitting}
         />
         <button
