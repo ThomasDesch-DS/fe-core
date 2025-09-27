@@ -9,6 +9,7 @@
   import { trackEscortSearch, trackEscortSearchResultClick } from '$lib/analytics/analytics';
   import { hiddenProfilesStore } from '$lib/store/hiddenProfilesStore';
   import EscortGrid from '$lib/components/EscortGrid.svelte';
+  import SquirtButton from "$lib/components/SquirtButton.svelte";
 
   // ---------- CONFIG ----------
   const CACHE_KEY = 'escortsListCache';
@@ -436,21 +437,11 @@
 
 
 <main class="bg-black min-h-screen py-8 px-4">
-
-  <!-- 🚀 Mini-Banner Laboratorio de Fantasías -->
-  <div class="flex justify-center mb-7">
-    <a
-            href="/faceswap"
-            class="flex items-center gap-3 px-4 py-2 rounded-full bg-pink-600 hover:bg-pink-700 shadow-lg text-white font-semibold text-sm transition-all duration-200"
-            style="box-shadow: 0 4px 24px 0 rgb(236 72 153 / 30%);"
-            title="Descubrí Face Swap y otras fantasías interactivas"
-    >
-      <span class="text-lg">🧪</span>
-      Laboratorio de Fantasías
-      <span class="ml-2 font-normal opacity-80 text-xs hidden sm:inline">Face Swap | Intercambio de caras </span>
-    </a>
+  <!-- Squirt Button -->
+  <div class="mb-7">
+    <SquirtButton/>
   </div>
-  <!-- Fin mini-banner -->
+
 
   <!-- NSFW Chatbot Button -->
   <div class="mb-7">
