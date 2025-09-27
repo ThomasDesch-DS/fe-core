@@ -61,7 +61,7 @@
             </a>
 
             <!-- Squirt Button con estilos heredados -->
-            <SquirtButton class="flex items-center gap-2 px-3 py-1 rounded-full bg-pink-600 hover:bg-pink-700 text-white font-semibold shadow transition duration-150" />
+            <SquirtButton extraClass="mt-4" extraStyle="max-width: 300px;" />
         </nav>
 
         <!-- Redes sociales -->

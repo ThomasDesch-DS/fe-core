@@ -3,7 +3,6 @@ import { browser } from '$app/environment';
 import { PUBLIC_POSTHOG_KEY, PUBLIC_POSTHOG_HOST } from '$env/static/public';
 
 export const load = async () => {
-    console.log("loading...")
   if (browser) {
     posthog.init(
       PUBLIC_POSTHOG_KEY,

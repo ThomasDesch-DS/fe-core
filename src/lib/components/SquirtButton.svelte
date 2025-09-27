@@ -2,53 +2,53 @@
   import { onMount } from 'svelte';
   import posthog from 'posthog-js';
 
-  // Tipos
+  const FLAG_KEY = 'squirt_button_text_test';
+
   interface SquirtButtonPayload {
     key?: string;
   }
 
-  // Estado
   let buttonText: string = 'Cargando...';
   let variantKey: string | null = null;
-  let isLoading: boolean = false;
-  let showButton: boolean = false;
-  let userInput: string = '';
-  let showInput: boolean = false;
-  let isSubmitting: boolean = false;
+  let showButton = false;
+  let isLoading = false;
+  let showInput = false;
+  let userInput = '';
+  let isSubmitting = false;
 
   onMount(() => {
-    if (!posthog || !posthog.isFeatureEnabled) {
-      showButton = false;
-      return;
-    }
+    if (!posthog?.onFeatureFlags) return;
 
     try {
       posthog.onFeatureFlags(() => {
-        const v = posthog.getFeatureFlag('squirt_button_text_test');
-        variantKey = typeof v === 'string' ? v : null;
+        const value = posthog.getFeatureFlag(FLAG_KEY);
+        const payload = posthog.getFeatureFlagPayload(FLAG_KEY) as SquirtButtonPayload | null;
 
-        const payload = posthog.getFeatureFlagPayload(
-                'squirt_button_text_test'
-        ) as SquirtButtonPayload | null;
-
-        buttonText = payload?.key || variantKey || 'Entrar';
-        showButton = !!variantKey;
+        variantKey = typeof value === 'string' ? value : null;
+        buttonText = payload?.key ?? (typeof value === 'string' ? value : 'Entrar');
+        showButton = value !== null && value !== false;
 
         if (showButton) {
           posthog.capture('squirt_button_viewed', {
-            variant: variantKey,
+            variant: variantKey ?? 'on',
             text: buttonText,
           });
         }
       });
-    } catch (error) {
-      console.warn('PostHog connection failed:', error);
+    } catch (err) {
+      console.warn('PostHog connection failed:', err);
       showButton = false;
     }
   });
 
   function handleClick() {
     if (isLoading || !showButton) return;
+
+    posthog.capture('squirt_button_clicked', {
+      variant: variantKey ?? 'on',
+      text: buttonText,
+    });
+
     showInput = true;
   }
 
@@ -57,20 +57,19 @@
     isSubmitting = true;
 
     try {
-      // simulo delay para UX (puede ser request real)
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 600));
 
       posthog.capture('squirt_waitlist_submitted', {
-        variant: variantKey,
+        variant: variantKey ?? 'on',
         text: buttonText,
         contact: userInput,
       });
 
       userInput = '';
       showInput = false;
-      alert('✅ Gracias! Te avisamos pronto.');
-    } catch (error) {
-      console.warn('PostHog tracking failed:', error);
+      alert('✅ ¡Gracias! Te avisamos pronto.');
+    } catch (err) {
+      console.warn('PostHog tracking failed:', err);
     } finally {
       isSubmitting = false;
     }
@@ -92,18 +91,18 @@
 
     <!-- Input + submit -->
     {#if showInput}
-      <div class="flex flex-col items-center gap-2">
+      <div class="flex flex-col items-center gap-3 w-full max-w-xs">
         <input
                 type="text"
                 bind:value={userInput}
                 placeholder="Dejanos tu mail, cel o @telegram"
-                class="px-4 py-2 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-pink-500 w-64 text-sm"
+                class="px-4 py-2 rounded-md bg-zinc-900/80 text-white placeholder-zinc-400 border border-pink-500/60 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-400 w-full text-sm transition-all"
                 disabled={isSubmitting}
         />
         <button
                 on:click={submitInfo}
                 disabled={isSubmitting}
-                class="px-4 py-2 rounded-md bg-pink-600 hover:bg-pink-700 text-white text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center w-24"
+                class="px-4 py-2 rounded-md bg-pink-600 hover:bg-pink-700 text-white text-sm font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center w-full"
         >
           {#if isSubmitting}
             <svg
