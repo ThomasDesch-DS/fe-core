@@ -137,6 +137,21 @@
         }
     };
 
+    // Referral code copy state
+    let referralCodeCopied = false;
+
+    async function copyReferralCode() {
+        if (!escort?.referralCode) return;
+        try {
+            await navigator.clipboard.writeText(escort.referralCode);
+            referralCodeCopied = true;
+            toast.success('¡Código copiado!');
+            setTimeout(() => referralCodeCopied = false, 2000);
+        } catch (err) {
+            toast.error('Error al copiar');
+        }
+    }
+
     // Media handling functions
     let newProfilePic = '';
     let newProfilePicPreview = '';
@@ -902,7 +917,7 @@
         </header>
 
         <!-- Stats section -->
-        <section class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="stat-card">
                 <div class="stat-number">{escort.pageViews || 0}</div>
                 <p class="stat-label">Vistas de página</p>
@@ -910,6 +925,51 @@
             <div class="stat-card">
                 <div class="stat-number">{escort.contactClicks || 0}</div>
                 <p class="stat-label">Clics en contacto</p>
+            </div>
+
+            <!-- Tier Card -->
+            <div class="stat-card relative overflow-hidden">
+                <div class="absolute top-2 right-2">
+                    {#if escort.escortTierId === 'FREE'}
+                        <span class="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300">Gratis</span>
+                    {:else if escort.escortTierId === 'PREMIUM'}
+                        <span class="text-xs px-2 py-1 rounded bg-yellow-600 text-white">Premium</span>
+                    {:else}
+                        <span class="text-xs px-2 py-1 rounded bg-purple-600 text-white">{escort.escortTierId}</span>
+                    {/if}
+                </div>
+                <div class="text-3xl mb-2">
+                    {#if escort.escortTierId === 'FREE'}
+                        🆓
+                    {:else if escort.escortTierId === 'PREMIUM'}
+                        ⭐
+                    {:else}
+                        👑
+                    {/if}
+                </div>
+                <p class="stat-label">Tu plan actual</p>
+            </div>
+
+            <!-- Referral Code Card -->
+            <div class="stat-card cursor-pointer hover:scale-105 transition-transform relative overflow-hidden"
+                 on:click={copyReferralCode}
+                 on:keydown={(e) => e.key === 'Enter' && copyReferralCode()}
+                 role="button"
+                 tabindex="0">
+                <div class="absolute inset-0 bg-gradient-to-br from-green-600/10 to-blue-600/10"></div>
+                <div class="relative z-10">
+                    <div class="text-2xl font-mono font-bold text-green-400 mb-1">
+                        {escort.referralCode || 'N/A'}
+                    </div>
+                    <p class="stat-label flex items-center justify-center gap-1">
+                        {#if referralCodeCopied}
+                            <span>✓ Copiado!</span>
+                        {:else}
+                            <span>📋 Código referido</span>
+                        {/if}
+                    </p>
+                    <p class="text-xs text-gray-500 mt-2">Click para copiar</p>
+                </div>
             </div>
         </section>
 

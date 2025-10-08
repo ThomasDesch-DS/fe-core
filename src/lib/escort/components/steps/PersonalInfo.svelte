@@ -209,6 +209,11 @@
 
   function handleDocumentation() {
     if (!formData.documentation.trim()) return;
+    stepStore.set(11.75);
+  }
+
+  function handleReferralCode() {
+    // Referral code is optional, so we can proceed even if empty
     stepStore.set(12);
   }
 
@@ -259,6 +264,9 @@
         break;
       case 11.5:
         trackRegisterStepPersonalInfoDocumentation({ userType: 'Escort' });
+        break;
+      case 11.75:
+        // Referral code step (optional)
         break;
     }
   }
@@ -682,6 +690,51 @@
         >
           Siguiente
         </button>
+      </div>
+    </form>
+  </section>
+{/if}
+
+<!-- Paso 11.75: Código de Referido (Opcional) -->
+{#if $stepStore === 11.75}
+  <section class="mx-auto w-full max-w-3xl px-4 sm:px-6">
+    <header class="mb-6">
+      <h2 class="text-3xl md:text-[34px] font-semibold tracking-tight text-white">
+        ¿Tenés un código de referido?
+      </h2>
+      <p class="mt-2 text-neutral-400">
+        Si alguien te recomendó, ingresá su código acá. Sino, podés saltearlo.
+      </p>
+    </header>
+    <form on:submit|preventDefault={handleReferralCode}>
+      <TextInput
+        bind:value={formData.referredByCode}
+        placeholder="Ej: ABC12345"
+        autofocus
+      />
+      <div class="mt-3 p-3 bg-green-900/20 border border-green-700/30 rounded">
+        <p class="text-sm text-green-300">
+          💡 <strong>Tip:</strong> Si te registrás con un código de referido, ambos obtienen beneficios!
+        </p>
+      </div>
+      <div class="sticky bottom-4 mt-6 space-y-2">
+        <button
+          type="submit"
+          class="w-full rounded-2xl bg-white/95 text-black font-medium py-3.5
+             shadow-[0_0_0_1px_rgba(255,255,255,0.15)] hover:bg-white
+             focus:outline-none focus:ring-2 focus:ring-white/20 transition"
+        >
+          {formData.referredByCode.trim() ? '¡Genial, vamos!' : 'Continuar sin código'}
+        </button>
+        {#if !formData.referredByCode.trim()}
+          <button
+            type="button"
+            on:click={() => stepStore.set(12)}
+            class="w-full text-gray-400 hover:text-white text-sm transition"
+          >
+            Saltear este paso
+          </button>
+        {/if}
       </div>
     </form>
   </section>

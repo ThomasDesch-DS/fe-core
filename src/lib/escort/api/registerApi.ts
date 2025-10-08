@@ -208,12 +208,13 @@ export async function submitRegistration(formData: FormData) {
             value: cm.value, 
             type: cm.type 
         })),
-        location: { 
-            country: formData.country, 
-            state: formData.state, 
-            city: formData.city, 
-            hood: formData.hood 
-        }
+        location: {
+            country: formData.country,
+            state: formData.state,
+            city: formData.city,
+            hood: formData.hood
+        },
+        referredByCode: formData.referredByCode || null
     };
     
     try {

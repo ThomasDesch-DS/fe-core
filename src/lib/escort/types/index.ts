@@ -98,4 +98,7 @@ export interface FormData {
     kycIdPhoto: string;
     kycIdFront: string;
     kycIdBack: string;
+
+    // Referral
+    referredByCode: string;
 }

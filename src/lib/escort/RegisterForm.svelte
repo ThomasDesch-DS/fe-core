@@ -95,7 +95,10 @@
         mediaId: 0,
         kycIdPhoto: '',
         kycIdFront: '',
-        kycIdBack: ''
+        kycIdBack: '',
+
+        // Referral
+        referredByCode: ''
     };
     
     // For tracking current step
