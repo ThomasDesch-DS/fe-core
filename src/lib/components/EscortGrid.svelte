@@ -18,7 +18,7 @@
   // Extend Escort to use the union type
   interface Escort extends EscortType {
     onlyVirtual?: boolean;
-    tierId?: Tier;
+    escortTierId?: Tier;
   }
 
   export let escorts: ReadonlyArray<Escort> = [];
@@ -37,7 +37,7 @@
     return { destroy: () => io.disconnect() };
   }
 
-  const getTier = (e: Escort): Tier => e.tierId ?? TIER.FREE;
+  const getTier = (e: Escort): Tier => e.escortTierId ?? TIER.FREE;
 </script>
 
 <div class="mx-auto max-w-7xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 items-stretch justify-items-stretch">
