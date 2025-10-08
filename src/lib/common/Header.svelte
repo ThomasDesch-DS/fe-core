@@ -97,10 +97,10 @@
 </script>
 
 <header class="sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-neutral-950/60 bg-neutral-950/90 border-b border-neutral-800">
-	<div class="px-3 sm:px-4 lg:px-6 h-14 flex items-center gap-3">
+	<div class="px-3 sm:px-4 lg:px-6 h-16 flex items-center gap-2 sm:gap-4">
 		<!-- Mobile menu button -->
 		<button
-				class="mobile-menu-button md:hidden p-2 rounded-lg hover:bg-neutral-900"
+				class="mobile-menu-button md:hidden p-2 rounded-lg hover:bg-neutral-900 shrink-0"
 				aria-label="Abrir menú"
 				on:click={toggleMobileMenu}
 		>
@@ -110,30 +110,42 @@
 		</button>
 
 		<!-- Brand logo / Home link -->
-		<a href="/" class="flex items-center gap-2 text-white font-semibold text-lg hover:opacity-80 transition-opacity">
-			Daisy’s Secrets
+		<a href="/" class="flex items-center gap-2 text-white font-semibold text-base sm:text-lg hover:opacity-80 transition-opacity shrink-0 whitespace-nowrap">
+			Daisy's Secrets
 		</a>
 
 		<!-- Right side -->
-		<div class="ml-auto flex items-center gap-2">
+		<div class="ml-auto flex items-center gap-2 sm:gap-3">
 			{#if !isEscort}
 				<button
-						class="h-9 px-3 shrink rounded border border-neutral-700 bg-neutral-100 text-neutral-900 hover:bg-neutral-200 font-medium max-w-[140px] truncate"
+						class="h-9 px-2.5 sm:px-3 lg:px-4 shrink-0 rounded border border-neutral-700 bg-neutral-100 text-neutral-900 hover:bg-neutral-200 font-medium text-xs sm:text-sm whitespace-nowrap"
 						on:click={goRegister}
 				>
-					<span class="hidden sm:inline">Registrate como Modelo</span>
+					<span class="hidden lg:inline">Registrate como Modelo</span>
+					<span class="hidden sm:inline lg:hidden">Ser Modelo</span>
 					<span class="sm:hidden">Registrate</span>
 				</button>
 			{/if}
 
 			{#if isEscort || isUser}
-				<button class="h-9 px-3 shrink rounded border border-neutral-800 text-neutral-100 hover:bg-neutral-900" on:click={goPayments} aria-label="Comprar tokens" title="Ir a Comprar tokens">
-					Tokens: {tokenText}
+				<button class="h-9 px-2.5 sm:px-3 shrink-0 rounded border border-neutral-800 text-neutral-100 hover:bg-neutral-900 text-xs sm:text-sm font-medium whitespace-nowrap" on:click={goPayments} aria-label="Comprar tokens" title="Ir a Comprar tokens">
+					<span class="hidden sm:inline">Tokens: </span>{tokenText}
 				</button>
 
-				<span class="hidden md:block text-sm text-neutral-400 max-w-[10rem] truncate" title={displayName} aria-label={`Usuario ${displayName}`}>
+				<span class="hidden lg:block text-sm text-neutral-400 max-w-[8rem] xl:max-w-[10rem] truncate" title={displayName} aria-label={`Usuario ${displayName}`}>
 					@{displayName}
 				</span>
+			{/if}
+
+			<!-- Mobile avatar button (only when logged in) -->
+			{#if (isEscort || isUser)}
+				<button
+						class="md:hidden avatar-button h-9 w-9 shrink-0 rounded-full overflow-hidden border border-neutral-800 hover:ring-2 hover:ring-neutral-700 focus:outline-none focus:ring-2 focus:ring-neutral-600"
+						aria-label="Abrir menú de usuario"
+						on:click={toggleMobileMenu}
+				>
+					<img alt="Avatar" src={avatar(avatarSeed)} />
+				</button>
 			{/if}
 
 			<!-- Avatar + dropdown (desktop) -->
@@ -179,33 +191,51 @@
 	<!-- Mobile Menu -->
 	{#if mobileMenuOpen}
 		<div class="mobile-menu md:hidden bg-neutral-950/95 border-t border-neutral-800 backdrop-blur px-4 py-4 space-y-3">
+			{#if isEscort || isUser}
+				<div class="flex items-center gap-3 pb-3 mb-3 border-b border-neutral-800/60">
+					<img alt="Avatar" src={avatar(avatarSeed)} class="h-10 w-10 rounded-full border border-neutral-700" />
+					<div class="flex-1 min-w-0">
+						<div class="text-sm font-medium text-neutral-200 truncate">@{displayName}</div>
+						<div class="text-xs text-neutral-500">{isEscort ? 'Modelo' : 'Usuario'}</div>
+					</div>
+				</div>
+			{/if}
+
 			<nav class="space-y-1">
 				<button class="menu-item" on:click={() => go('/')}>Escorts</button>
 				<button class="menu-item" on:click={() => go('/motels')}>Telos</button>
 				<button class="menu-item" on:click={() => go('/faceswap')}>Face Swap</button>
-				<button class="menu-item" on:click={() => go('/users/profile')}>Mi Perfil</button>
+				{#if isUser}
+					<button class="menu-item" on:click={() => go('/users/profile')}>Mi Perfil</button>
+				{/if}
 			</nav>
 
 			<div class="space-y-2 pt-3 mt-3 border-t border-neutral-800/60">
 				{#if !$escortAuthStore.isAuthenticated && !$dSuserAuthStore.isAuthenticated}
-					<button class="w-full h-10 rounded border border-neutral-700 bg-neutral-100 text-neutral-900 hover:bg-neutral-200 font-medium"
+					<button class="w-full h-10 rounded border border-neutral-700 bg-neutral-100 text-neutral-900 hover:bg-neutral-200 font-medium text-sm"
 							on:click={() => { mobileMenuOpen = false; go('/dashboard/register'); }}>
 						Registrate como Modelo
 					</button>
-					<button class="w-full h-10 rounded border border-neutral-800 text-neutral-300 hover:bg-neutral-900 font-medium login-trigger"
+					<button class="w-full h-10 rounded border border-neutral-800 text-neutral-300 hover:bg-neutral-900 font-medium text-sm login-trigger"
 							on:click={() => { mobileMenuOpen = false; openLoginChooser(); }}>
 						Iniciar sesión
 					</button>
 				{:else if $escortAuthStore.isAuthenticated}
-					<button class="w-full h-10 rounded border border-neutral-800 text-neutral-300 hover:bg-neutral-900 font-medium" on:click={() => { mobileMenuOpen = false; go('/dashboard'); }}>
+					<button class="w-full h-10 rounded border border-neutral-800 text-neutral-300 hover:bg-neutral-900 font-medium text-sm" on:click={() => { mobileMenuOpen = false; go('/dashboard'); }}>
 						Dashboard
 					</button>
-					<button class="w-full h-10 rounded border border-neutral-800 text-neutral-300 hover:bg-neutral-900 font-medium" on:click={() => { mobileMenuOpen = false; go('/dashboard/blacklist'); }}>
+					<button class="w-full h-10 rounded border border-neutral-800 text-neutral-300 hover:bg-neutral-900 font-medium text-sm" on:click={() => { mobileMenuOpen = false; go('/dashboard/blacklist'); }}>
 						Blacklist
 					</button>
+					<button class="w-full h-10 rounded border border-red-900/50 text-red-300 hover:bg-red-950/30 font-medium text-sm" on:click={() => { mobileMenuOpen = false; (escortAuthStore as any).logout(); go('/'); }}>
+						Cerrar sesión
+					</button>
 				{:else}
-					<button class="w-full h-10 rounded border border-neutral-800 text-neutral-300 hover:bg-neutral-900 font-medium" on:click={() => { mobileMenuOpen = false; go('/users/profile'); }}>
+					<button class="w-full h-10 rounded border border-neutral-800 text-neutral-300 hover:bg-neutral-900 font-medium text-sm" on:click={() => { mobileMenuOpen = false; go('/users/profile'); }}>
 						Mi Perfil
+					</button>
+					<button class="w-full h-10 rounded border border-red-900/50 text-red-300 hover:bg-red-950/30 font-medium text-sm" on:click={() => { mobileMenuOpen = false; (dSuserAuthStore as any).logout(); go('/'); }}>
+						Cerrar sesión
 					</button>
 				{/if}
 			</div>
