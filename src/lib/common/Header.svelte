@@ -1,4 +1,3 @@
-<!-- src/lib/common/Header.svelte -->
 <script lang="ts">
 	import posthog from 'posthog-js';
 	import { onMount, onDestroy } from 'svelte';
@@ -17,18 +16,17 @@
 	const paths = { menu: 'M4 7h16M4 12h16M4 17h16' };
 
 	const leftNav = [
-		{ id: 'escorts',   label: 'Escorts',     icon: 'users',    href: '/' },
-		{ id: 'telos',     label: 'Telos',       icon: 'building', href: '/motels' },
-		{ id: 'faceswap',  label: 'Face Swap',   icon: 'sparkles', href: '/faceswap' },
-		{ id: 'bdsm',      label: 'Test BDSM',   icon: 'kink',     href: '/bdsm-test', badge: 'Nuevo' },
-		{ id: 'perfil',    label: 'Mi Perfil',   icon: 'user',     href: '/users/profile' }
+		{ id: 'escorts', label: 'Escorts', icon: 'users', href: '/' },
+		{ id: 'telos', label: 'Telos', icon: 'building', href: '/motels' },
+		{ id: 'faceswap', label: 'Face Swap', icon: 'sparkles', href: '/faceswap' },
+		{ id: 'perfil', label: 'Mi Perfil', icon: 'user', href: '/users/profile' }
 	];
+
 	const navPaths: Record<string, string> = {
 		users: 'M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8 2a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21c0-3.314 2.686-6 6-6s6 2.686 6 6H2Zm8 0c0-3.314 2.686-6 6-6s6 2.686 6 6H10Z',
 		building: 'M4 3h16v18H4V3Zm4 3h4v4H8V6Zm0 6h4v4H8v-4Zm6-6h4v4h-4V6Zm0 6h4v4h-4v-4Z',
 		sparkles: 'M5 3l2 4 4 2-4 2-2 4-2-4-4-2 4-2 2-4Zm10 2l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2Zm2 8l1.5 3 3 1.5-3 1.5L17 21l-1.5-3-3-1.5 3-1.5 1.5-3Z',
-		user: 'M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10ZM4 21a8 8 0 1 1 16 0H4Z',
-		kink: 'M7 11a4 4 0 1 1 2.83-6.83l1.41 1.41L10.66 6A2 2 0 0 0 7 9a2 2 0 0 0 2 2h1v2H9a4 4 0 0 1-2-7.5A4 4 0 0 1 7 11Zm10-8a4 4 0 0 1 2 7.5 4 4 0 0 1-6.24.59l-1.41-1.41L12.34 9A2 2 0 0 0 17 9a2 2 0 0 0-2-2h-1V5h1a4 4 0 0 1 2-2Z'
+		user: 'M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10ZM4 21a8 8 0 1 1 16 0H4Z'
 	};
 
 	function toggleMobileMenu() { mobileMenuOpen = !mobileMenuOpen; }
@@ -75,7 +73,6 @@
 	function goBlacklist() { goto('/dashboard/blacklist'); }
 	function goProfile() { goto('/users/profile'); }
 	function go(href: string) { mobileMenuOpen = false; goto(href); }
-	function goBDSM() { posthog.capture('bdsm_test_click', { from: 'header' }); goto('/bdsm-test'); }
 
 	// Stores -> reactive values
 	$: isEscort = $escortAuthStore?.isAuthenticated;
@@ -111,43 +108,36 @@
 				<path d={paths.menu} stroke-width="1.5" stroke-linecap="round" />
 			</svg>
 		</button>
+
 		<!-- Brand logo / Home link -->
 		<a href="/" class="flex items-center gap-2 text-white font-semibold text-lg hover:opacity-80 transition-opacity">
 			Daisy’s Secrets
 		</a>
 
-
 		<!-- Right side -->
 		<div class="ml-auto flex items-center gap-2">
-			<!-- Register CTA (only when not escort) -->
 			{#if !isEscort}
-				<button class="h-9 px-3 rounded border border-neutral-700 bg-neutral-100 text-neutral-900 hover:bg-neutral-200 font-medium" on:click={goRegister}>
-					Registrate como Modelo
+				<button
+						class="h-9 px-3 shrink rounded border border-neutral-700 bg-neutral-100 text-neutral-900 hover:bg-neutral-200 font-medium max-w-[140px] truncate"
+						on:click={goRegister}
+				>
+					<span class="hidden sm:inline">Registrate como Modelo</span>
+					<span class="sm:hidden">Registrate</span>
 				</button>
 			{/if}
 
-			<!-- Quick BDSM CTA -->
-			<button
-					class="h-9 px-3 rounded border border-neutral-800 text-neutral-100 hover:bg-neutral-900 font-medium"
-					on:click={goBDSM}
-					aria-label="Hacer el Test BDSM"
-					title="Test BDSM (Nuevo)"
-			>
-				Test BDSM
-			</button>
-
 			{#if isEscort || isUser}
-				<button class="h-9 px-3 rounded border border-neutral-800 text-neutral-100 hover:bg-neutral-900" on:click={goPayments} aria-label="Comprar tokens" title="Ir a Comprar tokens">
+				<button class="h-9 px-3 shrink rounded border border-neutral-800 text-neutral-100 hover:bg-neutral-900" on:click={goPayments} aria-label="Comprar tokens" title="Ir a Comprar tokens">
 					Tokens: {tokenText}
 				</button>
 
 				<span class="hidden md:block text-sm text-neutral-400 max-w-[10rem] truncate" title={displayName} aria-label={`Usuario ${displayName}`}>
-          @{displayName}
-        </span>
+					@{displayName}
+				</span>
 			{/if}
 
 			<!-- Avatar + dropdown (desktop) -->
-			<div class="hidden md:flex items-center relative">
+			<div class="hidden md:flex items-center relative shrink-0">
 				<button
 						class="avatar-button h-9 w-9 rounded-full overflow-hidden border border-neutral-800 hover:ring-2 hover:ring-neutral-700 focus:outline-none focus:ring-2 focus:ring-neutral-600"
 						aria-label="Abrir menú de usuario" aria-haspopup="menu" aria-expanded={avatarMenuOpen}
@@ -164,11 +154,6 @@
 								<div class="text-xs text-neutral-500">{isEscort ? 'Modelo' : 'Usuario'}</div>
 							</div>
 						{/if}
-
-						<!-- BDSM quick link -->
-						<button role="menuitem" class="menu-item" on:click={() => { avatarMenuOpen = false; goBDSM(); }}>
-							Test BDSM <span class="ml-2 text-[10px] px-1 py-0.5 rounded bg-neutral-900 border border-neutral-800">Nuevo</span>
-						</button>
 
 						{#if isEscort}
 							<button role="menuitem" class="menu-item" on:click={() => { avatarMenuOpen = false; goDashboard(); }}>Dashboard</button>
@@ -198,10 +183,6 @@
 				<button class="menu-item" on:click={() => go('/')}>Escorts</button>
 				<button class="menu-item" on:click={() => go('/motels')}>Telos</button>
 				<button class="menu-item" on:click={() => go('/faceswap')}>Face Swap</button>
-				<!-- NEW: BDSM on mobile -->
-				<button class="menu-item" on:click={() => { posthog.capture('bdsm_test_click', { from: 'mobile_menu' }); go('/bdsm-test'); }}>
-					Test BDSM <span class="ml-2 text-[10px] px-1 py-0.5 rounded bg-neutral-900 border border-neutral-800">Nuevo</span>
-				</button>
 				<button class="menu-item" on:click={() => go('/users/profile')}>Mi Perfil</button>
 			</nav>
 
@@ -232,41 +213,20 @@
 	{/if}
 </header>
 
-<!-- Role chooser modal -->
+<!-- Login Chooser Modal -->
 {#if loginChooserOpen}
-	<div class="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
-		<div class="absolute inset-0 bg-black/60" aria-hidden="true"></div>
-
-		<div
-				class="login-chooser relative w-full sm:w-[28rem] sm:rounded-2xl bg-neutral-950 border border-neutral-800 shadow-2xl p-4 sm:p-5"
-				role="dialog"
-				aria-modal="true"
-				aria-label="Elegí tu tipo de cuenta"
-		>
-			<div class="flex items-start justify-between gap-4">
-				<div>
-					<h2 class="text-neutral-100 text-base sm:text-lg font-semibold">¿Cómo querés iniciar sesión?</h2>
-					<p class="text-neutral-400 text-sm mt-1">Elegí tu rol para entrar más rápido.</p>
-				</div>
-				<button class="p-2 rounded-lg hover:bg-neutral-900" aria-label="Cerrar" on:click={() => (loginChooserOpen = false)}>
-					<svg viewBox="0 0 24 24" class="size-5 stroke-neutral-300" fill="none" aria-hidden="true">
-						<path d="M6 18L18 6M6 6l12 12" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-					</svg>
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+		<div role="dialog" aria-modal="true" aria-labelledby="login-chooser-title" class="login-chooser bg-neutral-950 border border-neutral-800 rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
+			<h2 id="login-chooser-title" class="text-xl font-semibold text-white mb-4">Selecciona tu tipo de cuenta</h2>
+			<div class="space-y-3">
+				<button class="w-full h-12 rounded-lg bg-neutral-100 text-neutral-900 hover:bg-neutral-200 font-medium transition-colors" on:click={loginAsUser}>
+					Iniciar sesión como Usuario
 				</button>
-			</div>
-
-			<div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-				<button
-						class="h-11 rounded-lg border border-neutral-700 bg-neutral-100 text-neutral-900 hover:bg-neutral-200 font-medium"
-						on:click={loginAsEscort}
-				>
-					Soy Modelo (Escort)
+				<button class="w-full h-12 rounded-lg border border-neutral-700 text-neutral-100 hover:bg-neutral-900 font-medium transition-colors" on:click={loginAsEscort}>
+					Iniciar sesión como Modelo
 				</button>
-				<button
-						class="h-11 rounded-lg border border-neutral-800 text-neutral-100 hover:bg-neutral-900 font-medium"
-						on:click={loginAsUser}
-				>
-					Soy Usuario
+				<button class="w-full h-10 rounded-lg text-neutral-400 hover:text-neutral-200 text-sm" on:click={() => loginChooserOpen = false}>
+					Cancelar
 				</button>
 			</div>
 		</div>
@@ -280,4 +240,11 @@
 	.size-8{ width:2rem; height:2rem }
 	.menu-item{ @apply w-full text-left px-3 py-2 rounded-lg text-sm text-neutral-200 hover:bg-neutral-900; }
 	.menu-item.danger{ @apply text-neutral-300; }
+
+	/* Allow buttons to shrink on mobile */
+	button { min-width: 0; flex-shrink: 1; }
+
+	/* Prevent scrollbars */
+	.scrollbar-none::-webkit-scrollbar { display: none; }
+	.scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
 </style>

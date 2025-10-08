@@ -1,4 +1,3 @@
-<!-- src/routes/+layout.svelte -->
 <script lang="ts">
   import '../app.css';
   import Header from "$lib/common/Header.svelte";
@@ -25,9 +24,7 @@
     users: 'M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8 2a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21c0-3.314 2.686-6 6-6s6 2.686 6 6H2Zm8 0c0-3.314 2.686-6 6-6s6 2.686 6 6H10Z',
     building: 'M4 3h16v18H4V3Zm4 3h4v4H8V6Zm0 6h4v4H8v-4Zm6-6h4v4h-4V6Zm0 6h4v4h-4v-4Z',
     sparkles: 'M5 3l2 4 4 2-4 2-2 4-2-4-4-2 4-2 2-4Zm10 2l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2Zm2 8l1.5 3 3 1.5-3 1.5L17 21l-1.5-3-3-1.5 3-1.5 1.5-3Z',
-    user: 'M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10ZM4 21a8 8 0 1 1 16 0H4Z',
-    // NEW: simple “kink” glyph (handcuff/loop vibe)
-    kink: 'M7 11a4 4 0 1 1 2.83-6.83l1.41 1.41L10.66 6A2 2 0 0 0 7 9a2 2 0 0 0 2 2h1v2H9a4 4 0 0 1-2-7.5A4 4 0 0 1 7 11Zm10-8a4 4 0 0 1 2 7.5 4 4 0 0 1-6.24.59l-1.41-1.41L12.34 9A2 2 0 0 0 17 9a2 2 0 0 0-2-2h-1V5h1a4 4 0 0 1 2-2Z'
+    user: 'M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10ZM4 21a8 8 0 1 1 16 0H4Z'
   };
 
   if (browser) {
