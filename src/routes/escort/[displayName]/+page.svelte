@@ -123,10 +123,10 @@
 
     // ---- MEDIA TABS ----
     let activeMediaTab: 'all' | 'fotos' | 'videos' = 'all';
-    const mediaTabs = [
+    $: mediaTabs = [
         { key: 'all', label: 'Todo' },
         { key: 'fotos', label: 'Fotos' },
-        { key: 'videos', label: 'Videos' },
+        ...(sortedVideos.length > 0 ? [{ key: 'videos', label: 'Videos' }] : []),
     ];
 
     // ---- GALERÍA + SWIPE + SHARE ----
@@ -465,6 +465,16 @@
             transform: scale(1.05);
         }
     }
+
+    /* Hide scrollbars but keep scrolling functionality */
+    nav.overflow-x-auto {
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE and Edge */
+    }
+
+    nav.overflow-x-auto::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
+    }
 </style>
 
 <main class="font-sans">
@@ -582,7 +592,7 @@
         {/if}
 
         <!-- Sticky CTA -->
-        <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md p-4 flex justify-between items-center md:hidden">
+        <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md p-4 flex justify-between items-center md:hidden z-50">
             <p class="text-sm text-gray-300">
                 Precio por hora: {escort.servicesInfo.hourPrice.currency}
                 {escort.servicesInfo.hourPrice.amount.toLocaleString('es-AR')}
@@ -605,8 +615,8 @@
         <!-- GALLERY con tabs -->
         <section class="bg-black py-16 px-8 md:px-16">
             <h2 class="text-4xl font-semibold mb-8">Galería</h2>
-            <nav class="border-b border-gray-700 mb-8">
-                <ul class="flex gap-6">
+            <nav class="border-b border-gray-700 mb-8 overflow-x-auto">
+                <ul class="flex gap-6 min-w-max">
                     {#each mediaTabs as { key, label }}
                         <li>
                             <button
