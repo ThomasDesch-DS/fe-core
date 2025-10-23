@@ -396,6 +396,15 @@
   function handleSearchFocus() { isSearchFocused = true; }
   function handleSearchBlur() { isSearchFocused = false; }
 
+  // ---------- SURPRISE ME ----------
+  let surpriseLoading = false;
+
+  function handleSurpriseMe() {
+    surpriseLoading = true;
+    // Let the browser handle the redirect naturally
+    window.location.href = `${import.meta.env.VITE_API_URL}/escort/surprise-me`;
+  }
+
   // ---------- INFINITE SCROLL ----------
   onMount(() => {
     loadEscorts();
@@ -441,6 +450,33 @@
   <!-- 🚀 Squirt Button (nuevo reemplazo del Laboratorio) -->
   <div class="flex justify-center mb-7">
     <SquirtButton extraClass="mt-4" extraStyle="max-width: 300px;" />
+  </div>
+
+  <!-- Surprise Me Button -->
+  <div class="flex justify-center mb-7">
+    <button
+      on:click={handleSurpriseMe}
+      disabled={surpriseLoading}
+      class="group relative w-full max-w-sm px-6 py-3.5 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 text-white font-semibold rounded-lg overflow-hidden transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100 shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50"
+    >
+      <div class="absolute inset-0 bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
+      <div class="relative flex items-center justify-center space-x-2">
+        {#if surpriseLoading}
+          <svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          <span class="text-sm md:text-base">Un momento...</span>
+        {:else}
+          <svg class="w-5 h-5 transition-transform duration-300 group-hover:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span class="text-sm md:text-base">Sorpréndeme</span>
+          <svg class="w-5 h-5 transition-transform duration-300 group-hover:rotate-[360deg]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+          </svg>
+        {/if}
+      </div>
+    </button>
   </div>
 
   <!-- NSFW Chatbot Button -->
