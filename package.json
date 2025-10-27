@@ -28,7 +28,7 @@
     "vite": "^6.3.5"
   },
   "dependencies": {
-    "@fingerprintjs/fingerprintjs": "^4.6.2",
+    "@fingerprintjs/fingerprintjs": "^5.0.1",
     "@mercadopago/sdk-js": "^0.0.3",
     "@sentry/sveltekit": "^10",
     "@sveltejs/kit": "^2.22.2",
